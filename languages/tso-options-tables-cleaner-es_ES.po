@@ -1,0 +1,1117 @@
+# TSO Options & Tables Cleaner - Spanish
+# Copyright (C) 2025 Tu Soporte Online
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: TSO Options & Tables Cleaner 1.0.0\n"
+"POT-Creation-Date: 2026-05-09 22:37+0000\n"
+"PO-Revision-Date: 2026-05-09 22:37+0000\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Plugin header — Description (Plugins screen)
+msgid "Cleans wp_options, orphan metadata, revisions, and leftover plugin tables. Backup and table optimizer. UI: CA / ES / EN."
+msgstr "Limpia wp_options, metadatos huérfanos, revisiones y tablas sobrantes de plugins. Copia de seguridad y optimizador de tablas. Interfaz: CA / ES / EN."
+
+#. Translation key: tab_cleanup
+msgid "🧹 General cleanup"
+msgstr "🧹 Limpieza general"
+
+#. Translation key: tab_options
+msgid "⚙️ wp_options"
+msgstr "⚙️ wp_options"
+
+#. Translation key: tab_tables
+msgid "📦 Extra tables"
+msgstr "📦 Tablas extra"
+
+#. Translation key: page_title
+msgid "🧹 TSO Options & Tables Cleaner"
+msgstr "🧹 TSO Options & Tables Cleaner"
+
+#. Translation key: stat_autoload
+msgid "Total autoload"
+msgstr "Autoload total"
+
+#. Translation key: stat_transients_expired
+msgid "Expired transients"
+msgstr "Transients expirados"
+
+#. Translation key: stat_transients_total
+msgid "Total transients"
+msgstr "Transients totales"
+
+#. Translation key: stat_revisions
+msgid "Revisions"
+msgstr "Revisiones"
+
+#. Translation key: stat_trash
+msgid "Trash posts"
+msgstr "Posts papelera"
+
+#. Translation key: stat_spam
+msgid "Spam"
+msgstr "Spam"
+
+#. Translation key: stat_orphan_meta
+msgid "Orphan metadata"
+msgstr "Metadatos huérfanos"
+
+#. Translation key: action_optimize
+msgid "Optimize fragmented tables"
+msgstr "Optimizar tablas fragmentadas"
+
+#. Translation key: action_optimize_desc
+msgid "Defragments and rebuilds all fragmented database tables (WordPress core and plugin tables). Improves SQL query performance."
+msgstr "Desfragmenta y reconstruye todas las tablas fragmentadas de la base de datos (core de WordPress y tablas de plugins). Mejora el rendimiento de las consultas SQL."
+
+#. Translation key: action_optimize_btn
+msgid "🔧 Optimize fragmented tables"
+msgstr "🔧 Optimizar tablas fragmentadas"
+
+#. Translation key: action_optimize_tag
+msgid "ℹ️ Maintenance"
+msgstr "ℹ️ Mantenimiento"
+
+#. Translation key: action_optimize_confirm
+msgid "Run OPTIMIZE TABLE on core and fragmented tables? This can lock tables briefly."
+msgstr "¿Ejecutar OPTIMIZE TABLE en las tablas core y fragmentadas? Puede bloquear las tablas unos instantes."
+
+#. Translation key: schedule_optimize_hint_kb
+msgid "%s KB fragmented (InnoDB hint)"
+msgstr "%s KB fragmentados (pista InnoDB DATA_FREE)"
+
+#. Translation key: schedule_optimize_hint_none
+msgid "Maintenance — optimizes core and fragmented tables"
+msgstr "Mantenimiento — optimiza tablas core y fragmentadas"
+
+#. Translation key: filter_search_ph
+msgid "🔍 Search option..."
+msgstr "🔍 Buscar opción..."
+
+#. Translation key: filter_btn
+msgid "Filter"
+msgstr "Filtrar"
+
+#. Translation key: filter_clear
+msgid "✕ Clear"
+msgstr "✕ Limpiar"
+
+#. Translation key: filter_all_groups
+msgid "All groups"
+msgstr "Todos los grupos"
+
+#. Translation key: filter_autoload_all
+msgid "Autoload: all"
+msgstr "Autoload: todos"
+
+#. Translation key: filter_safety_all
+msgid "Safety: all"
+msgstr "Seguridad: todos"
+
+#. Translation key: opt_inactive
+msgid "✅ Inactive plugin (cleanable)"
+msgstr "✅ Plugin inactivo (limpiable)"
+
+#. Translation key: opt_active
+msgid "⚠️ Active plugin"
+msgstr "⚠️ Plugin activo"
+
+#. Translation key: opt_unknown
+msgid "❓ Unknown"
+msgstr "❓ Desconocido"
+
+#. Translation key: opt_core
+msgid "🔒 WP Core"
+msgstr "🔒 Core WP"
+
+#. Translation key: opt_sort_alpha
+msgid "A → Z"
+msgstr "A → Z"
+
+#. Translation key: opt_sort_size
+msgid "Size ↓"
+msgstr "Tamaño ↓"
+
+#. Translation key: col_name
+msgid "Option name"
+msgstr "Nombre de la opción"
+
+#. Translation key: col_size_label
+msgid "Size"
+msgstr "Tamaño"
+
+#. Translation key: col_autoload_label
+msgid "Autoload"
+msgstr "Autoload"
+
+#. Translation key: col_actions
+msgid "Actions"
+msgstr "Acciones"
+
+#. Translation key: btn_search
+msgid "🔍 Search"
+msgstr "🔍 Buscar"
+
+#. Translation key: btn_assign
+msgid "Assign"
+msgstr "Asignar"
+
+#. Translation key: btn_reassign
+msgid "✏️ Reassign"
+msgstr "✏️ Reasignar"
+
+#. Translation key: btn_autoload_off
+msgid "🔇 Autoload off"
+msgstr "🔇 Autoload off"
+
+#. Translation key: btn_autoload_off_tip
+msgid "Disable autoload: this option will not be loaded automatically on every page, freeing memory."
+msgstr "Desactivar el autoload: esta opción no se cargará automáticamente en cada página, liberando memoria."
+
+#. Translation key: badge_manual
+msgid "manual"
+msgstr "manual"
+
+#. Translation key: badge_core
+msgid "🔒 WP Core"
+msgstr "🔒 Core WP"
+
+#. Translation key: select_all_title
+msgid "Select all"
+msgstr "Seleccionar todos"
+
+#. Translation key: lbl_autoload_kb
+msgid "Autoload: "
+msgstr "Autoload: "
+
+#. Translation key: lbl_total_options
+msgid "Total options: "
+msgstr "Total opciones: "
+
+#. Translation key: lbl_entries
+msgid " options · "
+msgstr " opciones · "
+
+#. Translation key: lbl_showing
+msgid "Showing "
+msgstr "Mostrando "
+
+#. Translation key: lbl_showing_mid
+msgid " options. 🔒 WP Core = not deletable · ⚠️ Inactive = safe to delete · ✅ Active = plugin will regenerate it"
+msgstr " opciones. 🔒 Core WP = no eliminable · ⚠️ Inactivo = seguro de eliminar · ✅ Activo = el plugin lo regenerará"
+
+#. Translation key: lbl_selected_zero
+msgid "0 selected"
+msgstr "0 seleccionadas"
+
+#. Translation key: tables_title
+msgid "📊 Extra tables summary"
+msgstr "📊 Resumen de tablas extra"
+
+#. Translation key: tables_list
+msgid "📋 Extra tables list"
+msgstr "📋 Listado de tablas extra"
+
+#. Translation key: stat_tables_extra
+msgid "Extra tables"
+msgstr "Tablas extra"
+
+#. Translation key: stat_tables_size
+msgid "Total extra size"
+msgstr "Tamaño total extra"
+
+#. Translation key: col_table
+msgid "Table"
+msgstr "Tabla"
+
+#. Translation key: col_detected
+msgid "Detected plugin"
+msgstr "Plugin detectado"
+
+#. Translation key: col_status
+msgid "Status"
+msgstr "Estado"
+
+#. Translation key: col_mida_table
+msgid "Size"
+msgstr "Tamaño"
+
+#. Translation key: col_action_table
+msgid "Action"
+msgstr "Acción"
+
+#. Translation key: tables_desc
+msgid "Tables that do not belong to WordPress core. Leftovers from plugins you have fully removed may be deletable when Status and Usage estimate indicate it. If the plugin folder still exists under wp-content/plugins and the plugin is only deactivated, dropping its tables here is not allowed."
+msgstr "Tablas que no pertenecen al núcleo de WordPress. Los restos de un plugin que hayas quitado por completo pueden borrarse cuando Estado y Uso estimado lo indiquen. Si la carpeta del plugin sigue en wp-content/plugins y solo está desactivado, no está permitido eliminar aquí sus tablas."
+
+#. Translation key: tables_empty
+msgid "No extra tables detected"
+msgstr "Ninguna tabla extra detectada"
+
+#. Translation key: tables_empty_desc
+msgid "The database has no plugin table residues."
+msgstr "La base de datos no tiene residuos de tablas de plugins."
+
+#. Translation key: tables_select_all
+msgid "Select all"
+msgstr "Seleccionar todas"
+
+#. Translation key: tables_selected
+msgid " selected"
+msgstr " seleccionada"
+
+#. Translation key: tables_selected_pl
+msgid " selected"
+msgstr " seleccionadas"
+
+#. Translation key: tables_bulk_delete
+msgid "🗑️ Delete selected"
+msgstr "🗑️ Eliminar seleccionadas"
+
+#. Translation key: tables_export_drop_sql
+msgid "🧾 Export DROP SQL"
+msgstr "🧾 Exportar DROP SQL"
+
+#. Translation key: tables_export_invalid
+msgid "No valid tables selected for SQL export."
+msgstr "No hay tablas válidas seleccionadas para exportar el SQL."
+
+#. Translation key: tables_usage_estimate
+msgid "Usage estimate"
+msgstr "Estimación de uso"
+
+#. Translation key: tables_rows
+msgid "Rows"
+msgstr "Filas"
+
+#. Translation key: tables_usage_in_use
+msgid "In use"
+msgstr "En uso"
+
+#. Translation key: tables_usage_in_use_desc
+msgid "Linked to an active plugin or updated recently."
+msgstr "Vinculada a un plugin activo o actualizada recientemente."
+
+#. Translation key: tables_usage_not_in_use
+msgid "Not in use"
+msgstr "No en uso"
+
+#. Translation key: tables_usage_not_in_use_desc
+msgid "No active signals detected. Check the Status column to see whether the plugin still exists."
+msgstr "No se han detectado señales de uso activo. Mira la columna Estado para saber si el plugin todavía existe."
+
+#. Translation key: assign_title
+msgid "➕ Assign option to a plugin"
+msgstr "➕ Asignar opción a un plugin"
+
+#. Translation key: assign_existing
+msgid "Add to existing group"
+msgstr "Añadir a un grupo existente"
+
+#. Translation key: assign_select_ph
+msgid "-- Select a group --"
+msgstr "-- Selecciona un grupo --"
+
+#. Translation key: assign_save_existing
+msgid "Assign to group"
+msgstr "Asignar al grupo"
+
+#. Translation key: assign_new
+msgid "Create a new group"
+msgstr "Crear un grupo nuevo"
+
+#. Translation key: assign_new_ph
+msgid "Plugin or group name..."
+msgstr "Nombre del plugin o grupo..."
+
+#. Translation key: assign_save_new
+msgid "Create and assign"
+msgstr "Crear y asignar"
+
+#. Translation key: js_confirm_delete
+msgid "DELETE: "
+msgstr "ELIMINAR: "
+
+#. Translation key: js_confirm_delete_active
+msgid "⚠️ WARNING: the plugin is ACTIVE.\\nDeleting this option may affect the plugin.\\n\\nDelete: "
+msgstr "⚠️ ATENCIÓN: el plugin está ACTIVO.\\nEliminar la opción puede afectar el funcionamiento del plugin.\\n\\nEliminar: "
+
+#. Translation key: js_confirm_table
+msgid "⛔ DELETE TABLE "
+msgstr "⛔ ELIMINAR LA TABLA "
+
+#. Translation key: js_confirm_irreversible
+msgid "\\nTHIS ACTION IS IRREVERSIBLE."
+msgstr "\\nESTA ACCIÓN ES IRREVERSIBLE."
+
+#. Translation key: js_confirm_bulk_pre
+msgid "⛔ DELETE "
+msgstr "⛔ ELIMINAR "
+
+#. Translation key: js_confirm_bulk_post
+msgid " table(s)?\\n\\nTHIS ACTION IS IRREVERSIBLE."
+msgstr " tabla(s)?\\n\\nESTA ACCIÓN ES IRREVERSIBLE."
+
+#. Translation key: footer_cache
+msgid "Remember to do <strong>LiteSpeed Cache → Purge All</strong> (or clear your cache plugin) after any cleanup. Always make a <strong>backup</strong> first."
+msgstr "Recuerda hacer <strong>LiteSpeed Cache → Purge All</strong> (o vaciar la caché de tu plugin) después de cualquier limpieza. Haz siempre un <strong>backup</strong> antes."
+
+#. Translation key: status_active
+msgid "✅ Active"
+msgstr "✅ Activo"
+
+#. Translation key: status_inactive
+msgid "⚠️ Inactive"
+msgstr "⚠️ Inactivo"
+
+#. Translation key: act_expired_transients_title
+msgid "Expired transients"
+msgstr "Transients expirados"
+
+#. Translation key: act_all_transients_title
+msgid "All transients"
+msgstr "Todos los transients"
+
+#. Translation key: act_revisions_title
+msgid "Post revisions"
+msgstr "Revisiones de posts"
+
+#. Translation key: act_old_revisions_title
+msgid "Old post revisions"
+msgstr "Revisiones antiguas de posts"
+
+#. Translation key: act_auto_drafts_title
+msgid "Auto drafts"
+msgstr "Borradores automáticos"
+
+#. Translation key: act_trashed_posts_title
+msgid "Trashed posts"
+msgstr "Posts en la papelera"
+
+#. Translation key: act_old_trashed_posts_title
+msgid "Old trashed posts"
+msgstr "Posts antiguos de la papelera"
+
+#. Translation key: act_spam_comments_title
+msgid "Spam comments"
+msgstr "Comentarios spam"
+
+#. Translation key: act_trashed_comments_title
+msgid "Trashed comments"
+msgstr "Comentarios en la papelera"
+
+#. Translation key: act_old_trashed_comments_title
+msgid "Old trashed comments"
+msgstr "Comentarios antiguos de la papelera"
+
+#. Translation key: act_orphan_postmeta_title
+msgid "Orphan postmeta"
+msgstr "Postmeta huérfanos"
+
+#. Translation key: act_orphan_commentmeta_title
+msgid "Orphan commentmeta"
+msgstr "Commentmeta huérfanos"
+
+#. Translation key: act_orphan_usermeta_title
+msgid "Orphan usermeta"
+msgstr "Usermeta huérfanos"
+
+#. Translation key: act_orphan_termmeta_title
+msgid "Orphan termmeta"
+msgstr "Termmeta huérfanos"
+
+#. Translation key: risk_safe_label
+msgid "🟢 Safe"
+msgstr "🟢 Seguro"
+
+#. Translation key: risk_caution_label
+msgid "🟡 Caution"
+msgstr "🟡 Precaución"
+
+#. Translation key: act_expired_transients_desc
+msgid "Transients that have passed their expiry date. They can be deleted with no risk."
+msgstr "Transients que ya han pasado su fecha de caducidad. Se pueden eliminar sin riesgo."
+
+#. Translation key: act_all_transients_desc
+msgid "All transients, including active ones. WordPress and plugins will regenerate them automatically."
+msgstr "Todos los transients, incluidos los activos. WordPress y los plugins los regenerarán solos."
+
+#. Translation key: act_revisions_desc
+msgid "History of previous versions of posts. Once deleted, old versions cannot be recovered."
+msgstr "Historial de versiones anteriores de los posts. Una vez eliminadas no podrás recuperar versiones antiguas."
+
+#. Translation key: act_old_revisions_desc
+msgid "Only revisions older than the configured number of days will be deleted."
+msgstr "Solo se eliminarán las revisiones más antiguas que el número de días configurado."
+
+#. Translation key: act_auto_drafts_desc
+msgid "Drafts created automatically by WordPress. They can be deleted safely."
+msgstr "Borradores creados automáticamente por WordPress. Se pueden eliminar sin riesgo."
+
+#. Translation key: act_trashed_posts_desc
+msgid "Posts, pages and CPTs in the WordPress trash."
+msgstr "Posts, páginas y CPTs en la papelera de WordPress."
+
+#. Translation key: act_old_trashed_posts_desc
+msgid "Only posts, pages and CPTs that have stayed in the trash longer than the configured number of days will be deleted."
+msgstr "Solo se eliminarán los posts, páginas y CPTs que lleven en la papelera más tiempo que el número de días configurado."
+
+#. Translation key: act_spam_comments_desc
+msgid "Comments marked as spam by Akismet or manually."
+msgstr "Comentarios marcados como spam por Akismet o manualmente."
+
+#. Translation key: act_trashed_comments_desc
+msgid "Comments that have been deleted and are in the trash."
+msgstr "Comentarios que han sido eliminados y están en la papelera."
+
+#. Translation key: act_old_trashed_comments_desc
+msgid "Only comments that have stayed in the trash longer than the configured number of days will be deleted."
+msgstr "Solo se eliminarán los comentarios que lleven en la papelera más tiempo que el número de días configurado."
+
+#. Translation key: act_orphan_postmeta_desc
+msgid "wp_postmeta records pointing to posts that no longer exist."
+msgstr "Metadatos de wp_postmeta que apuntan a posts que ya no existen."
+
+#. Translation key: act_orphan_commentmeta_desc
+msgid "wp_commentmeta records pointing to comments that no longer exist."
+msgstr "Metadatos de wp_commentmeta que apuntan a comentarios que no existen."
+
+#. Translation key: act_orphan_usermeta_desc
+msgid "wp_usermeta records pointing to users that no longer exist."
+msgstr "Metadatos de wp_usermeta que apuntan a usuarios que no existen."
+
+#. Translation key: act_orphan_termmeta_desc
+msgid "wp_termmeta records pointing to terms/categories that no longer exist."
+msgstr "Metadatos de wp_termmeta que apuntan a términos/categorías que no existen."
+
+#. Translation key: act_expired_transients_confirm
+msgid "Delete expired transients?"
+msgstr "¿Eliminar los transients expirados?"
+
+#. Translation key: act_all_transients_confirm
+msgid "Delete ALL transients? They will be regenerated automatically."
+msgstr "¿Eliminar TODOS los transients? Se regenerarán automáticamente."
+
+#. Translation key: act_revisions_confirm
+msgid "Delete revisions? You will not be able to recover previous versions."
+msgstr "¿Eliminar las revisiones? No podrás recuperar versiones anteriores."
+
+#. Translation key: act_old_revisions_confirm
+msgid "Delete old revisions?"
+msgstr "¿Eliminar las revisiones antiguas?"
+
+#. Translation key: act_auto_drafts_confirm
+msgid "Delete auto drafts?"
+msgstr "¿Eliminar los borradores automáticos?"
+
+#. Translation key: act_trashed_posts_confirm
+msgid "Empty the posts trash?"
+msgstr "¿Vaciar la papelera de posts?"
+
+#. Translation key: act_old_trashed_posts_confirm
+msgid "Delete old trashed posts?"
+msgstr "¿Eliminar los posts antiguos de la papelera?"
+
+#. Translation key: act_spam_comments_confirm
+msgid "Delete spam comments?"
+msgstr "¿Eliminar los comentarios spam?"
+
+#. Translation key: act_trashed_comments_confirm
+msgid "Empty the comments trash?"
+msgstr "¿Vaciar la papelera de comentarios?"
+
+#. Translation key: act_old_trashed_comments_confirm
+msgid "Delete old trashed comments?"
+msgstr "¿Eliminar los comentarios antiguos de la papelera?"
+
+#. Translation key: act_orphan_postmeta_confirm
+msgid "Delete orphan post metadata?"
+msgstr "¿Eliminar metadatos huérfanos de posts?"
+
+#. Translation key: act_orphan_commentmeta_confirm
+msgid "Delete orphan comment metadata?"
+msgstr "¿Eliminar metadatos huérfanos de comentarios?"
+
+#. Translation key: act_orphan_usermeta_confirm
+msgid "Delete orphan user metadata?"
+msgstr "¿Eliminar metadatos huérfanos de usuarios?"
+
+#. Translation key: act_orphan_termmeta_confirm
+msgid "Delete orphan term metadata?"
+msgstr "¿Eliminar metadatos huérfanos de categorías?"
+
+#. Translation key: stat_card_autoload
+msgid "Total autoload"
+msgstr "Autoload total"
+
+#. Translation key: stat_card_transients_exp
+msgid "Expired transients"
+msgstr "Transients expirados"
+
+#. Translation key: stat_card_transients_all
+msgid "Total transients"
+msgstr "Transients totales"
+
+#. Translation key: stat_card_revisions
+msgid "Revisions"
+msgstr "Revisiones"
+
+#. Translation key: stat_card_trash
+msgid "Trash posts"
+msgstr "Posts papelera"
+
+#. Translation key: stat_card_spam
+msgid "Spam"
+msgstr "Spam"
+
+#. Translation key: stat_card_orphan
+msgid "Orphan metadata"
+msgstr "Metadatos huérfanos"
+
+#. Translation key: auto_clean_title
+msgid "⏰ Scheduled automatic cleanup"
+msgstr "⏰ Limpieza automática programada"
+
+#. Translation key: auto_clean_enable
+msgid "Enable automatic cleanup"
+msgstr "Activar limpieza automática"
+
+#. Translation key: auto_clean_freq
+msgid "Frequency:"
+msgstr "Frecuencia:"
+
+#. Translation key: auto_clean_daily
+msgid "Daily"
+msgstr "Diariamente"
+
+#. Translation key: auto_clean_weekly
+msgid "Weekly"
+msgstr "Semanalmente"
+
+#. Translation key: auto_clean_monthly
+msgid "Monthly"
+msgstr "Mensualmente"
+
+#. Translation key: auto_clean_actions
+msgid "Actions to run:"
+msgstr "Acciones a ejecutar:"
+
+#. Translation key: cleanup_older_than_days
+msgid "Older than (days):"
+msgstr "Más antiguo que (días):"
+
+#. Translation key: cleanup_older_than
+msgid "Older than"
+msgstr "Más antiguo que"
+
+#. Translation key: cleanup_days
+msgid "days"
+msgstr "días"
+
+#. Translation key: auto_clean_email
+msgid "Send notification email to "
+msgstr "Enviar notificación por email a "
+
+#. Translation key: auto_clean_save
+msgid "Save settings"
+msgstr "Guardar configuración"
+
+#. Translation key: auto_clean_last
+msgid "Last run"
+msgstr "Última ejecución"
+
+#. Translation key: auto_clean_next
+msgid "Next"
+msgstr "Próxima"
+
+#. Translation key: auto_clean_none
+msgid "Not scheduled"
+msgstr "No programada"
+
+#. Translation key: auto_clean_saved_ok
+msgid "Saved. Next: "
+msgstr "Guardado. Próxima: "
+
+#. Translation key: auto_clean_saved_off
+msgid "Saved (disabled)"
+msgstr "Guardado (desactivado)"
+
+#. Translation key: auto_clean_act_exp_trans
+msgid "Expired transients"
+msgstr "Transients expirados"
+
+#. Translation key: auto_clean_act_all_trans
+msgid "All transients"
+msgstr "Todos los transients"
+
+#. Translation key: auto_clean_act_revisions
+msgid "Post revisions"
+msgstr "Revisiones de posts"
+
+#. Translation key: auto_clean_act_drafts
+msgid "Auto drafts"
+msgstr "Auto-borradores"
+
+#. Translation key: auto_clean_act_trash
+msgid "Trashed posts"
+msgstr "Posts en la papelera"
+
+#. Translation key: auto_clean_act_spam
+msgid "Spam comments"
+msgstr "Comentarios spam"
+
+#. Translation key: auto_clean_act_comments
+msgid "Deleted comments"
+msgstr "Comentarios eliminados"
+
+#. Translation key: auto_clean_act_postmeta
+msgid "Orphan postmeta"
+msgstr "Postmeta huérfana"
+
+#. Translation key: auto_clean_act_commeta
+msgid "Orphan commentmeta"
+msgstr "Commentmeta huérfana"
+
+#. Translation key: auto_clean_act_usermeta
+msgid "Orphan usermeta"
+msgstr "Usermeta huérfana"
+
+#. Translation key: auto_clean_act_termmeta
+msgid "Orphan termmeta"
+msgstr "Termmeta huérfana"
+
+#. Translation key: auto_saved_label
+msgid "🧹 Total freed"
+msgstr "🧹 Total liberado"
+
+#. Translation key: map_uninstalled
+msgid "(uninstalled)"
+msgstr "(desinstalado)"
+
+#. Translation key: map_notice_count
+msgid "wp_options key(s) pending confirmation"
+msgstr "clave(s) de wp_options pendientes de confirmación"
+
+#. Translation key: map_notice_review
+msgid "Review now →"
+msgstr "Revisar ahora →"
+
+#. Translation key: map_orphan_keys
+msgid "orphan entries removed from options map"
+msgstr "entradas huérfanas eliminadas del mapa de opciones"
+
+#. Translation key: map_orphan_tables
+msgid "orphan entries removed from tables map"
+msgstr "entradas huérfanas eliminadas del mapa de tablas"
+
+#. Translation key: map_pending_title
+msgid "key(s) pending confirmation"
+msgstr "clave(s) pendientes de confirmación"
+
+#. Translation key: map_pending_desc
+msgid "Detected during bulk updates. Confirm which plugin they belong to."
+msgstr "Detectadas durante actualizaciones masivas. Confirma a qué plugin pertenecen."
+
+#. Translation key: map_pending_review
+msgid "✅ Review"
+msgstr "✅ Revisar"
+
+#. Translation key: map_pending_dismiss
+msgid "✕ Dismiss all"
+msgstr "✕ Descartar todas"
+
+#. Translation key: map_pending_dismiss_confirm
+msgid "Dismiss all pending keys?"
+msgstr "¿Descartar todas las claves pendientes?"
+
+#. Translation key: map_pending_select
+msgid "Choose plugin"
+msgstr "Elegir plugin"
+
+#. Translation key: map_pending_confirm
+msgid "✅ Confirm"
+msgstr "✅ Confirmar"
+
+#. Translation key: map_retro_btn
+msgid "🔍 Scan existing plugins"
+msgstr "🔍 Escanear plugins existentes"
+
+#. Translation key: map_retro_scanning
+msgid "⏳ Scanning..."
+msgstr "⏳ Escaneando..."
+
+#. Translation key: map_retro_done
+msgid "Scan completed"
+msgstr "Escaneo completado"
+
+#. Translation key: btn_no_clean
+msgid "✅ Nothing to clean"
+msgstr "✅ No es necesario limpiar"
+
+#. Translation key: lbl_zero_clean
+msgid " — already clean"
+msgstr " — ya limpio"
+
+#. Translation key: lbl_entries2
+msgid " entries"
+msgstr " entradas"
+
+#. Translation key: lbl_transients_group
+msgid "Transients / Temporary"
+msgstr "Transients / Temporales"
+
+#. Translation key: lbl_transients_count
+msgid " entries · "
+msgstr " entradas · "
+
+#. Translation key: lbl_footer_info
+msgid "🟢 Safe: no risk &nbsp;·&nbsp; 🟡 Caution: review first &nbsp;·&nbsp; Make a <strong>backup</strong> before any bulk cleanup. Do <strong>LiteSpeed Purge All</strong> afterwards."
+msgstr "🟢 Seguro: sin riesgo &nbsp;·&nbsp; 🟡 Precaución: revisa antes &nbsp;·&nbsp; Haz <strong>backup</strong> antes de cualquier limpieza masiva. Haz <strong>LiteSpeed Purge All</strong> después."
+
+#. Translation key: trans_expired
+msgid "⌛ expired"
+msgstr "⌛ expirado"
+
+#. Translation key: trans_timeout
+msgid "⏳ timeout"
+msgstr "⏳ timeout"
+
+#. Translation key: trans_value
+msgid "♾️ value"
+msgstr "♾️ valor"
+
+#. Translation key: lbl_view
+msgid "View"
+msgstr "Ver"
+
+#. Translation key: lbl_no_plugin
+msgid "No plugin detected"
+msgstr "Sin plugin detectado"
+
+#. Translation key: status_not_installed
+msgid "✕ Not installed"
+msgstr "✕ No instalado"
+
+#. Translation key: tab_history
+msgid "📅 History"
+msgstr "📅 Historial"
+
+#. Translation key: tab_cron
+msgid "⏱️ CRON"
+msgstr "⏱️ CRON"
+
+#. Translation key: hist_page_title
+msgid "📅 Plugin and theme history"
+msgstr "📅 Historial de plugins y temas"
+
+#. Translation key: hist_desc
+msgid "Event log of plugins and themes since TSO Options & Tables Cleaner was installed. Previous actions are shown in the \"Current status\" section."
+msgstr "Registro de eventos de plugins y temas desde la instalación de TSO Options & Tables Cleaner. Las acciones anteriores se muestran en la sección «Estado actual»."
+
+#. Translation key: hist_filter_all
+msgid "All"
+msgstr "Todo"
+
+#. Translation key: hist_filter_plugins
+msgid "Plugins"
+msgstr "Plugins"
+
+#. Translation key: hist_filter_themes
+msgid "Themes"
+msgstr "Temas"
+
+#. Translation key: hist_filter_action_all
+msgid "All actions"
+msgstr "Todas las acciones"
+
+#. Translation key: hist_filter_action_activated
+msgid "✅ Activated"
+msgstr "✅ Activados"
+
+#. Translation key: hist_filter_action_deactivated
+msgid "⚠️ Deactivated"
+msgstr "⚠️ Desactivados"
+
+#. Translation key: hist_filter_action_installed
+msgid "📥 Installed"
+msgstr "📥 Instalados"
+
+#. Translation key: hist_filter_action_updated
+msgid "🔄 Updated"
+msgstr "🔄 Actualizados"
+
+#. Translation key: hist_filter_action_deleted
+msgid "🗑️ Deleted"
+msgstr "🗑️ Eliminados"
+
+#. Translation key: hist_col_date
+msgid "Date and time"
+msgstr "Fecha y hora"
+
+#. Translation key: hist_col_type
+msgid "Type"
+msgstr "Tipo"
+
+#. Translation key: hist_col_name
+msgid "Name"
+msgstr "Nombre"
+
+#. Translation key: hist_col_action
+msgid "Action"
+msgstr "Acción"
+
+#. Translation key: hist_col_file
+msgid "File / Slug"
+msgstr "Archivo / Slug"
+
+#. Translation key: hist_col_details
+msgid "Details"
+msgstr "Detalles"
+
+#. Translation key: hist_filter_action_keys_mapped
+msgid "🔑 New wp_options keys"
+msgstr "🔑 Nuevas claves wp_options"
+
+#. Translation key: hist_filter_action_tables_mapped
+msgid "📊 New database tables"
+msgstr "📊 Nuevas tablas de la base de datos"
+
+#. Translation key: hist_action_keys_mapped
+msgid "New wp_options keys"
+msgstr "Nuevas claves wp_options"
+
+#. Translation key: hist_action_tables_mapped
+msgid "New database tables"
+msgstr "Nuevas tablas"
+
+#. Translation key: hist_detail_keys_heading
+msgid "New wp_options keys (%d)"
+msgstr "Nuevas claves wp_options (%d)"
+
+#. Translation key: hist_detail_tables_heading
+msgid "New tables (%d)"
+msgstr "Nuevas tablas (%d)"
+
+#. Translation key: hist_detail_more
+msgid "… +%d more"
+msgstr "… +%d más"
+
+#. Translation key: hist_empty
+msgid "No events recorded yet."
+msgstr "Todavía no hay ningún evento registrado."
+
+#. Translation key: hist_empty_desc
+msgid "From now on, every activation, deactivation, installation, update or deletion of plugins and themes will be recorded here."
+msgstr "A partir de ahora, cada activación, desactivación, instalación, actualización o eliminación de plugins y temas quedará registrada aquí."
+
+#. Translation key: hist_clear_btn
+msgid "🗑️ Clear history"
+msgstr "🗑️ Borrar historial"
+
+#. Translation key: hist_clear_confirm
+msgid "Clear all history? This action cannot be undone."
+msgstr "¿Borrar todo el historial? Esta acción no se puede deshacer."
+
+#. Translation key: hist_cleared
+msgid "History cleared."
+msgstr "Historial borrado."
+
+#. Translation key: hist_section_log
+msgid "📋 Activity log"
+msgstr "📋 Registro de actividad"
+
+#. Translation key: hist_section_current
+msgid "🔌 Current plugin and theme status"
+msgstr "🔌 Estado actual de plugins y temas"
+
+#. Translation key: hist_current_desc
+msgid "Snapshot of all installed plugins and themes, with file date as installation reference."
+msgstr "Estado instantáneo de todos los plugins y temas instalados, con la fecha del archivo como referencia de instalación."
+
+#. Translation key: hist_col_status
+msgid "Status"
+msgstr "Estado"
+
+#. Translation key: hist_col_version
+msgid "Version"
+msgstr "Versión"
+
+#. Translation key: hist_col_file_date
+msgid "File date (approx. install)"
+msgstr "Fecha archivo (instalación aprox.)"
+
+#. Translation key: hist_plugin_active
+msgid "✅ Active"
+msgstr "✅ Activo"
+
+#. Translation key: hist_plugin_inactive
+msgid "⚠️ Inactive"
+msgstr "⚠️ Inactivo"
+
+#. Translation key: hist_theme_active
+msgid "🎨 Active theme"
+msgstr "🎨 Tema activo"
+
+#. Translation key: hist_theme_inactive
+msgid "🖼️ Installed theme"
+msgstr "🖼️ Tema instalado"
+
+#. Translation key: hist_total_events
+msgid "Recorded events"
+msgstr "Eventos registrados"
+
+#. Translation key: hist_search_ph
+msgid "🔍 Search by name..."
+msgstr "🔍 Buscar por nombre..."
+
+#. Translation key: hist_action_activated
+msgid "Activated"
+msgstr "Activado"
+
+#. Translation key: hist_action_deactivated
+msgid "Deactivated"
+msgstr "Desactivado"
+
+#. Translation key: hist_action_installed
+msgid "Installed"
+msgstr "Instalado"
+
+#. Translation key: hist_action_updated
+msgid "Updated"
+msgstr "Actualizado"
+
+#. Translation key: hist_action_deleted
+msgid "Deleted"
+msgstr "Eliminado"
+
+#. Translation key: hist_type_plugin
+msgid "Plugin"
+msgstr "Plugin"
+
+#. Translation key: hist_type_theme
+msgid "Theme"
+msgstr "Tema"
+
+#. Translation key: hist_recently_deactivated
+msgid "⌚ Recently deactivated (WordPress)"
+msgstr "⌚ Desactivados recientemente (WordPress)"
+
+#. Translation key: hist_recently_desc
+msgid "Plugins recently deactivated as recorded by WordPress (recently_activated)."
+msgstr "Plugins desactivados recientemente registrados por WordPress (recently_activated)."
+
+#. Privacy policy plugin name
+msgid "TSO Options & Tables Cleaner"
+msgstr "TSO Options & Tables Cleaner"
+
+#. Privacy policy paragraph 1
+msgid "This plugin stores one administrator preference: the interface language (Catalan, Spanish, or English). It is saved as user metadata (<code>wp_usermeta</code>, key: <code>tso_ui_lang</code>) only for the user who selected the language. No data is sent to external servers."
+msgstr "Este plugin almacena una única preferencia del administrador: el idioma de la interfaz (catalán, español o inglés). Se guarda como metadato de usuario (<code>wp_usermeta</code>, clave: <code>tso_ui_lang</code>) solo para el usuario que seleccionó el idioma. No se envían datos a servidores externos."
+
+#. Privacy policy paragraph 2
+msgid "If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-backups/</code>) and are not transmitted to third-party services."
+msgstr "Si utiliza la pestaña Backup, los archivos SQL generados se almacenan localmente en el directorio de subidas (normalmente <code>wp-content/uploads/tso-backups/</code>) y no se transmiten a servicios de terceros."
+
+msgid "Invalid table name."
+msgstr "Nombre de tabla no válido."
+
+msgid "💾 Database backup"
+msgstr "💾 Copia de seguridad BD"
+
+#. Autoload diagnosis remainder row (mostly transient autoload bytes).
+msgid "Transients (temporals)"
+msgstr "Transients (temporales)"
+
+#. Autoload diagnosis remainder row fallback when remainder is not mostly transients.
+msgid "Other autoload options"
+msgstr "Otras opciones en autoload"
+
+#. Autoload diagnosis panel title
+msgid "📊 Autoload Diagnosis"
+msgstr "📊 Diagnóstico de autoload"
+
+#. Autoload diagnosis subtitle
+msgid "Which entries make up the total?"
+msgstr "¿Qué entradas componen el total?"
+
+#. Autoload diagnosis analyzed count; %d: number of entries in sample
+msgid "%d entries analyzed"
+msgstr "%d entradas analizadas"
+
+#. Autoload diagnosis footer tip
+msgid "Tip: options shown in red or orange are priority candidates for disabling autoload or deleting."
+msgstr "Consejo: las opciones en rojo o naranja son candidatas prioritarias para desactivar autoload o eliminar."
+
+#. Autoload diagnosis: note inside expandable “remainder” row (transients / options outside top list). %d: top-N sample size.
+msgid "No per-option breakdown here: this bucket estimates autoload volume not listed above—typically autoloaded transients and options smaller than the top %d ranked entries."
+msgstr "Aquí no hay desglose por opción: este bloque estima el volumen de autoload no listado arriba—típicamente transients con autoload y opciones más pequeñas que las %d entradas clasificadas."
+
+#. WP-Cron custom schedule (monthly) display label.
+msgid "Once monthly"
+msgstr "Una vez al mes"
+
+#. translators: %s: table name
+msgid "Invalid table for backup: %s"
+msgstr "Tabla no válida para la copia de seguridad: %s"
+
+#. translators: %s: table name
+msgid "Could not read the table structure for %s."
+msgstr "No se ha podido leer la estructura de la tabla %s."
+
+msgid "Only SQL backups generated by this plugin can be restored from here."
+msgstr "Aquí solo se pueden restaurar copias SQL generadas por este plugin."
+
+msgid "Could not read the selected backup file."
+msgstr "No se ha podido leer el archivo de copia seleccionado."
+
+msgid "Table snapshot"
+msgstr "Snapshot de tabla"
+
+msgid "Legacy full backup"
+msgstr "Copia completa heredada"
+
+msgid "Full database"
+msgstr "Base de datos completa"
+
+msgid "External or unknown SQL file"
+msgstr "Archivo SQL externo o desconocido"
+
+#. translators: %d: number of errors
+msgid "Table snapshot restored with %d error(s)."
+msgstr "Snapshot de tabla restaurado con %d error(es)."
+
+msgid "Table snapshot restored successfully."
+msgstr "Snapshot de tabla restaurado correctamente."
+
+#. translators: %d: number of errors
+msgid "Database restored with %d error(s)."
+msgstr "Base de datos restaurada con %d error(es)."
+
+msgid "Database restored successfully."
+msgstr "Base de datos restaurada correctamente."
+
+msgid "Deleting extra tables now creates an automatic table snapshot first."
+msgstr "Ahora, al eliminar tablas extra, primero se crea automáticamente un snapshot de tabla."
+
+msgid "Only backups generated by this plugin can be restored from this screen."
+msgstr "Desde esta pantalla solo se pueden restaurar copias generadas por este plugin."
+
+msgid "Tables included"
+msgstr "Tablas incluidas"
+
+msgid "Generated by this plugin"
+msgstr "Generado por este plugin"
+
+msgid "Restore unavailable"
+msgstr "Restauración no disponible"
+
+msgid "Entire database"
+msgstr "Toda la base de datos"
+
+#. translators: %s: comma-separated table names
+msgid "This snapshot will restore only these tables: <strong>%s</strong>. Existing versions of these tables will be overwritten."
+msgstr "Este snapshot restaurará solo estas tablas: <strong>%s</strong>. Se sobrescribirán las versiones existentes de estas tablas."

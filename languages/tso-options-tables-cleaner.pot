@@ -1,0 +1,1121 @@
+# TSO Options & Tables Cleaner - Translation Template
+# Copyright (C) 2025 Tu Soporte Online
+# This file is distributed under the GPLv2 or later.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: TSO Options & Tables Cleaner 1.0.0\n"
+"Report-Msgid-Bugs-To: https://tusoporteonline.es\n"
+"POT-Creation-Date: 2026-05-09 22:37+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#. Plugin header — Description (Plugins screen)
+msgid "Cleans wp_options, orphan metadata, revisions, and leftover plugin tables. Backup and table optimizer. UI: CA / ES / EN."
+msgstr ""
+
+#. Translation key: tab_cleanup
+msgid "🧹 General cleanup"
+msgstr ""
+
+#. Translation key: tab_options
+msgid "⚙️ wp_options"
+msgstr ""
+
+#. Translation key: tab_tables
+msgid "📦 Extra tables"
+msgstr ""
+
+#. Translation key: page_title
+msgid "🧹 TSO Options & Tables Cleaner"
+msgstr ""
+
+#. Translation key: stat_autoload
+msgid "Total autoload"
+msgstr ""
+
+#. Translation key: stat_transients_expired
+msgid "Expired transients"
+msgstr ""
+
+#. Translation key: stat_transients_total
+msgid "Total transients"
+msgstr ""
+
+#. Translation key: stat_revisions
+msgid "Revisions"
+msgstr ""
+
+#. Translation key: stat_trash
+msgid "Trash posts"
+msgstr ""
+
+#. Translation key: stat_spam
+msgid "Spam"
+msgstr ""
+
+#. Translation key: stat_orphan_meta
+msgid "Orphan metadata"
+msgstr ""
+
+#. Translation key: action_optimize
+msgid "Optimize fragmented tables"
+msgstr ""
+
+#. Translation key: action_optimize_desc
+msgid "Defragments and rebuilds all fragmented database tables (WordPress core and plugin tables). Improves SQL query performance."
+msgstr ""
+
+#. Translation key: action_optimize_btn
+msgid "🔧 Optimize fragmented tables"
+msgstr ""
+
+#. Translation key: action_optimize_tag
+msgid "ℹ️ Maintenance"
+msgstr ""
+
+#. Translation key: action_optimize_confirm
+msgid "Run OPTIMIZE TABLE on core and fragmented tables? This can lock tables briefly."
+msgstr ""
+
+#. Translation key: schedule_optimize_hint_kb
+msgid "%s KB fragmented (InnoDB hint)"
+msgstr ""
+
+#. Translation key: schedule_optimize_hint_none
+msgid "Maintenance — optimizes core and fragmented tables"
+msgstr ""
+
+#. Translation key: filter_search_ph
+msgid "🔍 Search option..."
+msgstr ""
+
+#. Translation key: filter_btn
+msgid "Filter"
+msgstr ""
+
+#. Translation key: filter_clear
+msgid "✕ Clear"
+msgstr ""
+
+#. Translation key: filter_all_groups
+msgid "All groups"
+msgstr ""
+
+#. Translation key: filter_autoload_all
+msgid "Autoload: all"
+msgstr ""
+
+#. Translation key: filter_safety_all
+msgid "Safety: all"
+msgstr ""
+
+#. Translation key: opt_inactive
+msgid "✅ Inactive plugin (cleanable)"
+msgstr ""
+
+#. Translation key: opt_active
+msgid "⚠️ Active plugin"
+msgstr ""
+
+#. Translation key: opt_unknown
+msgid "❓ Unknown"
+msgstr ""
+
+#. Translation key: opt_core
+msgid "🔒 WP Core"
+msgstr ""
+
+#. Translation key: opt_sort_alpha
+msgid "A → Z"
+msgstr ""
+
+#. Translation key: opt_sort_size
+msgid "Size ↓"
+msgstr ""
+
+#. Translation key: col_name
+msgid "Option name"
+msgstr ""
+
+#. Translation key: col_size_label
+msgid "Size"
+msgstr ""
+
+#. Translation key: col_autoload_label
+msgid "Autoload"
+msgstr ""
+
+#. Translation key: col_actions
+msgid "Actions"
+msgstr ""
+
+#. Translation key: btn_search
+msgid "🔍 Search"
+msgstr ""
+
+#. Translation key: btn_assign
+msgid "Assign"
+msgstr ""
+
+#. Translation key: btn_reassign
+msgid "✏️ Reassign"
+msgstr ""
+
+#. Translation key: btn_autoload_off
+msgid "🔇 Autoload off"
+msgstr ""
+
+#. Translation key: btn_autoload_off_tip
+msgid "Disable autoload: this option will not be loaded automatically on every page, freeing memory."
+msgstr ""
+
+#. Translation key: badge_manual
+msgid "manual"
+msgstr ""
+
+#. Translation key: badge_core
+msgid "🔒 WP Core"
+msgstr ""
+
+#. Translation key: select_all_title
+msgid "Select all"
+msgstr ""
+
+#. Translation key: lbl_autoload_kb
+msgid "Autoload: "
+msgstr ""
+
+#. Translation key: lbl_total_options
+msgid "Total options: "
+msgstr ""
+
+#. Translation key: lbl_entries
+msgid " options · "
+msgstr ""
+
+#. Translation key: lbl_showing
+msgid "Showing "
+msgstr ""
+
+#. Translation key: lbl_showing_mid
+msgid " options. 🔒 WP Core = not deletable · ⚠️ Inactive = safe to delete · ✅ Active = plugin will regenerate it"
+msgstr ""
+
+#. Translation key: lbl_selected_zero
+msgid "0 selected"
+msgstr ""
+
+#. Translation key: tables_title
+msgid "📊 Extra tables summary"
+msgstr ""
+
+#. Translation key: tables_list
+msgid "📋 Extra tables list"
+msgstr ""
+
+#. Translation key: stat_tables_extra
+msgid "Extra tables"
+msgstr ""
+
+#. Translation key: stat_tables_size
+msgid "Total extra size"
+msgstr ""
+
+#. Translation key: col_table
+msgid "Table"
+msgstr ""
+
+#. Translation key: col_detected
+msgid "Detected plugin"
+msgstr ""
+
+#. Translation key: col_status
+msgid "Status"
+msgstr ""
+
+#. Translation key: col_mida_table
+msgid "Size"
+msgstr ""
+
+#. Translation key: col_action_table
+msgid "Action"
+msgstr ""
+
+#. Translation key: tables_desc
+msgid "Tables that do not belong to WordPress core. Leftovers from plugins you have fully removed may be deletable when Status and Usage estimate indicate it. If the plugin folder still exists under wp-content/plugins and the plugin is only deactivated, dropping its tables here is not allowed."
+msgstr ""
+
+#. Translation key: tables_empty
+msgid "No extra tables detected"
+msgstr ""
+
+#. Translation key: tables_empty_desc
+msgid "The database has no plugin table residues."
+msgstr ""
+
+#. Translation key: tables_select_all
+msgid "Select all"
+msgstr ""
+
+#. Translation key: tables_selected
+msgid " selected"
+msgstr ""
+
+#. Translation key: tables_selected_pl
+msgid " selected"
+msgstr ""
+
+#. Translation key: tables_bulk_delete
+msgid "🗑️ Delete selected"
+msgstr ""
+
+#. Translation key: tables_export_drop_sql
+msgid "🧾 Export DROP SQL"
+msgstr ""
+
+#. Translation key: tables_export_invalid
+msgid "No valid tables selected for SQL export."
+msgstr ""
+
+#. Translation key: tables_usage_estimate
+msgid "Usage estimate"
+msgstr ""
+
+#. Translation key: tables_rows
+msgid "Rows"
+msgstr ""
+
+#. Translation key: tables_usage_in_use
+msgid "In use"
+msgstr ""
+
+#. Translation key: tables_usage_in_use_desc
+msgid "Linked to an active plugin or updated recently."
+msgstr ""
+
+#. Translation key: tables_usage_not_in_use
+msgid "Not in use"
+msgstr ""
+
+#. Translation key: tables_usage_not_in_use_desc
+msgid "No active signals detected. Check the Status column to see whether the plugin still exists."
+msgstr ""
+
+#. Translation key: assign_title
+msgid "➕ Assign option to a plugin"
+msgstr ""
+
+#. Translation key: assign_existing
+msgid "Add to existing group"
+msgstr ""
+
+#. Translation key: assign_select_ph
+msgid "-- Select a group --"
+msgstr ""
+
+#. Translation key: assign_save_existing
+msgid "Assign to group"
+msgstr ""
+
+#. Translation key: assign_new
+msgid "Create a new group"
+msgstr ""
+
+#. Translation key: assign_new_ph
+msgid "Plugin or group name..."
+msgstr ""
+
+#. Translation key: assign_save_new
+msgid "Create and assign"
+msgstr ""
+
+#. Translation key: js_confirm_delete
+msgid "DELETE: "
+msgstr ""
+
+#. Translation key: js_confirm_delete_active
+msgid "⚠️ WARNING: the plugin is ACTIVE.\nDeleting this option may affect the plugin.\n\nDelete: "
+msgstr ""
+
+#. Translation key: js_confirm_table
+msgid "⛔ DELETE TABLE "
+msgstr ""
+
+#. Translation key: js_confirm_irreversible
+msgid "\nTHIS ACTION IS IRREVERSIBLE."
+msgstr ""
+
+#. Translation key: js_confirm_bulk_pre
+msgid "⛔ DELETE "
+msgstr ""
+
+#. Translation key: js_confirm_bulk_post
+msgid " table(s)?\n\nTHIS ACTION IS IRREVERSIBLE."
+msgstr ""
+
+#. Translation key: footer_cache
+msgid "Remember to do <strong>LiteSpeed Cache → Purge All</strong> (or clear your cache plugin) after any cleanup. Always make a <strong>backup</strong> first."
+msgstr ""
+
+#. Translation key: status_active
+msgid "✅ Active"
+msgstr ""
+
+#. Translation key: status_inactive
+msgid "⚠️ Inactive"
+msgstr ""
+
+#. Translation key: act_expired_transients_title
+msgid "Expired transients"
+msgstr ""
+
+#. Translation key: act_all_transients_title
+msgid "All transients"
+msgstr ""
+
+#. Translation key: act_revisions_title
+msgid "Post revisions"
+msgstr ""
+
+#. Translation key: act_old_revisions_title
+msgid "Old post revisions"
+msgstr ""
+
+#. Translation key: act_auto_drafts_title
+msgid "Auto drafts"
+msgstr ""
+
+#. Translation key: act_trashed_posts_title
+msgid "Trashed posts"
+msgstr ""
+
+#. Translation key: act_old_trashed_posts_title
+msgid "Old trashed posts"
+msgstr ""
+
+#. Translation key: act_spam_comments_title
+msgid "Spam comments"
+msgstr ""
+
+#. Translation key: act_trashed_comments_title
+msgid "Trashed comments"
+msgstr ""
+
+#. Translation key: act_old_trashed_comments_title
+msgid "Old trashed comments"
+msgstr ""
+
+#. Translation key: act_orphan_postmeta_title
+msgid "Orphan postmeta"
+msgstr ""
+
+#. Translation key: act_orphan_commentmeta_title
+msgid "Orphan commentmeta"
+msgstr ""
+
+#. Translation key: act_orphan_usermeta_title
+msgid "Orphan usermeta"
+msgstr ""
+
+#. Translation key: act_orphan_termmeta_title
+msgid "Orphan termmeta"
+msgstr ""
+
+#. Translation key: risk_safe_label
+msgid "🟢 Safe"
+msgstr ""
+
+#. Translation key: risk_caution_label
+msgid "🟡 Caution"
+msgstr ""
+
+#. Translation key: act_expired_transients_desc
+msgid "Transients that have passed their expiry date. They can be deleted with no risk."
+msgstr ""
+
+#. Translation key: act_all_transients_desc
+msgid "All transients, including active ones. WordPress and plugins will regenerate them automatically."
+msgstr ""
+
+#. Translation key: act_revisions_desc
+msgid "History of previous versions of posts. Once deleted, old versions cannot be recovered."
+msgstr ""
+
+#. Translation key: act_old_revisions_desc
+msgid "Only revisions older than the configured number of days will be deleted."
+msgstr ""
+
+#. Translation key: act_auto_drafts_desc
+msgid "Drafts created automatically by WordPress. They can be deleted safely."
+msgstr ""
+
+#. Translation key: act_trashed_posts_desc
+msgid "Posts, pages and CPTs in the WordPress trash."
+msgstr ""
+
+#. Translation key: act_old_trashed_posts_desc
+msgid "Only posts, pages and CPTs that have stayed in the trash longer than the configured number of days will be deleted."
+msgstr ""
+
+#. Translation key: act_spam_comments_desc
+msgid "Comments marked as spam by Akismet or manually."
+msgstr ""
+
+#. Translation key: act_trashed_comments_desc
+msgid "Comments that have been deleted and are in the trash."
+msgstr ""
+
+#. Translation key: act_old_trashed_comments_desc
+msgid "Only comments that have stayed in the trash longer than the configured number of days will be deleted."
+msgstr ""
+
+#. Translation key: act_orphan_postmeta_desc
+msgid "wp_postmeta records pointing to posts that no longer exist."
+msgstr ""
+
+#. Translation key: act_orphan_commentmeta_desc
+msgid "wp_commentmeta records pointing to comments that no longer exist."
+msgstr ""
+
+#. Translation key: act_orphan_usermeta_desc
+msgid "wp_usermeta records pointing to users that no longer exist."
+msgstr ""
+
+#. Translation key: act_orphan_termmeta_desc
+msgid "wp_termmeta records pointing to terms/categories that no longer exist."
+msgstr ""
+
+#. Translation key: act_expired_transients_confirm
+msgid "Delete expired transients?"
+msgstr ""
+
+#. Translation key: act_all_transients_confirm
+msgid "Delete ALL transients? They will be regenerated automatically."
+msgstr ""
+
+#. Translation key: act_revisions_confirm
+msgid "Delete revisions? You will not be able to recover previous versions."
+msgstr ""
+
+#. Translation key: act_old_revisions_confirm
+msgid "Delete old revisions?"
+msgstr ""
+
+#. Translation key: act_auto_drafts_confirm
+msgid "Delete auto drafts?"
+msgstr ""
+
+#. Translation key: act_trashed_posts_confirm
+msgid "Empty the posts trash?"
+msgstr ""
+
+#. Translation key: act_old_trashed_posts_confirm
+msgid "Delete old trashed posts?"
+msgstr ""
+
+#. Translation key: act_spam_comments_confirm
+msgid "Delete spam comments?"
+msgstr ""
+
+#. Translation key: act_trashed_comments_confirm
+msgid "Empty the comments trash?"
+msgstr ""
+
+#. Translation key: act_old_trashed_comments_confirm
+msgid "Delete old trashed comments?"
+msgstr ""
+
+#. Translation key: act_orphan_postmeta_confirm
+msgid "Delete orphan post metadata?"
+msgstr ""
+
+#. Translation key: act_orphan_commentmeta_confirm
+msgid "Delete orphan comment metadata?"
+msgstr ""
+
+#. Translation key: act_orphan_usermeta_confirm
+msgid "Delete orphan user metadata?"
+msgstr ""
+
+#. Translation key: act_orphan_termmeta_confirm
+msgid "Delete orphan term metadata?"
+msgstr ""
+
+#. Translation key: stat_card_autoload
+msgid "Total autoload"
+msgstr ""
+
+#. Translation key: stat_card_transients_exp
+msgid "Expired transients"
+msgstr ""
+
+#. Translation key: stat_card_transients_all
+msgid "Total transients"
+msgstr ""
+
+#. Translation key: stat_card_revisions
+msgid "Revisions"
+msgstr ""
+
+#. Translation key: stat_card_trash
+msgid "Trash posts"
+msgstr ""
+
+#. Translation key: stat_card_spam
+msgid "Spam"
+msgstr ""
+
+#. Translation key: stat_card_orphan
+msgid "Orphan metadata"
+msgstr ""
+
+#. Translation key: auto_clean_title
+msgid "⏰ Scheduled automatic cleanup"
+msgstr ""
+
+#. Translation key: auto_clean_enable
+msgid "Enable automatic cleanup"
+msgstr ""
+
+#. Translation key: auto_clean_freq
+msgid "Frequency:"
+msgstr ""
+
+#. Translation key: auto_clean_daily
+msgid "Daily"
+msgstr ""
+
+#. Translation key: auto_clean_weekly
+msgid "Weekly"
+msgstr ""
+
+#. Translation key: auto_clean_monthly
+msgid "Monthly"
+msgstr ""
+
+#. Translation key: auto_clean_actions
+msgid "Actions to run:"
+msgstr ""
+
+#. Translation key: cleanup_older_than_days
+msgid "Older than (days):"
+msgstr ""
+
+#. Translation key: cleanup_older_than
+msgid "Older than"
+msgstr ""
+
+#. Translation key: cleanup_days
+msgid "days"
+msgstr ""
+
+#. Translation key: auto_clean_email
+msgid "Send notification email to "
+msgstr ""
+
+#. Translation key: auto_clean_save
+msgid "Save settings"
+msgstr ""
+
+#. Translation key: auto_clean_last
+msgid "Last run"
+msgstr ""
+
+#. Translation key: auto_clean_next
+msgid "Next"
+msgstr ""
+
+#. Translation key: auto_clean_none
+msgid "Not scheduled"
+msgstr ""
+
+#. Translation key: auto_clean_saved_ok
+msgid "Saved. Next: "
+msgstr ""
+
+#. Translation key: auto_clean_saved_off
+msgid "Saved (disabled)"
+msgstr ""
+
+#. Translation key: auto_clean_act_exp_trans
+msgid "Expired transients"
+msgstr ""
+
+#. Translation key: auto_clean_act_all_trans
+msgid "All transients"
+msgstr ""
+
+#. Translation key: auto_clean_act_revisions
+msgid "Post revisions"
+msgstr ""
+
+#. Translation key: auto_clean_act_drafts
+msgid "Auto drafts"
+msgstr ""
+
+#. Translation key: auto_clean_act_trash
+msgid "Trashed posts"
+msgstr ""
+
+#. Translation key: auto_clean_act_spam
+msgid "Spam comments"
+msgstr ""
+
+#. Translation key: auto_clean_act_comments
+msgid "Deleted comments"
+msgstr ""
+
+#. Translation key: auto_clean_act_postmeta
+msgid "Orphan postmeta"
+msgstr ""
+
+#. Translation key: auto_clean_act_commeta
+msgid "Orphan commentmeta"
+msgstr ""
+
+#. Translation key: auto_clean_act_usermeta
+msgid "Orphan usermeta"
+msgstr ""
+
+#. Translation key: auto_clean_act_termmeta
+msgid "Orphan termmeta"
+msgstr ""
+
+#. Translation key: auto_saved_label
+msgid "🧹 Total freed"
+msgstr ""
+
+#. Translation key: map_uninstalled
+msgid "(uninstalled)"
+msgstr ""
+
+#. Translation key: map_notice_count
+msgid "wp_options key(s) pending confirmation"
+msgstr ""
+
+#. Translation key: map_notice_review
+msgid "Review now →"
+msgstr ""
+
+#. Translation key: map_orphan_keys
+msgid "orphan entries removed from options map"
+msgstr ""
+
+#. Translation key: map_orphan_tables
+msgid "orphan entries removed from tables map"
+msgstr ""
+
+#. Translation key: map_pending_title
+msgid "key(s) pending confirmation"
+msgstr ""
+
+#. Translation key: map_pending_desc
+msgid "Detected during bulk updates. Confirm which plugin they belong to."
+msgstr ""
+
+#. Translation key: map_pending_review
+msgid "✅ Review"
+msgstr ""
+
+#. Translation key: map_pending_dismiss
+msgid "✕ Dismiss all"
+msgstr ""
+
+#. Translation key: map_pending_dismiss_confirm
+msgid "Dismiss all pending keys?"
+msgstr ""
+
+#. Translation key: map_pending_select
+msgid "Choose plugin"
+msgstr ""
+
+#. Translation key: map_pending_confirm
+msgid "✅ Confirm"
+msgstr ""
+
+#. Translation key: map_retro_btn
+msgid "🔍 Scan existing plugins"
+msgstr ""
+
+#. Translation key: map_retro_scanning
+msgid "⏳ Scanning..."
+msgstr ""
+
+#. Translation key: map_retro_done
+msgid "Scan completed"
+msgstr ""
+
+#. Translation key: btn_no_clean
+msgid "✅ Nothing to clean"
+msgstr ""
+
+#. Translation key: lbl_zero_clean
+msgid " — already clean"
+msgstr ""
+
+#. Translation key: lbl_entries2
+msgid " entries"
+msgstr ""
+
+#. Translation key: lbl_transients_group
+msgid "Transients / Temporary"
+msgstr ""
+
+#. Translation key: lbl_transients_count
+msgid " entries · "
+msgstr ""
+
+#. Translation key: lbl_footer_info
+msgid "🟢 Safe: no risk &nbsp;·&nbsp; 🟡 Caution: review first &nbsp;·&nbsp; Make a <strong>backup</strong> before any bulk cleanup. Do <strong>LiteSpeed Purge All</strong> afterwards."
+msgstr ""
+
+#. Translation key: trans_expired
+msgid "⌛ expired"
+msgstr ""
+
+#. Translation key: trans_timeout
+msgid "⏳ timeout"
+msgstr ""
+
+#. Translation key: trans_value
+msgid "♾️ value"
+msgstr ""
+
+#. Translation key: lbl_view
+msgid "View"
+msgstr ""
+
+#. Translation key: lbl_no_plugin
+msgid "No plugin detected"
+msgstr ""
+
+#. Translation key: status_not_installed
+msgid "✕ Not installed"
+msgstr ""
+
+#. Translation key: tab_history
+msgid "📅 History"
+msgstr ""
+
+#. Translation key: tab_cron
+msgid "⏱️ CRON"
+msgstr ""
+
+#. Translation key: hist_page_title
+msgid "📅 Plugin and theme history"
+msgstr ""
+
+#. Translation key: hist_desc
+msgid "Event log of plugins and themes since TSO Options & Tables Cleaner was installed. Previous actions are shown in the \"Current status\" section."
+msgstr ""
+
+#. Translation key: hist_filter_all
+msgid "All"
+msgstr ""
+
+#. Translation key: hist_filter_plugins
+msgid "Plugins"
+msgstr ""
+
+#. Translation key: hist_filter_themes
+msgid "Themes"
+msgstr ""
+
+#. Translation key: hist_filter_action_all
+msgid "All actions"
+msgstr ""
+
+#. Translation key: hist_filter_action_activated
+msgid "✅ Activated"
+msgstr ""
+
+#. Translation key: hist_filter_action_deactivated
+msgid "⚠️ Deactivated"
+msgstr ""
+
+#. Translation key: hist_filter_action_installed
+msgid "📥 Installed"
+msgstr ""
+
+#. Translation key: hist_filter_action_updated
+msgid "🔄 Updated"
+msgstr ""
+
+#. Translation key: hist_filter_action_deleted
+msgid "🗑️ Deleted"
+msgstr ""
+
+#. Translation key: hist_col_date
+msgid "Date and time"
+msgstr ""
+
+#. Translation key: hist_col_type
+msgid "Type"
+msgstr ""
+
+#. Translation key: hist_col_name
+msgid "Name"
+msgstr ""
+
+#. Translation key: hist_col_action
+msgid "Action"
+msgstr ""
+
+#. Translation key: hist_col_file
+msgid "File / Slug"
+msgstr ""
+
+#. Translation key: hist_col_details
+msgid "Details"
+msgstr ""
+
+#. Translation key: hist_filter_action_keys_mapped
+msgid "🔑 New wp_options keys"
+msgstr ""
+
+#. Translation key: hist_filter_action_tables_mapped
+msgid "📊 New database tables"
+msgstr ""
+
+#. Translation key: hist_action_keys_mapped
+msgid "New wp_options keys"
+msgstr ""
+
+#. Translation key: hist_action_tables_mapped
+msgid "New database tables"
+msgstr ""
+
+#. Translation key: hist_detail_keys_heading
+msgid "New wp_options keys (%d)"
+msgstr ""
+
+#. Translation key: hist_detail_tables_heading
+msgid "New tables (%d)"
+msgstr ""
+
+#. Translation key: hist_detail_more
+msgid "… +%d more"
+msgstr ""
+
+#. Translation key: hist_empty
+msgid "No events recorded yet."
+msgstr ""
+
+#. Translation key: hist_empty_desc
+msgid "From now on, every activation, deactivation, installation, update or deletion of plugins and themes will be recorded here."
+msgstr ""
+
+#. Translation key: hist_clear_btn
+msgid "🗑️ Clear history"
+msgstr ""
+
+#. Translation key: hist_clear_confirm
+msgid "Clear all history? This action cannot be undone."
+msgstr ""
+
+#. Translation key: hist_cleared
+msgid "History cleared."
+msgstr ""
+
+#. Translation key: hist_section_log
+msgid "📋 Activity log"
+msgstr ""
+
+#. Translation key: hist_section_current
+msgid "🔌 Current plugin and theme status"
+msgstr ""
+
+#. Translation key: hist_current_desc
+msgid "Snapshot of all installed plugins and themes, with file date as installation reference."
+msgstr ""
+
+#. Translation key: hist_col_status
+msgid "Status"
+msgstr ""
+
+#. Translation key: hist_col_version
+msgid "Version"
+msgstr ""
+
+#. Translation key: hist_col_file_date
+msgid "File date (approx. install)"
+msgstr ""
+
+#. Translation key: hist_plugin_active
+msgid "✅ Active"
+msgstr ""
+
+#. Translation key: hist_plugin_inactive
+msgid "⚠️ Inactive"
+msgstr ""
+
+#. Translation key: hist_theme_active
+msgid "🎨 Active theme"
+msgstr ""
+
+#. Translation key: hist_theme_inactive
+msgid "🖼️ Installed theme"
+msgstr ""
+
+#. Translation key: hist_total_events
+msgid "Recorded events"
+msgstr ""
+
+#. Translation key: hist_search_ph
+msgid "🔍 Search by name..."
+msgstr ""
+
+#. Translation key: hist_action_activated
+msgid "Activated"
+msgstr ""
+
+#. Translation key: hist_action_deactivated
+msgid "Deactivated"
+msgstr ""
+
+#. Translation key: hist_action_installed
+msgid "Installed"
+msgstr ""
+
+#. Translation key: hist_action_updated
+msgid "Updated"
+msgstr ""
+
+#. Translation key: hist_action_deleted
+msgid "Deleted"
+msgstr ""
+
+#. Translation key: hist_type_plugin
+msgid "Plugin"
+msgstr ""
+
+#. Translation key: hist_type_theme
+msgid "Theme"
+msgstr ""
+
+#. Translation key: hist_recently_deactivated
+msgid "⌚ Recently deactivated (WordPress)"
+msgstr ""
+
+#. Translation key: hist_recently_desc
+msgid "Plugins recently deactivated as recorded by WordPress (recently_activated)."
+msgstr ""
+
+#. Privacy policy plugin name
+msgid "TSO Options & Tables Cleaner"
+msgstr ""
+
+#. Privacy policy paragraph 1
+msgid "This plugin stores one administrator preference: the interface language (Catalan, Spanish, or English). It is saved as user metadata (<code>wp_usermeta</code>, key: <code>tso_ui_lang</code>) only for the user who selected the language. No data is sent to external servers."
+msgstr ""
+
+#. Privacy policy paragraph 2
+msgid "If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-backups/</code>) and are not transmitted to third-party services."
+msgstr ""
+
+msgid "Invalid table name."
+msgstr ""
+
+msgid "💾 Database backup"
+msgstr ""
+
+#. Autoload diagnosis remainder row (mostly transient autoload bytes).
+msgid "Transients (temporals)"
+msgstr ""
+
+#. Autoload diagnosis remainder row fallback when remainder is not mostly transients.
+msgid "Other autoload options"
+msgstr ""
+
+#. Autoload diagnosis panel title
+msgid "📊 Autoload Diagnosis"
+msgstr ""
+
+#. Autoload diagnosis subtitle
+msgid "Which entries make up the total?"
+msgstr ""
+
+#. translators: %d: number of entries analyzed
+msgid "%d entries analyzed"
+msgstr ""
+
+#. Autoload diagnosis footer tip
+msgid "Tip: options shown in red or orange are priority candidates for disabling autoload or deleting."
+msgstr ""
+
+#. Autoload diagnosis: note inside expandable “remainder” row (transients / options outside top list). %d: top-N sample size.
+msgid "No per-option breakdown here: this bucket estimates autoload volume not listed above—typically autoloaded transients and options smaller than the top %d ranked entries."
+msgstr ""
+
+#. WP-Cron custom schedule (monthly) display label.
+msgid "Once monthly"
+msgstr ""
+
+#. translators: %s: table name
+msgid "Invalid table for backup: %s"
+msgstr ""
+
+#. translators: %s: table name
+msgid "Could not read the table structure for %s."
+msgstr ""
+
+msgid "Only SQL backups generated by this plugin can be restored from here."
+msgstr ""
+
+msgid "Could not read the selected backup file."
+msgstr ""
+
+msgid "Table snapshot"
+msgstr ""
+
+msgid "Legacy full backup"
+msgstr ""
+
+msgid "Full database"
+msgstr ""
+
+msgid "External or unknown SQL file"
+msgstr ""
+
+#. translators: %d: number of errors
+msgid "Table snapshot restored with %d error(s)."
+msgstr ""
+
+msgid "Table snapshot restored successfully."
+msgstr ""
+
+#. translators: %d: number of errors
+msgid "Database restored with %d error(s)."
+msgstr ""
+
+msgid "Database restored successfully."
+msgstr ""
+
+msgid "Deleting extra tables now creates an automatic table snapshot first."
+msgstr ""
+
+msgid "Only backups generated by this plugin can be restored from this screen."
+msgstr ""
+
+msgid "Tables included"
+msgstr ""
+
+msgid "Generated by this plugin"
+msgstr ""
+
+msgid "Restore unavailable"
+msgstr ""
+
+msgid "Entire database"
+msgstr ""
+
+#. translators: %s: comma-separated table names
+msgid "This snapshot will restore only these tables: <strong>%s</strong>. Existing versions of these tables will be overwritten."
+msgstr ""

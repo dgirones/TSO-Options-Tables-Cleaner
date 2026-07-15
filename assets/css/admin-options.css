@@ -1,0 +1,201 @@
+#tso-opts-wrap { width:100%; box-sizing:border-box; }
+.tso-al-panel { display:block; width:100%; clear:both; margin-bottom:18px; box-sizing:border-box; }
+/* ---- Stats (5 cards in one row on desktop, like pre-1.0.3 layout) ---- */
+.tso-opts-stats { display:flex; gap:10px; flex-wrap:nowrap; margin-bottom:18px; width:100%; }
+.tso-opts-stat  { display:flex; flex:1 1 0; min-width:0; align-items:center; gap:10px; background:#fff;
+                  border:1px solid #e0e0e0; border-radius:8px; padding:12px 14px;
+                  box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.tso-opts-stat strong { font-size:28px; font-weight:800; line-height:1; }
+.tso-opts-stat .stat-lbl { font-size:13px; font-weight:600; line-height:1.25; }
+.tso-opts-stat .stat-sub { font-size:11px; color:#999; margin-top:1px; line-height:1.25; }
+.tso-opts-stat .stat-lbl,
+.tso-opts-stat .stat-sub { overflow-wrap:anywhere; }
+.tso-opts-stat.unknown  { border-color:#f0a0a0; background:linear-gradient(135deg,#fff8f8,#fff); }
+.tso-opts-stat.unknown strong { color:#c00; }
+.tso-opts-stat.inactive { border-color:#f0c070; background:linear-gradient(135deg,#fffdf5,#fff); }
+.tso-opts-stat.inactive strong { color:#c07000; }
+.tso-opts-stat.uninstalled { border-color:#e8a0a0; background:linear-gradient(135deg,#fff5f5,#fff); }
+.tso-opts-stat.uninstalled strong { color:#c00000; }
+/* ---- Filtres ---- */
+.tso-filter-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+                  margin-bottom:18px; padding:12px 16px; background:#fff;
+                  border:1px solid #e0e0e0; border-radius:8px;
+                  box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.tso-filter-row input[type=text] { flex:1; min-width:180px; border-radius:4px; }
+.tso-filter-row select { font-size:12px; border-radius:4px; }
+/* ---- Grup plugin ---- */
+.tso-plugin-group { background:#fff; border:1px solid #e2e4e7; border-radius:8px;
+                    margin-bottom:10px; overflow:hidden;
+                    box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.tso-plugin-group-head { display:flex; align-items:center; gap:10px;
+                         padding:11px 16px; cursor:pointer; user-select:none;
+                         border-bottom:1px solid transparent;
+                         transition:background .12s; }
+.tso-plugin-group-head:hover { background:#f5f8ff; }
+.tso-plugin-group-head.open  { border-bottom-color:#eee; background:#fafbff; }
+.tso-plugin-group-head .tso-arrow { color:#bbb; font-size:10px;
+                                    transition:transform .18s; min-width:12px; }
+.tso-plugin-group-head.open .tso-arrow { transform:rotate(90deg); color:#007cba; }
+.tso-plugin-group-head .grp-name { font-weight:700; font-size:13px; flex:1;
+                                   color:#1d2327; letter-spacing:-.01em; }
+.tso-plugin-group-head .grp-meta  { font-size:12px; color:#aaa; white-space:nowrap; }
+.tso-plugin-group-body { display:none; }
+.tso-plugin-group-body.open { display:block; }
+/* ---- Taula d-opcions ---- */
+.tso-opts-table { width:100%; border-collapse:collapse; }
+.tso-opts-table th { background:#f8f9fa; padding:7px 12px; text-align:left;
+                     font-size:11px; color:#666; font-weight:700;
+                     border-bottom:2px solid #e8e8e8; letter-spacing:.04em;
+                     text-transform:uppercase; }
+.tso-opts-table td { padding:9px 12px; border-bottom:1px solid #f2f2f2;
+                     vertical-align:middle; }
+.tso-opts-table tr:last-child td { border-bottom:none; }
+.tso-opts-table tr:hover td { background:#f7f9ff; }
+/* Nom de l-opcio: gran i llegible */
+.tso-opts-table .col-name { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+                            font-size:13px; color:#1d2327; word-break:break-all;
+                            font-weight:500; line-height:1.4; max-width:420px; }
+.tso-opts-table .col-name small { display:block; font-size:10px; color:#aaa;
+                                  font-family:sans-serif; margin-top:1px; }
+.tso-opts-table .col-size { text-align:right; white-space:nowrap; font-weight:700;
+                            font-size:12px; width:70px; }
+.tso-opts-table .col-auto { text-align:center; width:80px; }
+.tso-opts-table .col-acts { white-space:nowrap; text-align:right; width:220px; }
+.tso-opts-table .col-chk  { width:32px; text-align:center; }
+/* ---- Bulk bar ---- */
+.tso-bulk-bar { display:flex; align-items:center; gap:10px; padding:8px 12px;
+                background:#f8f9fa; border-bottom:1px solid #eee; }
+.tso-bulk-bar label { font-size:12px; display:flex; align-items:center;
+                      gap:5px; cursor:pointer; color:#555; }
+/* ---- Botons d-accio: mes grans i llegibles ---- */
+.btn-act { display:inline-flex; align-items:center; gap:4px; padding:4px 10px;
+           border:1px solid; border-radius:4px; cursor:pointer; font-size:12px;
+           font-weight:500; background:#fff; line-height:1.4;
+           transition:all .12s; white-space:nowrap; }
+.btn-act + .btn-act { margin-left:3px; }
+.btn-act:hover { transform:translateY(-1px); box-shadow:0 2px 5px rgba(0,0,0,.12); }
+.btn-act.view     { border-color:#90bcd8; color:#0075be; background:#f0f8ff; }
+.btn-act.assign   { border-color:#46b450; color:#2e7d32; background:#f0fff4; }
+.btn-act.autoload { border-color:#d4a017; color:#8a5c00; background:#fffbf0; }
+.btn-act.autoload.on { border-color:#46b450; color:#2e7d32; background:#f0fff4; }
+.btn-act.delete   { border-color:#c8c8c8; color:#777; }
+.btn-act.delete:hover { border-color:#c00; color:#c00; background:#fff5f5; }
+.btn-act.delete.danger { border-color:#e07070; color:#c00; background:#fff5f5; }
+.btn-act.delete.danger:hover { background:#ffeaea; border-color:#c00; }
+.btn-act.search   { border-color:#90bcd8; color:#007cba; background:#f0f8ff; width:30px;
+                    justify-content:center; padding:4px 6px; }
+/* ---- Detection audit panel ---- */
+.tso-audit-panel { max-width:100%; overflow:hidden; }
+.tso-audit-table-wrap {
+  width:100%; max-width:100%; box-sizing:border-box;
+  border:1px solid #ddd; background:#fff; border-radius:6px;
+  overflow-x:auto; overflow-y:visible;
+}
+.tso-audit-table { width:100%; table-layout:fixed; border-collapse:collapse; }
+.tso-audit-table th,
+.tso-audit-table td {
+  word-break:break-word; overflow-wrap:anywhere; vertical-align:top;
+}
+.tso-audit-table th:nth-child(1),
+.tso-audit-table td:nth-child(1) { width:14%; }
+.tso-audit-table th:nth-child(6),
+.tso-audit-table td:nth-child(6) { width:16%; }
+.tso-audit-table th:nth-child(7),
+.tso-audit-table td:nth-child(7) { width:14%; }
+@media screen and (max-width:782px) {
+  #tso-opts-wrap { padding-bottom:8px; }
+  .tso-opts-stats { flex-direction:column; gap:8px; }
+  .tso-opts-stat { width:100%; min-width:0; box-sizing:border-box; padding:12px 14px; }
+  .tso-opts-stat strong { font-size:24px; }
+  .tso-filter-row { flex-direction:column; align-items:stretch; gap:10px; padding:12px; }
+  .tso-filter-row input[type=text],
+  .tso-filter-row select { width:100% !important; max-width:none; min-width:0; box-sizing:border-box; }
+  .tso-plugin-group { overflow:visible; }
+  .tso-plugin-group-body { overflow:visible; }
+  .tso-plugin-group-head {
+    flex-wrap:wrap; align-items:flex-start; gap:8px 10px; padding:10px 12px;
+  }
+  .tso-plugin-group-head .tso-arrow { margin-top:3px; flex-shrink:0; }
+  .tso-plugin-group-head .grp-name {
+    flex:1 1 calc(100% - 76px); min-width:0; white-space:normal;
+    word-break:break-word;
+  }
+  .tso-plugin-group-head .tso-rename-btn { flex-shrink:0; margin-top:1px; }
+  .tso-plugin-group-head .grp-status { flex:1 1 100%; margin-top:2px; }
+  .tso-plugin-group-head .grp-meta {
+    flex:1 1 100%; white-space:normal; font-size:11px; color:#888;
+  }
+  .tso-plugin-group-head > button.button-small:not(.tso-rename-btn) {
+    flex:1 1 100%; width:100%; box-sizing:border-box; margin-top:4px !important;
+  }
+  .tso-plugin-group-head form {
+    flex:1 1 100%; width:100%; margin-top:4px !important;
+  }
+  .tso-plugin-group-head form .button { width:100%; box-sizing:border-box; }
+  .tso-opts-scroll { margin:0 -4px; }
+  .tso-opts-scroll .tso-opts-table thead { display:none; }
+  .tso-opts-scroll .tso-opts-table tbody { display:block; }
+  .tso-opts-scroll .tso-opts-table tbody tr {
+    display:block; border:1px solid #e2e4e7; border-radius:8px; margin-bottom:10px;
+    padding:10px 12px; background:#fafbff;
+  }
+  .tso-opts-scroll .tso-opts-table tbody td {
+    display:block; width:100% !important; box-sizing:border-box;
+    border:none !important; padding:8px 0 !important;
+    text-align:left !important;
+  }
+  .tso-opts-scroll .tso-opts-table tbody td.col-chk::before { display:none !important; content:none !important; }
+  .tso-opts-scroll .tso-opts-table tbody td[data-label]:not([data-label=""])::before {
+    content:attr(data-label);
+    display:block; font-size:10px; font-weight:700; color:#646970;
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px;
+  }
+  .tso-opts-scroll .tso-opts-table .col-name {
+    max-width:none; font-size:13px; overflow-wrap:anywhere; word-break:break-word;
+  }
+  .tso-opts-scroll .tso-opts-table .col-acts {
+    white-space:normal; padding-top:4px !important;
+  }
+  .tso-opts-scroll .tso-opts-table .col-acts .btn-act {
+    margin:4px 8px 4px 0; font-size:11px; padding:5px 8px;
+    position:relative; z-index:1;
+  }
+  .tso-opts-scroll .tso-opts-table .col-size,
+  .tso-opts-scroll .tso-opts-table .col-auto { width:auto !important; }
+  .tso-bulk-bar { flex-wrap:wrap; }
+}
+
+/* Audit panel table: fit container, no nested scroll traps */
+.tso-audit-table-wrap {
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  overflow-x:auto;
+  overflow-y:visible;
+  border:1px solid #ddd;
+  background:#fff;
+  border-radius:6px;
+}
+.tso-audit-table {
+  width:100%;
+  table-layout:fixed;
+  margin:0;
+  font-size:12px;
+}
+.tso-audit-table th,
+.tso-audit-table td {
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  vertical-align:top;
+}
+.tso-audit-table th:nth-child(6),
+.tso-audit-table td:nth-child(6),
+.tso-audit-table th:nth-child(7),
+.tso-audit-table td:nth-child(7) {
+  word-break:break-all;
+}
+.tso-detect-badge { font-size:10px; font-weight:600; color:#555; background:#f0f0f1;
+                    padding:1px 6px; border-radius:3px; margin-left:4px; vertical-align:middle; }
+.tso-detect-badge-weak { color:#a00000; background:#fff0f0; }
+.btn-act.confirm { border-color:#1a7f37; color:#1a7f37; background:#f0fff4; }
