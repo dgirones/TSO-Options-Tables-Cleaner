@@ -159,6 +159,75 @@ function tsootc_get_plugin_folder_path( $folder_slug ) {
 }
 
 /**
+ * Resolve the installed plugin bootstrap path for a folder slug (aliases included).
+ *
+ * @param string $folder_slug         Plugin directory slug.
+ * @param array  $installed_plugins Optional inventory.
+ * @return string Relative path under wp-content/plugins, or empty when not found.
+ */
+function tsootc_resolve_installed_plugin_file_for_folder( $folder_slug, array $installed_plugins = array() ) {
+	$folder_slug = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+		? tsootc_normalize_plugin_folder_slug( $folder_slug )
+		: strtolower( sanitize_file_name( (string) $folder_slug ) );
+	if ( '' === $folder_slug ) {
+		return '';
+	}
+
+	$candidates = function_exists( 'tsootc_get_plugin_folder_disk_candidates' )
+		? tsootc_get_plugin_folder_disk_candidates( $folder_slug )
+		: array( $folder_slug );
+
+	if ( empty( $installed_plugins ) && function_exists( 'tsootc_get_installed_plugins' ) ) {
+		$installed_plugins = tsootc_get_installed_plugins();
+	}
+
+	foreach ( $installed_plugins as $pl ) {
+		if ( ( $pl['type'] ?? 'plugin' ) === 'theme' || empty( $pl['file'] ) ) {
+			continue;
+		}
+		$pl_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+			? tsootc_normalize_plugin_folder_slug( dirname( (string) $pl['file'] ) )
+			: strtolower( dirname( (string) $pl['file'] ) );
+		if ( in_array( $pl_folder, $candidates, true ) || $pl_folder === $folder_slug ) {
+			return (string) $pl['file'];
+		}
+	}
+
+	if ( function_exists( 'get_plugins' ) ) {
+		foreach ( array_keys( get_plugins() ) as $plugin_file ) {
+			$pl_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+				? tsootc_normalize_plugin_folder_slug( dirname( (string) $plugin_file ) )
+				: strtolower( dirname( (string) $plugin_file ) );
+			if ( in_array( $pl_folder, $candidates, true ) || $pl_folder === $folder_slug ) {
+				return (string) $plugin_file;
+			}
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Return a plugin bootstrap path when the stored value is missing or guessed wrong.
+ *
+ * @param string $plugin_file Plugin bootstrap relative path.
+ * @return string
+ */
+function tsootc_reconcile_plugin_bootstrap_file( $plugin_file ) {
+	$plugin_file = str_replace( "\0", '', (string) $plugin_file );
+	if ( '' === $plugin_file || false === strpos( $plugin_file, '/' ) ) {
+		return $plugin_file;
+	}
+
+	if ( function_exists( 'tsootc_plugin_file_exists' ) && tsootc_plugin_file_exists( $plugin_file ) ) {
+		return $plugin_file;
+	}
+
+	$resolved = tsootc_resolve_installed_plugin_file_for_folder( dirname( $plugin_file ) );
+	return '' !== $resolved ? $resolved : $plugin_file;
+}
+
+/**
  * Path relative to WP_CONTENT_DIR (no leading slash).
  *
  * @param string $absolute_path Filesystem path.
@@ -1177,6 +1246,10 @@ function tsootc_get_strict_plugin_folder_option_rules() {
         ),
         'tso-swiss-knife'           => array(
             'prefixes' => array( 'tsootc_', 'tsosk_', 'tsootc_swiss', 'tso-swiss' ),
+            'exact'    => array(),
+        ),
+        'tso-swiss-knife-advanced-maintenance-developer-toolkit' => array(
+            'prefixes' => array( 'tsosk_', 'tsootc_swiss', 'tso-swiss' ),
             'exact'    => array(),
         ),
         'broken-link-checker'       => array(
@@ -2854,9 +2927,7 @@ function tsootc_option_key_expected_plugin_folders( $option_name ) {
 
     $normalized = array();
     foreach ( array_unique( $folders ) as $folder ) {
-        $normalized[] = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-            ? tsootc_normalize_plugin_folder_slug( (string) $folder )
-            : strtolower( sanitize_file_name( (string) $folder ) );
+        $normalized[] = tsootc_sanitize_plugin_folder_slug( (string) $folder );
     }
 
     return array_values( array_filter( array_unique( $normalized ) ) );
@@ -2892,11 +2963,20 @@ function tsootc_option_key_plugin_file_matches_expected( $option_name, $plugin_f
         return false;
     }
 
-    $folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-        ? tsootc_normalize_plugin_folder_slug( dirname( $plugin_file ) )
-        : strtolower( dirname( $plugin_file ) );
+    $folder = tsootc_sanitize_plugin_folder_slug( dirname( $plugin_file ) );
+    if ( in_array( $folder, $expected, true ) ) {
+        return true;
+    }
 
-    return in_array( $folder, $expected, true );
+    if ( function_exists( 'tsootc_get_plugin_folder_disk_candidates' ) ) {
+        foreach ( tsootc_get_plugin_folder_disk_candidates( $folder ) as $candidate ) {
+            if ( in_array( $candidate, $expected, true ) ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -2926,8 +3006,8 @@ function tsootc_get_tso_option_prefix_slug_hints() {
         'tso_migrated_'             => 'tso-options-tables-cleaner', // legacy wp_options prefix
         'tsootc_neteja_'            => 'tso-options-tables-cleaner', // legacy wp_options prefix
         'tso_neteja_'               => 'tso-options-tables-cleaner', // legacy wp_options prefix
-        'tsosk_'                 => array( 'tso-swiss-knife', 'tso-wp-swiss' ),
-        'tsosk'                  => array( 'tso-swiss-knife', 'tso-wp-swiss' ),
+        'tsosk_'                 => array( 'tso-swiss-knife-advanced-maintenance-developer-toolkit', 'tso-swiss-knife', 'tso-wp-swiss' ),
+        'tsosk'                  => array( 'tso-swiss-knife-advanced-maintenance-developer-toolkit', 'tso-swiss-knife', 'tso-wp-swiss' ),
         'tsootc_im_'                => $image_master,
         'tso_im_'                   => $image_master, // legacy wp_options prefix
         'tsoimma_'               => $image_master,
@@ -3854,11 +3934,39 @@ function tsootc_find_installed_tso_plugin_row_for_option( $option_name, array $i
 
     if ( '' !== $matched_prefix ) {
         $targets = isset( $hints[ $matched_prefix ] ) ? $hints[ $matched_prefix ] : array();
-        $targets = is_array( $targets ) ? $targets : array( $targets );
+        $targets = is_array( $targets ) ? array_values( $targets ) : array( $targets );
+
+        $installed_folder = tsootc_pick_installed_plugin_folder_from_targets( $targets, $installed_plugins );
+        if ( '' !== $installed_folder ) {
+            if ( function_exists( 'tsootc_build_plugin_detection_row_from_folder' ) ) {
+                $row = tsootc_build_plugin_detection_row_from_folder( $installed_folder, $installed_plugins );
+                if ( is_array( $row ) ) {
+                    $row['source'] = 'tsootc_hint';
+                    return $row;
+                }
+            }
+            foreach ( $installed_plugins as $pl ) {
+                if ( ( $pl['type'] ?? 'plugin' ) === 'theme' || empty( $pl['file'] ) ) {
+                    continue;
+                }
+                $folder = tsootc_sanitize_plugin_folder_slug( dirname( (string) $pl['file'] ) );
+                if ( $folder !== $installed_folder ) {
+                    continue;
+                }
+                return array(
+                    'name'      => (string) $pl['name'],
+                    'file'      => (string) $pl['file'],
+                    'folder'    => $folder,
+                    'active'    => ! empty( $pl['active'] ),
+                    'installed' => true,
+                    'auto'      => false,
+                    'source'    => 'tsootc_inventory',
+                );
+            }
+        }
+
         foreach ( $targets as $target_folder ) {
-            $target_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                ? tsootc_normalize_plugin_folder_slug( (string) $target_folder )
-                : strtolower( sanitize_file_name( (string) $target_folder ) );
+            $target_folder = tsootc_sanitize_plugin_folder_slug( (string) $target_folder );
             if ( '' === $target_folder ) {
                 continue;
             }
@@ -3866,9 +3974,7 @@ function tsootc_find_installed_tso_plugin_row_for_option( $option_name, array $i
                 if ( ( $pl['type'] ?? 'plugin' ) === 'theme' || empty( $pl['file'] ) ) {
                     continue;
                 }
-                $folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                    ? tsootc_normalize_plugin_folder_slug( dirname( (string) $pl['file'] ) )
-                    : strtolower( dirname( (string) $pl['file'] ) );
+                $folder = tsootc_sanitize_plugin_folder_slug( dirname( (string) $pl['file'] ) );
                 if ( $folder !== $target_folder ) {
                     continue;
                 }
@@ -5398,6 +5504,7 @@ function tsootc_get_plugin_folder_display_labels() {
     return array(
         'tso-widget-rss-noticias' => 'TSO Widget RSS Noticias (TWRN)',
         'tso-tabs-widget'           => 'TSO Tabs Widget',
+        'tso-swiss-knife-advanced-maintenance-developer-toolkit' => 'TSO Swiss Knife – Advanced Maintenance & Developer Toolkit',
         'tso-image-master'          => 'TSO Image Master',
         'tso-image-master-pro'      => 'TSO Image Master',
         'tso-link-inspector'        => 'TSO Link Inspector',
@@ -5428,6 +5535,82 @@ function tsootc_normalize_plugin_folder_slug( $folder ) {
     }
     $aliases = tsootc_get_plugin_folder_aliases();
     return isset( $aliases[ $folder ] ) ? (string) $aliases[ $folder ] : $folder;
+}
+
+/**
+ * Literal plugin folder slug (no product alias merge).
+ *
+ * @param string $folder Plugin directory slug.
+ * @return string
+ */
+function tsootc_sanitize_plugin_folder_slug( $folder ) {
+    return strtolower( sanitize_file_name( (string) $folder ) );
+}
+
+/**
+ * First installed plugin folder from a prefix-hint target list (priority order).
+ *
+ * Used when several products share a wp_options prefix (e.g. tsosk_) but are
+ * different plugins with different folder slugs over time.
+ *
+ * @param array $targets           Folder slugs from prefix hints.
+ * @param array $installed_plugins Optional inventory.
+ * @return string Empty when none of the targets is installed now.
+ */
+function tsootc_pick_installed_plugin_folder_from_targets( array $targets, array $installed_plugins = array() ) {
+    if ( empty( $installed_plugins ) && function_exists( 'tsootc_get_installed_plugins' ) ) {
+        $installed_plugins = tsootc_get_installed_plugins();
+    }
+
+    foreach ( $targets as $target ) {
+        $target = tsootc_sanitize_plugin_folder_slug( $target );
+        if ( '' === $target ) {
+            continue;
+        }
+        if ( function_exists( 'tsootc_is_plugin_folder_currently_installed' )
+            && tsootc_is_plugin_folder_currently_installed( $target, $installed_plugins ) ) {
+            return $target;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Whether a detection row already points at an expected folder that is installed now.
+ *
+ * @param array|null $detected          Detection row.
+ * @param string     $option_name       Option key.
+ * @param array      $installed_plugins Inventory.
+ * @return bool
+ */
+function tsootc_detection_row_matches_expected_installed_folder( $detected, $option_name, array $installed_plugins = array() ) {
+    if ( empty( $detected ) || ! is_array( $detected ) || ! function_exists( 'tsootc_option_key_expected_plugin_folders' ) ) {
+        return false;
+    }
+
+    $expected = tsootc_option_key_expected_plugin_folders( $option_name );
+    if ( empty( $expected ) ) {
+        return false;
+    }
+
+    $det_folder = '';
+    if ( ! empty( $detected['folder'] ) ) {
+        $det_folder = tsootc_sanitize_plugin_folder_slug( (string) $detected['folder'] );
+    } elseif ( ! empty( $detected['file'] ) && false !== strpos( (string) $detected['file'], '/' ) ) {
+        $det_folder = tsootc_sanitize_plugin_folder_slug( dirname( (string) $detected['file'] ) );
+    }
+
+    if ( '' === $det_folder || ! in_array( $det_folder, $expected, true ) ) {
+        return false;
+    }
+
+    if ( ! empty( $detected['installed'] ) ) {
+        return true;
+    }
+
+    return function_exists( 'tsootc_is_plugin_folder_currently_installed' )
+        && tsootc_is_plugin_folder_currently_installed( $det_folder, $installed_plugins );
 }
 
 /**
@@ -5522,8 +5705,12 @@ function tsootc_infer_plugin_folder_from_option( $option_name, array $installed_
                 continue;
             }
             $targets = is_array( $prefix_hints[ $prefix ] ) ? $prefix_hints[ $prefix ] : array( $prefix_hints[ $prefix ] );
-            if ( ! empty( $targets[0] ) ) {
-                $folder = tsootc_normalize_plugin_folder_slug( (string) $targets[0] );
+            if ( ! empty( $targets ) ) {
+                $installed_folder = tsootc_pick_installed_plugin_folder_from_targets( $targets, $installed_plugins );
+                if ( '' !== $installed_folder ) {
+                    return $installed_folder;
+                }
+                $folder = tsootc_sanitize_plugin_folder_slug( (string) $targets[0] );
                 if ( function_exists( 'tsootc_resolve_installed_theme_slug_from_folder_token' )
                     && '' !== tsootc_resolve_installed_theme_slug_from_folder_token( $folder, $installed_plugins ) ) {
                     return '';
@@ -5671,8 +5858,8 @@ function tsootc_get_option_prefix_slug_hints() {
         'tso_theme_prefix_map'      => 'tso-options-tables-cleaner', // legacy wp_options prefix
         'tsootc_opts_tab_cache'        => 'tso-options-tables-cleaner', // legacy wp_options prefix
         'tso_opts_tab_cache'        => 'tso-options-tables-cleaner', // legacy wp_options prefix
-        'tsosk_'                      => array( 'tso-swiss-knife', 'tso-wp-swiss' ),
-        'tsosk'                       => array( 'tso-swiss-knife', 'tso-wp-swiss' ),
+        'tsosk_'                      => array( 'tso-swiss-knife-advanced-maintenance-developer-toolkit', 'tso-swiss-knife', 'tso-wp-swiss' ),
+        'tsosk'                       => array( 'tso-swiss-knife-advanced-maintenance-developer-toolkit', 'tso-swiss-knife', 'tso-wp-swiss' ),
         'tsootc_an_'                   => $gestor_avisos,
         'tso_an_'                   => $gestor_avisos, // legacy wp_options prefix
         'tso_ls_'                   => array( 'tso-light-snow', 'tso-nevado', 'tso-homepage-effects' ), // legacy wp_options prefix
@@ -10203,7 +10390,7 @@ function tsootc_track_comment_trashed_timestamp( $comment_id ) {
 }
 
 /**
- * One-time backfill: existing trashed comments without a trash timestamp get "now" (safe default).
+ * One-time backfill: existing trashed comments without a trash timestamp get comment_date_gmt.
  *
  * @return void
  */
@@ -10215,22 +10402,27 @@ function tsootc_maybe_backfill_comment_trash_timestamps() {
     global $wpdb;
 
     $meta_key = tsootc_comment_trashed_gmt_meta_key();
-    $ids      = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        "SELECT comment_ID FROM {$wpdb->comments} WHERE comment_approved = 'trash'"
+    $rows     = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        "SELECT comment_ID, comment_date_gmt FROM {$wpdb->comments} WHERE comment_approved = 'trash'",
+        ARRAY_A
     );
-    if ( ! is_array( $ids ) ) {
-        $ids = array();
+    if ( ! is_array( $rows ) ) {
+        $rows = array();
     }
 
-    $now = gmdate( 'Y-m-d H:i:s' );
-    foreach ( $ids as $id ) {
-        $id = (int) $id;
+    foreach ( $rows as $row ) {
+        if ( ! is_array( $row ) || empty( $row['comment_ID'] ) ) {
+            continue;
+        }
+        $id = (int) $row['comment_ID'];
         if ( $id <= 0 ) {
             continue;
         }
-        if ( ! get_comment_meta( $id, $meta_key, true ) ) {
-            update_comment_meta( $id, $meta_key, $now );
+        if ( get_comment_meta( $id, $meta_key, true ) ) {
+            continue;
         }
+        $stamp = ! empty( $row['comment_date_gmt'] ) ? (string) $row['comment_date_gmt'] : gmdate( 'Y-m-d H:i:s' );
+        update_comment_meta( $id, $meta_key, $stamp );
     }
 
     tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_COMMENT_TRASH_META_BACKFILL_V1, 1, false );
@@ -10616,7 +10808,7 @@ function tsootc_get_cleanup_action_definitions( $stats = array(), $retention_day
             'count'      => isset( $stats['trashed_comments_older_than_days'] ) ? (int) $stats['trashed_comments_older_than_days'] : 0,
             'risk'       => 'green',
             'risk_label' => __( '🟢 Safe', 'tso-options-tables-cleaner' ),
-            'desc'       => __( 'Only comments that have stayed in the trash longer than the configured number of days will be deleted (tracked from when they were trashed).', 'tso-options-tables-cleaner' ),
+            'desc'       => __( 'Only comments that have stayed in the trash longer than the configured number of days will be deleted (uses trash time when known, otherwise the comment date).', 'tso-options-tables-cleaner' ),
             'confirm'    => __( 'Delete old trashed comments?', 'tso-options-tables-cleaner' ),
             'requires_days' => true,
             'days'       => $retention_days['trashed_comments_older_than_days'],
@@ -10670,8 +10862,8 @@ function tsootc_get_cleanup_action_definitions( $stats = array(), $retention_day
             'frag_preview'             => $frag_hint_preview,
             'risk'                     => 'blue',
             'risk_label'               => __( 'ℹ️ Maintenance', 'tso-options-tables-cleaner' ),
-            'desc'                     => __( 'Defragments and rebuilds all fragmented database tables (WordPress core and plugin tables). Improves SQL query performance.', 'tso-options-tables-cleaner' ),
-            'confirm'                  => __( 'Run OPTIMIZE TABLE on core and fragmented tables? This can lock tables briefly.', 'tso-options-tables-cleaner' ),
+            'desc'                     => __( 'Runs OPTIMIZE TABLE only on tables that report free space (DATA_FREE). On InnoDB this is an estimate, not a guarantee of recovered disk. Can lock tables briefly.', 'tso-options-tables-cleaner' ),
+            'confirm'                  => __( 'Run OPTIMIZE TABLE on fragmented tables only? This can lock tables briefly.', 'tso-options-tables-cleaner' ),
             'exclude_from_manual_grid' => true,
         ),
     );
@@ -12995,8 +13187,6 @@ function tsootc_get_database_size_bytes() {
  * @return int Number of transient groups removed.
  */
 function tsootc_purge_expired_transients() {
-    global $wpdb;
-
     $timeout_keys = tsootc_get_expired_transient_timeout_keys();
     $before       = count( $timeout_keys );
     if ( 0 === $before ) {
@@ -13008,15 +13198,19 @@ function tsootc_purge_expired_transients() {
         tsootc_delete_options_by_names( $names, array( 'flush_tab_cache' => true ) );
     }
 
-    // Fallback: remove any expired timeout rows still present (object-cache-safe).
-    $wpdb->query( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        "DELETE FROM {$wpdb->options}
-        WHERE ( option_name LIKE %s OR option_name LIKE %s )
-        AND CAST(option_value AS UNSIGNED) < %d",
-        tsootc_like_prefix( '_transient_timeout_' ),
-        tsootc_like_prefix( '_site_transient_timeout_' ),
-        time()
-    ) );
+    // Fallback: any expired timeout still present — delete timeout + value pairs (not timeout-only).
+    $leftover_timeouts = tsootc_get_expired_transient_timeout_keys();
+    if ( ! empty( $leftover_timeouts ) ) {
+        $fallback_names = array();
+        foreach ( $leftover_timeouts as $timeout_option ) {
+            foreach ( tsootc_transient_options_for_expired_timeout( $timeout_option ) as $option_name ) {
+                $fallback_names[ $option_name ] = $option_name;
+            }
+        }
+        if ( ! empty( $fallback_names ) ) {
+            tsootc_delete_options_by_names( array_values( $fallback_names ), array( 'flush_tab_cache' => true ) );
+        }
+    }
 
     tsootc_flush_options_caches();
 
@@ -13363,6 +13557,60 @@ function tsootc_count_comments_by_status( $status ) {
 }
 
 /**
+ * Delete posts by ID in chunks to reduce memory/timeout risk on large cleanups.
+ *
+ * @param int[] $ids        Post IDs.
+ * @param int   $chunk_size IDs per chunk.
+ * @return int Number deleted.
+ */
+function tsootc_delete_posts_by_ids_chunked( $ids, $chunk_size = 200 ) {
+    $ids        = is_array( $ids ) ? array_map( 'intval', $ids ) : array();
+    $chunk_size = max( 1, (int) $chunk_size );
+    $deleted    = 0;
+
+    foreach ( array_chunk( $ids, $chunk_size ) as $chunk ) {
+        if ( function_exists( 'set_time_limit' ) ) {
+            // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- large cleanup batches may need more time.
+            @set_time_limit( 60 );
+        }
+        foreach ( $chunk as $id ) {
+            if ( $id > 0 && wp_delete_post( $id, true ) ) {
+                ++$deleted;
+            }
+        }
+    }
+
+    return $deleted;
+}
+
+/**
+ * Delete comments by ID in chunks to reduce memory/timeout risk on large cleanups.
+ *
+ * @param int[] $ids        Comment IDs.
+ * @param int   $chunk_size IDs per chunk.
+ * @return int Number deleted.
+ */
+function tsootc_delete_comments_by_ids_chunked( $ids, $chunk_size = 200 ) {
+    $ids        = is_array( $ids ) ? array_map( 'intval', $ids ) : array();
+    $chunk_size = max( 1, (int) $chunk_size );
+    $deleted    = 0;
+
+    foreach ( array_chunk( $ids, $chunk_size ) as $chunk ) {
+        if ( function_exists( 'set_time_limit' ) ) {
+            // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- large cleanup batches may need more time.
+            @set_time_limit( 60 );
+        }
+        foreach ( $chunk as $id ) {
+            if ( $id > 0 && wp_delete_comment( $id, true ) ) {
+                ++$deleted;
+            }
+        }
+    }
+
+    return $deleted;
+}
+
+/**
  * Delete posts of a given status using WordPress APIs so related data is cleaned too.
  *
  * @param string $status Post status to purge.
@@ -13396,13 +13644,7 @@ function tsootc_delete_posts_by_status( $status ) {
 
     tsootc_with_cleanup_capability_bypass(
         static function () use ( $ids ) {
-            $n = 0;
-            foreach ( $ids as $id ) {
-                if ( wp_delete_post( (int) $id, true ) ) {
-                    $n++;
-                }
-            }
-            return $n;
+            return tsootc_delete_posts_by_ids_chunked( $ids );
         }
     );
 
@@ -13438,13 +13680,7 @@ function tsootc_delete_comments_by_status( $status ) {
 
     tsootc_with_cleanup_capability_bypass(
         static function () use ( $ids ) {
-            $n = 0;
-            foreach ( $ids as $id ) {
-                if ( wp_delete_comment( (int) $id, true ) ) {
-                    $n++;
-                }
-            }
-            return $n;
+            return tsootc_delete_comments_by_ids_chunked( $ids );
         }
     );
 
@@ -13670,13 +13906,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             $ids    = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'revision'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
             tsootc_with_cleanup_capability_bypass(
                 static function () use ( $ids ) {
-                    $n = 0;
-                    foreach ( $ids as $id ) {
-                        if ( wp_delete_post( (int) $id, true ) ) {
-                            $n++;
-                        }
-                    }
-                    return $n;
+                    return tsootc_delete_posts_by_ids_chunked( $ids );
                 }
             );
             $after = (int) tsootc_count( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision'" );
@@ -13699,13 +13929,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             ) );
             tsootc_with_cleanup_capability_bypass(
                 static function () use ( $ids ) {
-                    $n = 0;
-                    foreach ( $ids as $id ) {
-                        if ( wp_delete_post( (int) $id, true ) ) {
-                            $n++;
-                        }
-                    }
-                    return $n;
+                    return tsootc_delete_posts_by_ids_chunked( $ids );
                 }
             );
             $after = (int) tsootc_count(
@@ -13759,13 +13983,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             }
             tsootc_with_cleanup_capability_bypass(
                 static function () use ( $ids ) {
-                    $n = 0;
-                    foreach ( $ids as $id ) {
-                        if ( wp_delete_post( (int) $id, true ) ) {
-                            $n++;
-                        }
-                    }
-                    return $n;
+                    return tsootc_delete_posts_by_ids_chunked( $ids );
                 }
             );
             if ( function_exists( 'clean_post_cache' ) ) {
@@ -13805,13 +14023,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             $ids    = tsootc_get_trashed_comment_ids_older_than( $cutoff );
             tsootc_with_cleanup_capability_bypass(
                 static function () use ( $ids ) {
-                    $n = 0;
-                    foreach ( $ids as $id ) {
-                        if ( wp_delete_comment( (int) $id, true ) ) {
-                            $n++;
-                        }
-                    }
-                    return $n;
+                    return tsootc_delete_comments_by_ids_chunked( $ids );
                 }
             );
             $after = tsootc_count_trashed_comments_older_than( $cutoff );
@@ -13870,8 +14082,21 @@ function tsootc_do_clean( $action, $args = array() ) {
             );
 
         case 'drop_table':
+            if ( ! tsootc_extra_table_delete_is_enabled() ) {
+                return tsootc_msg(
+                    'L\'eliminació de taules està protegida. Activa «Permetre eliminar taules» a la pestanya Taules extra.',
+                    'La eliminación de tablas está protegida. Activa «Permitir eliminar tablas» en la pestaña Tablas extra.',
+                    'Table deletion is protected. Enable “Allow table deletion” on the Extra tables tab.'
+                );
+            }
             if ( ! empty( $_POST['table_name'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
                 $table = sanitize_text_field( (string) wp_unslash( $_POST['table_name'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                $validated = tsootc_validate_extra_table_delete_candidates( array( $table ) );
+                if ( empty( $validated['valid'] ) ) {
+                    $err = ! empty( $validated['errors'][0] ) ? (string) $validated['errors'][0] : '';
+                    return '' !== $err ? $err : tsootc_msg( 'Error: taula no vàlida', 'Error: tabla no válida', 'Error: invalid table' );
+                }
+                $table = $validated['valid'][0];
                 if ( strpos( $table, $wpdb->prefix ) === 0 ) {
                     $safe_table = str_replace( '`', '', $table );
                     $wpdb->query( "DROP TABLE IF EXISTS `{$safe_table}`" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $safe_table sanitized and prefix-validated above
@@ -14960,18 +15185,15 @@ function tsootc_run_optimize_fragmented_tables() {
     global $wpdb;
 
     $before_stats = tsootc_get_prefix_table_fragmentation();
-
-    $core_tables = array(
-        $wpdb->posts, $wpdb->postmeta, $wpdb->options,
-        $wpdb->comments, $wpdb->commentmeta,
-        $wpdb->users, $wpdb->usermeta,
-        $wpdb->terms, $wpdb->termmeta, $wpdb->term_taxonomy, $wpdb->term_relationships,
-    );
-
-    $frag_names = $before_stats['fragmented_names'];
-    $tables     = array_unique( array_merge( $core_tables, $frag_names ) );
+    $frag_names   = isset( $before_stats['fragmented_names'] ) && is_array( $before_stats['fragmented_names'] )
+        ? $before_stats['fragmented_names']
+        : array();
+    $tables       = array_values( array_unique( array_filter( array_map( 'strval', $frag_names ) ) ) );
 
     $existing_tables = $wpdb->get_col( 'SHOW TABLES' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+    if ( ! is_array( $existing_tables ) ) {
+        $existing_tables = array();
+    }
 
     $results_raw = array();
     foreach ( $tables as $table ) {
@@ -15190,50 +15412,58 @@ function tsootc_extra_table_plugin_installed_but_inactive( $table_item ) {
 }
 
 /**
+ * Whether Extra Tables deletion is unlocked by the admin (default: protected / off).
+ *
+ * @return bool
+ */
+function tsootc_extra_table_delete_is_enabled() {
+    return (bool) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_ALLOW_EXTRA_TABLE_DELETE, false );
+}
+
+/**
+ * Persist Extra Tables deletion unlock setting.
+ *
+ * @param bool $enabled Whether deletion is allowed (subject to safety gates).
+ * @return bool
+ */
+function tsootc_extra_table_delete_set_enabled( $enabled ) {
+    return (bool) tsootc_update_stored_option_by_id(
+        TSOOTC_STORED_OPTION_ALLOW_EXTRA_TABLE_DELETE,
+        ! empty( $enabled ) ? 1 : 0,
+        false
+    );
+}
+
+/**
  * Whether an extra table is safe enough to delete from the UI.
+ *
+ * When “Allow table deletion” is off, nothing can be deleted.
+ * When on, any non–multisite-core extra table may be deleted (confirm + auto backup still required).
  *
  * @param array|null $table_item Extra table metadata.
  * @return bool
  */
 function tsootc_can_delete_extra_table( $table_item ) {
-    if ( empty( $table_item ) || ! is_array( $table_item ) ) {
+    if ( ! tsootc_extra_table_delete_is_enabled() ) {
         return false;
     }
 
-    $table_name = isset( $table_item['name'] ) ? (string) $table_item['name'] : '';
-    if ( '' !== $table_name && tsootc_is_extra_table_multisite_core( $table_name ) ) {
+    $table_name = '';
+    if ( is_array( $table_item ) && isset( $table_item['name'] ) ) {
+        $table_name = (string) $table_item['name'];
+    } elseif ( is_string( $table_item ) ) {
+        $table_name = (string) $table_item;
+    }
+
+    if ( '' === $table_name ) {
         return false;
     }
 
-    if ( tsootc_extra_table_plugin_installed_but_inactive( $table_item ) ) {
+    if ( tsootc_is_extra_table_multisite_core( $table_name ) ) {
         return false;
     }
 
-    $status_key = isset( $table_item['status_key'] ) ? (string) $table_item['status_key'] : 'unknown';
-    $usage_key  = isset( $table_item['usage_estimate']['key'] ) ? (string) $table_item['usage_estimate']['key'] : 'unknown';
-
-    $status_ok = in_array( $status_key, array( 'inactive', 'orphan_candidate', 'unknown' ), true );
-    if ( ! $status_ok ) {
-        return false;
-    }
-
-    if ( 'not_in_use' === $usage_key ) {
-        return true;
-    }
-
-    /*
-     * Confirmed uninstalled residue: MySQL Update_time (often unreliable on MyISAM)
-     * must not block deletion when the linked plugin folder is gone.
-     */
-    if (
-        'recent_writes' === $usage_key
-        && in_array( $status_key, array( 'inactive', 'orphan_candidate' ), true )
-        && tsootc_extra_table_is_confirmed_uninstalled_residue( $table_item )
-    ) {
-        return true;
-    }
-
-    return false;
+    return true;
 }
 
 /**
@@ -15243,15 +15473,21 @@ function tsootc_can_delete_extra_table( $table_item ) {
  * @return string
  */
 function tsootc_get_extra_table_delete_block_reason( $table_item ) {
-    if ( empty( $table_item ) || ! is_array( $table_item ) ) {
+    if ( ! tsootc_extra_table_delete_is_enabled() ) {
         return tsootc_msg(
-            'Aquesta taula no s\'ha pogut identificar amb prou seguretat. Revisa-la manualment o exporta l\'SQL.',
-            'No se ha podido identificar esta tabla con suficiente seguridad. Revísala manualmente o exporta el SQL.',
-            'This table could not be identified safely enough. Review it manually or export the SQL.'
+            'L\'eliminació de taules està protegida. Activa «Permetre eliminar taules» a dalt per desbloquejar-la.',
+            'La eliminación de tablas está protegida. Activa «Permitir eliminar tablas» arriba para desbloquearla.',
+            'Table deletion is protected. Enable “Allow table deletion” above to unlock it.'
         );
     }
 
-    $table_name = isset( $table_item['name'] ) ? (string) $table_item['name'] : '';
+    $table_name = '';
+    if ( is_array( $table_item ) && isset( $table_item['name'] ) ) {
+        $table_name = (string) $table_item['name'];
+    } elseif ( is_string( $table_item ) ) {
+        $table_name = (string) $table_item;
+    }
+
     if ( '' !== $table_name && tsootc_is_extra_table_multisite_core( $table_name ) ) {
         return tsootc_msg(
             'Aquesta taula és del nucli de WordPress (multisite) i no s\'ha d\'eliminar des d\'aquí.',
@@ -15260,61 +15496,10 @@ function tsootc_get_extra_table_delete_block_reason( $table_item ) {
         );
     }
 
-    if ( tsootc_extra_table_plugin_installed_but_inactive( $table_item ) ) {
-        return tsootc_msg(
-            'Plugin encara instal·lat però inactiu: no es permet eliminar la taula des d\'aquí.',
-            'Plugin aún instalado pero inactivo: no se permite eliminar la tabla desde aquí.',
-            'Plugin is installed but inactive: deleting this table from here is not allowed.'
-        );
-    }
-
-    $status_key = isset( $table_item['status_key'] ) ? (string) $table_item['status_key'] : 'unknown';
-    $usage_key  = isset( $table_item['usage_estimate']['key'] ) ? (string) $table_item['usage_estimate']['key'] : 'unknown';
-
-    if ( 'active_component' === $status_key ) {
-        return tsootc_msg(
-            'Component en ús (mapatge plugin poc clar o dependència compartida): no es pot eliminar des d\'aquí.',
-            'Componente en uso (mapeo de plugin poco claro o dependencia compartida): no se puede eliminar desde aquí.',
-            'In-use component (unclear plugin mapping or shared dependency): cannot be deleted from this screen.'
-        );
-    }
-
-    if ( 'active' === $status_key ) {
-        return tsootc_msg(
-            'Aquesta taula està vinculada a un plugin actiu i no es pot eliminar des d\'aquí.',
-            'Esta tabla está vinculada a un plugin activo y no se puede eliminar desde aquí.',
-            'This table is linked to an active plugin and cannot be deleted from this screen.'
-        );
-    }
-
-    if ( 'in_use' === $usage_key ) {
-        return tsootc_msg(
-            'Aquesta taula mostra senyals clars d\'ús i no es pot eliminar des d\'aquí.',
-            'Esta tabla muestra señales claras de uso y no se puede eliminar desde aquí.',
-            'This table shows clear signals of use and cannot be deleted from this screen.'
-        );
-    }
-
-    if ( 'unknown' === $usage_key ) {
-        return tsootc_msg(
-            'No s\'ha pogut verificar amb seguretat si aquesta taula està en ús. Revisa-la manualment o exporta l\'SQL.',
-            'No se ha podido verificar con seguridad si esta tabla está en uso. Revísala manualmente o exporta el SQL.',
-            'It was not possible to verify safely whether this table is in use. Review it manually or export the SQL.'
-        );
-    }
-
-    if ( 'recent_writes' === $usage_key ) {
-        return tsootc_msg(
-            'MySQL informa escriptures recents, però el plugin no està instal·lat o està inactiu. Revisa-la manualment o exporta l\'SQL abans d\'eliminar.',
-            'MySQL informa escrituras recientes, pero el plugin no está instalado o está inactivo. Revísala manualmente o exporta el SQL antes de eliminar.',
-            'MySQL reports recent writes, but the linked plugin is not installed or inactive. Review manually or export the SQL before deleting.'
-        );
-    }
-
     return tsootc_msg(
-        'Aquesta taula no compleix els criteris de seguretat per ser eliminada des d\'aquesta pantalla.',
-        'Esta tabla no cumple los criterios de seguridad para eliminarse desde esta pantalla.',
-        'This table does not meet the safety rules required for deletion from this screen.'
+        'Aquesta taula no es pot eliminar des d\'aquesta pantalla.',
+        'Esta tabla no se puede eliminar desde esta pantalla.',
+        'This table cannot be deleted from this screen.'
     );
 }
 
@@ -15335,6 +15520,9 @@ function tsootc_validate_extra_table_delete_candidates( $table_list ) {
 
     foreach ( $validated['valid'] as $table ) {
         $table_item = tsootc_get_extra_table_record( $table );
+        if ( ! is_array( $table_item ) ) {
+            $table_item = array( 'name' => $table );
+        }
         if ( ! tsootc_can_delete_extra_table( $table_item ) ) {
             $errors[] = $table . ' — ' . tsootc_get_extra_table_delete_block_reason( $table_item );
             continue;
@@ -15424,6 +15612,40 @@ function tsootc_ajax_drop_table() {
     );
 }
 add_action( 'wp_ajax_tsootc_drop_table', 'tsootc_ajax_drop_table' );
+
+/**
+ * AJAX: save Extra Tables “allow deletion” master switch (default off / protected).
+ *
+ * @return void
+ */
+function tsootc_ajax_save_extra_table_delete_setting() {
+    nocache_headers();
+    if ( ! tsootc_verify_ajax_nonce() || ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'msg' => tsootc_msg( 'No autoritzat', 'No autorizado', 'Not authorized' ) ) );
+        return;
+    }
+
+    $enabled = ( '1' === tsootc_get_ajax_post_text( 'enabled' ) || 'true' === strtolower( tsootc_get_ajax_post_text( 'enabled' ) ) );
+    tsootc_extra_table_delete_set_enabled( $enabled );
+
+    wp_send_json_success(
+        array(
+            'enabled' => $enabled,
+            'msg'     => $enabled
+                ? tsootc_msg(
+                    'Eliminació de taules desbloquejada. Pots eliminar qualsevol taula extra (amb confirmació i còpia de seguretat).',
+                    'Eliminación de tablas desbloqueada. Puedes eliminar cualquier tabla extra (con confirmación y copia de seguridad).',
+                    'Table deletion unlocked. You can delete any extra table (with confirmation and backup).'
+                )
+                : tsootc_msg(
+                    'Eliminació de taules protegida. No es poden eliminar taules fins que tornis a activar l\'opció.',
+                    'Eliminación de tablas protegida. No se pueden eliminar tablas hasta que vuelvas a activar la opción.',
+                    'Table deletion protected. Tables cannot be deleted until you enable the option again.'
+                ),
+        )
+    );
+}
+add_action( 'wp_ajax_tsootc_save_extra_table_delete_setting', 'tsootc_ajax_save_extra_table_delete_setting' );
 
 /* ============================================================
    AJAX: Eliminar diverses taules extra (bulk)
@@ -15761,13 +15983,18 @@ function tsootc_auto_clean_run() {
         );
     }
 
-    // 3. Entrades orfes del table_map
+    // 3. Entrades orfes del table_map (només si la taula ja no existeix)
     $table_map = tsootc_get_table_key_map();
     $bt        = count( $table_map );
     foreach ( $table_map as $table => $plugin_file ) {
-        if ( ! in_array( $plugin_file, $installed_files, true ) ) {
-            unset( $table_map[ $table ] );
+        if ( in_array( $plugin_file, $installed_files, true ) ) {
+            continue;
         }
+        // Keep attribution while the leftover table still exists (helps orphan detection).
+        if ( function_exists( 'tsootc_is_valid_database_table' ) && tsootc_is_valid_database_table( (string) $table ) ) {
+            continue;
+        }
+        unset( $table_map[ $table ] );
     }
     if ( count( $table_map ) !== $bt ) {
         tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
@@ -16537,7 +16764,7 @@ function tsootc_cleanup_handler() {
     }
 
     $action = tsootc_get_admin_post_action();
-    if ( in_array( $action, array( 'create_backup', 'delete_backup', 'restore_backup' ), true ) ) {
+    if ( in_array( $action, array( 'create_backup', 'delete_backup', 'delete_backups_bulk', 'restore_backup' ), true ) ) {
         return;
     }
 
@@ -16806,6 +17033,34 @@ function tsootc_handle_backup_download() {
 }
 add_action( 'load-tools_page_tso-options-tables-cleaner', 'tsootc_handle_backup_download' );
 
+/**
+ * Delete one or more backup SQL files by basename (resolved via backup search paths).
+ *
+ * @param string[] $files Backup basenames.
+ * @return int Number of files deleted.
+ */
+function tsootc_delete_backup_files( array $files ) {
+	$deleted = 0;
+
+	foreach ( $files as $file ) {
+		$file = sanitize_file_name( (string) $file );
+		if ( '' === $file ) {
+			continue;
+		}
+
+		$path = tsootc_resolve_backup_file_path( $file );
+		if ( '' === $path || ! is_file( $path ) ) {
+			continue;
+		}
+
+		if ( wp_delete_file( $path ) ) {
+			++$deleted;
+		}
+	}
+
+	return $deleted;
+}
+
 function tsootc_backup_handler() {
     if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'tso-options-tables-cleaner' ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check
     if ( ! tsootc_has_admin_post_action() ) return;
@@ -16817,7 +17072,7 @@ function tsootc_backup_handler() {
     $lang       = tsootc_get_ui_lang();
     $uid        = get_current_user_id();
 
-    if ( ! in_array( $action, array( 'create_backup', 'delete_backup', 'restore_backup' ), true ) ) return;
+    if ( ! in_array( $action, array( 'create_backup', 'delete_backup', 'delete_backups_bulk', 'restore_backup' ), true ) ) return;
 
     if ( $action === 'create_backup' ) {
         global $wpdb;
@@ -16843,12 +17098,46 @@ function tsootc_backup_handler() {
 
     if ( $action === 'delete_backup' ) {
         $file = sanitize_file_name( tsootc_get_admin_post_text( 'backup_file' ) );
-        $path = tsootc_resolve_backup_file_path( $file );
-        if ( '' !== $path ) {
-            wp_delete_file( $path );
+        if ( '' !== $file && tsootc_delete_backup_files( array( $file ) ) > 0 ) {
             $msg_text = tsootc_ui_triple_text( $lang, 'Backup eliminat.', 'Backup eliminado.', 'Backup deleted.' );
             tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'success', 'msg' => $msg_text ), 30 );
         }
+        wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
+        exit;
+    }
+
+    if ( $action === 'delete_backups_bulk' ) {
+        $files   = tsootc_collect_admin_backup_files_from_request();
+        $deleted = tsootc_delete_backup_files( $files );
+
+        if ( empty( $files ) ) {
+            $msg_text = tsootc_ui_triple_text(
+                $lang,
+                'No has seleccionat cap backup.',
+                'No has seleccionado ningún backup.',
+                'No backups selected.'
+            );
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $msg_text ), 30 );
+        } elseif ( $deleted > 0 ) {
+            if ( 1 === $deleted ) {
+                $msg_text = tsootc_ui_triple_text( $lang, '1 backup eliminat.', '1 backup eliminado.', '1 backup deleted.' );
+            } else {
+                $msg_text = sprintf(
+                    tsootc_ui_triple_text( $lang, '%d backups eliminats.', '%d backups eliminados.', '%d backups deleted.' ),
+                    $deleted
+                );
+            }
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'success', 'msg' => $msg_text ), 30 );
+        } else {
+            $msg_text = tsootc_ui_triple_text(
+                $lang,
+                'No s\'han pogut eliminar els backups seleccionats.',
+                'No se han podido eliminar los backups seleccionados.',
+                'Could not delete the selected backups.'
+            );
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $msg_text ), 30 );
+        }
+
         wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
         exit;
     }

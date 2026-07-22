@@ -296,7 +296,7 @@ function tsootc_page() {
             : '<span style="color:#46b450;font-weight:700">✅ ' . esc_html( tsootc_ui_triple_text( $lang, 'Sense fragmentació', 'Sin fragmentación', 'No fragmentation' ) ) . '</span>';
         $optimize_sub = $total_free_kb > 0 && ! empty( $optimize_frag_hints['frag_preview'] )
             ? (string) $optimize_frag_hints['frag_preview']
-            : tsootc_ui_triple_text( $lang, 'Totes les taules estan optimitzades', 'Todas las tablas están optimizadas', 'All tables are optimized' );
+            : tsootc_ui_triple_text( $lang, 'Cap taula amb espai lliure estimat (DATA_FREE)', 'Ninguna tabla con espacio libre estimado (DATA_FREE)', 'No tables with estimated free space (DATA_FREE)' );
 
         echo '<div class="tso-action-card">';
         echo '<div class="tso-action-header">';
@@ -306,7 +306,7 @@ function tsootc_page() {
         echo '</div>';
         echo '<div class="tso-action-count" style="font-size:16px"><span id="tso-optimize-frag-status">' . $optimize_status . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         echo '<div style="font-size:11px;color:#888;margin-bottom:6px" id="tso-optimize-frag-sub">' . esc_html( $optimize_sub ) . '</div>';
-        echo '<div class="tso-action-desc">' . esc_html( __( 'Defragments and rebuilds all fragmented database tables (WordPress core and plugin tables). Improves SQL query performance.', 'tso-options-tables-cleaner' ) ) . '</div>';
+        echo '<div class="tso-action-desc">' . esc_html( __( 'Runs OPTIMIZE TABLE only on tables with estimated free space (DATA_FREE). On InnoDB this is a hint, not guaranteed disk reclaim. Can lock tables briefly.', 'tso-options-tables-cleaner' ) ) . '</div>';
         echo '<div class="tso-action-btn">';
         echo '<button id="tso-btn-optimize" class="button button-primary" style="width:100%;text-align:center" onclick="tsootcRunOptimize()">' . esc_html( __( '🔧 Optimize fragmented tables', 'tso-options-tables-cleaner' ) ) . '</button>';
         echo '</div>';
@@ -1482,7 +1482,31 @@ function tsootc_page() {
         echo '<div class="tso-stat-card ' . ( $total_free_kb > 1024 ? 'color-orange' : ( $total_free_kb > 0 ? 'color-blue' : 'color-green' ) ) . '">';
         echo '<div class="tso-stat-value">' . number_format( $total_free_kb ) . ' KB</div><div class="tso-stat-label">' . esc_html( $txt_fragmented_extra_space ) . '</div></div>';
         echo '</div>';
-        echo '<p style="color:#666;font-size:13px;margin:0">' . esc_html( __( 'Tables that do not belong to WordPress core. Leftovers from plugins you have fully removed may be deletable when Status and Usage estimate indicate it. If the plugin folder still exists under wp-content/plugins and the plugin is only deactivated, dropping its tables here is not allowed.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '<p style="color:#666;font-size:13px;margin:0">' . esc_html( __( 'Tables that do not belong to WordPress core. Deletion is locked by default. Enable “Allow table deletion” to unlock delete for any extra table (WordPress core tables stay protected). A confirmation and automatic SQL backup are still required before each drop.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '</div>';
+
+        $allow_extra_table_delete = function_exists( 'tsootc_extra_table_delete_is_enabled' ) && tsootc_extra_table_delete_is_enabled();
+        $txt_allow_delete_label   = tsootc_ui_triple_text(
+            $lang,
+            'Permetre eliminar taules',
+            'Permitir eliminar tablas',
+            'Allow table deletion'
+        );
+        $txt_allow_delete_help    = tsootc_ui_triple_text(
+            $lang,
+            'Per defecte tot està bloquejat. Si l\'actives, podràs eliminar qualsevol taula extra d\'aquesta llista (amb confirmació i backup automàtic). Desactiva-la després d\'acabar.',
+            'Por defecto todo está bloqueado. Si la activas, podrás eliminar cualquier tabla extra de esta lista (con confirmación y backup automático). Desactívala cuando termines.',
+            'Everything is locked by default. When enabled, you can delete any extra table in this list (with confirmation and automatic backup). Turn it off when you finish.'
+        );
+
+        echo '<div class="tso-section" id="tso-extra-table-delete-setting" style="padding:16px 18px;background:#fff8f0;border:1px solid #f0c070;border-radius:8px;margin-bottom:16px">';
+        echo '<h3 style="margin:0 0 10px;font-size:15px;color:#8a5c00">🔒 ' . esc_html( $txt_allow_delete_label ) . '</h3>';
+        echo '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0">';
+        echo '<input type="checkbox" id="tso-allow-extra-table-delete" value="1"' . checked( $allow_extra_table_delete, true, false ) . ' style="margin-top:3px">';
+        echo '<span><strong style="display:block;font-size:13px">' . esc_html( $txt_allow_delete_label ) . '</strong>';
+        echo '<span style="display:block;color:#666;font-size:12px;margin-top:4px;line-height:1.4">' . esc_html( $txt_allow_delete_help ) . '</span></span>';
+        echo '</label>';
+        echo '<span id="tso-allow-extra-table-delete-msg" style="display:block;margin-top:8px;font-size:12px;color:#666" aria-live="polite"></span>';
         echo '</div>';
 
         if ( empty( $tables ) ) {
@@ -1585,9 +1609,19 @@ function tsootc_page() {
             echo '<span id="tso-tables-selected-count" style="color:#666;font-size:12px">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
             echo '<button id="tso-tables-bulk-export" class="button" style="margin-left:auto;border-color:#007cba;color:#007cba;background:#fff" disabled>';
             echo esc_html( __( '🧾 Export DROP SQL', 'tso-options-tables-cleaner' ) ) . '</button>';
-            echo '<button id="tso-tables-bulk-delete" class="button" style="color:#dc3232;border-color:#dc3232;background:#fff" disabled>';
+            echo '<button id="tso-tables-bulk-delete" class="button" style="color:#dc3232;border-color:#dc3232;background:#fff"' . ( $allow_extra_table_delete ? '' : ' disabled' ) . '>';
             echo esc_html( __( '🗑️ Delete selected', 'tso-options-tables-cleaner' ) ) . '</button>';
             echo '</div>';
+            if ( ! $allow_extra_table_delete ) {
+                echo '<p class="description" style="margin:0 0 12px">' . esc_html(
+                    tsootc_ui_triple_text(
+                        $lang,
+                        'L\'eliminació està bloquejada. Activa «Permetre eliminar taules» per desbloquejar els botons d\'eliminar.',
+                        'La eliminación está bloqueada. Activa «Permitir eliminar tablas» para desbloquear los botones de eliminar.',
+                        'Deletion is locked. Enable “Allow table deletion” to unlock the delete buttons.'
+                    )
+                ) . '</p>';
+            }
 
             $xt_td_lab_tbl    = __( 'Table', 'tso-options-tables-cleaner' );
             $xt_td_lab_plugin = __( 'Detected plugin', 'tso-options-tables-cleaner' );
@@ -1755,12 +1789,20 @@ function tsootc_page() {
             if ( $hist_filter_action && $ev['action'] !== $hist_filter_action ) continue;
             if ( $hist_search && stripos( $ev['name'], $hist_search ) === false && stripos( $ev['file'], $hist_search ) === false ) {
                 $detail_blob = '';
-                if ( ! empty( $ev['detail'] ) && is_array( $ev['detail'] ) ) {
-                    if ( ! empty( $ev['detail']['option_keys'] ) && is_array( $ev['detail']['option_keys'] ) ) {
-                        $detail_blob .= ' ' . implode( ' ', $ev['detail']['option_keys'] );
+                $search_detail = function_exists( 'tsootc_history_enrich_detail_for_display' )
+                    ? tsootc_history_enrich_detail_for_display( $ev )
+                    : ( is_array( $ev['detail'] ?? null ) ? $ev['detail'] : array() );
+                if ( ! empty( $search_detail ) ) {
+                    if ( ! empty( $search_detail['option_keys'] ) && is_array( $search_detail['option_keys'] ) ) {
+                        $detail_blob .= ' ' . implode( ' ', $search_detail['option_keys'] );
                     }
-                    if ( ! empty( $ev['detail']['tables'] ) && is_array( $ev['detail']['tables'] ) ) {
-                        $detail_blob .= ' ' . implode( ' ', $ev['detail']['tables'] );
+                    if ( ! empty( $search_detail['tables'] ) && is_array( $search_detail['tables'] ) ) {
+                        $detail_blob .= ' ' . implode( ' ', $search_detail['tables'] );
+                    }
+                    foreach ( array( 'version', 'folder', 'bootstrap', 'replaces_folder' ) as $detail_key ) {
+                        if ( ! empty( $search_detail[ $detail_key ] ) ) {
+                            $detail_blob .= ' ' . (string) $search_detail[ $detail_key ];
+                        }
                     }
                 }
                 if ( stripos( $detail_blob, $hist_search ) === false ) {
@@ -2013,76 +2055,33 @@ function tsootc_page() {
 
                 $action_label = isset( $action_labels_map[ $ev['action'] ] ) ? $action_labels_map[ $ev['action'] ] : $ev['action'];
 
-                $data_name = strtolower( (string) $ev['name'] . ' ' . (string) $ev['file'] );
-                $detail_cell = '<span style="color:#999">—</span>';
-                if ( ! empty( $ev['detail'] ) && is_array( $ev['detail'] ) ) {
-                    $chunks = array();
-                    if ( isset( $ev['detail']['option_keys_total'] ) && (int) $ev['detail']['option_keys_total'] > 0 ) {
-                        $kt = (int) $ev['detail']['option_keys_total'];
-                        $kl = isset( $ev['detail']['option_keys'] ) && is_array( $ev['detail']['option_keys'] ) ? $ev['detail']['option_keys'] : array();
-                        foreach ( $kl as $kn ) {
-                            $data_name .= ' ' . strtolower( (string) $kn );
-                        }
-                        $lines = array();
-                        foreach ( $kl as $kn ) {
-                            $lines[] = '<code style="font-size:10px;background:#f5f5f5;padding:2px 5px;border-radius:3px;display:inline-block;margin:2px 4px 0 0">' . esc_html( (string) $kn ) . '</code>';
-                        }
-                        $more = max( 0, $kt - count( $kl ) );
-                        $head = sprintf(
-                            /* translators: %d: number of new wp_options keys detected (diff snapshot). */
-                            esc_html__( 'New wp_options keys (%d)', 'tso-options-tables-cleaner' ),
-                            $kt
-                        );
-                        $tail = '';
-                        if ( $more > 0 ) {
-                            $tail = ' <span style="color:#888;font-size:11px">' . esc_html(
-                                sprintf(
-                                    /* translators: %d: number of keys not shown in the list. */
-                                    __( '… +%d more', 'tso-options-tables-cleaner' ),
-                                    $more
-                                )
-                            ) . '</span>';
-                        }
-                        $chunks[] = '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">' . $head . $tail . '</div><div style="line-height:1.45">' . implode( '', $lines ) . '</div></div>';
-                    }
-                    if ( isset( $ev['detail']['tables_total'] ) && (int) $ev['detail']['tables_total'] > 0 ) {
-                        $tt = (int) $ev['detail']['tables_total'];
-                        $tl = isset( $ev['detail']['tables'] ) && is_array( $ev['detail']['tables'] ) ? $ev['detail']['tables'] : array();
-                        foreach ( $tl as $tn ) {
-                            $data_name .= ' ' . strtolower( (string) $tn );
-                        }
-                        $lines = array();
-                        foreach ( $tl as $tn ) {
-                            $lines[] = '<code style="font-size:10px;background:#f5f5f5;padding:2px 5px;border-radius:3px;display:inline-block;margin:2px 4px 0 0">' . esc_html( (string) $tn ) . '</code>';
-                        }
-                        $more = max( 0, $tt - count( $tl ) );
-                        $head = sprintf(
-                            /* translators: %d: number of new database tables detected. */
-                            esc_html__( 'New tables (%d)', 'tso-options-tables-cleaner' ),
-                            $tt
-                        );
-                        $tail = '';
-                        if ( $more > 0 ) {
-                            $tail = ' <span style="color:#888;font-size:11px">' . esc_html(
-                                sprintf(
-                                    /* translators: %d: number of tables not shown in the list. */
-                                    __( '… +%d more', 'tso-options-tables-cleaner' ),
-                                    $more
-                                )
-                            ) . '</span>';
-                        }
-                        $chunks[] = '<div style="margin-bottom:0"><div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">' . $head . $tail . '</div><div style="line-height:1.45">' . implode( '', $lines ) . '</div></div>';
-                    }
-                    if ( ! empty( $chunks ) ) {
-                        $allowed_hist = array(
-                            'div'    => array( 'style' => true, 'class' => true ),
-                            'span'   => array( 'style' => true, 'class' => true ),
-                            'code'   => array( 'style' => true, 'class' => true ),
-                            'strong' => array( 'style' => true ),
-                        );
-                        $detail_cell = wp_kses( implode( '', $chunks ), $allowed_hist );
+                $display_file = (string) $ev['file'];
+                if ( 'plugin' === (string) $ev['type'] && function_exists( 'tsootc_reconcile_plugin_bootstrap_file' ) ) {
+                    $display_file = tsootc_reconcile_plugin_bootstrap_file( $display_file );
+                }
+
+                $data_name = strtolower( (string) $ev['name'] . ' ' . $display_file );
+                $display_detail = function_exists( 'tsootc_history_enrich_detail_for_display' )
+                    ? tsootc_history_enrich_detail_for_display( $ev )
+                    : ( is_array( $ev['detail'] ?? null ) ? $ev['detail'] : array() );
+                if ( ! empty( $display_detail['option_keys'] ) && is_array( $display_detail['option_keys'] ) ) {
+                    foreach ( $display_detail['option_keys'] as $kn ) {
+                        $data_name .= ' ' . strtolower( (string) $kn );
                     }
                 }
+                if ( ! empty( $display_detail['tables'] ) && is_array( $display_detail['tables'] ) ) {
+                    foreach ( $display_detail['tables'] as $tn ) {
+                        $data_name .= ' ' . strtolower( (string) $tn );
+                    }
+                }
+                foreach ( array( 'version', 'folder', 'bootstrap', 'replaces_folder' ) as $detail_key ) {
+                    if ( ! empty( $display_detail[ $detail_key ] ) ) {
+                        $data_name .= ' ' . strtolower( (string) $display_detail[ $detail_key ] );
+                    }
+                }
+                $detail_cell = function_exists( 'tsootc_history_format_detail_html' )
+                    ? tsootc_history_format_detail_html( $ev, $lang )
+                    : '<span style="color:#999">—</span>';
 
                 $bg = $idx % 2 === 0 ? '#fff' : '#fafafa';
                 echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0"'
@@ -2097,7 +2096,7 @@ function tsootc_page() {
                 echo '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:' . esc_attr( (string) $ac['bg'] ) . ';color:' . esc_attr( (string) $ac['color'] ) . '">'
                     . esc_html( (string) $ac['icon'] . ' ' . (string) $action_label ) . '</span>';
                 echo '</td>';
-                echo '<td style="padding:9px 16px;font-family:monospace;font-size:11px;color:#888" data-label="' . esc_attr( $hist_td_lab_file ) . '">' . esc_html( (string) $ev['file'] ) . '</td>';
+                echo '<td style="padding:9px 16px;font-family:monospace;font-size:11px;color:#888" data-label="' . esc_attr( $hist_td_lab_file ) . '">' . esc_html( $display_file ) . '</td>';
                 echo '<td style="padding:9px 16px;font-size:12px;color:#444;vertical-align:top;max-width:420px" data-label="' . esc_attr( $hist_td_lab_det ) . '">' . $detail_cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_kses above
                 echo '</tr>';
             }
@@ -2342,9 +2341,23 @@ function tsootc_page() {
             $bk_td_lab_date   = tsootc_ui_triple_text( $lang, 'Data', 'Fecha', 'Date' );
             $bk_td_lab_action = tsootc_ui_triple_text( $lang, 'Accions', 'Acciones', 'Actions' );
 
+            echo '<form method="post" id="tso-backup-bulk-form" style="margin:0">';
+            wp_nonce_field( TSOOTC_NONCE_FORM );
+            echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="delete_backups_bulk">';
+            echo '<div id="tso-backup-bulk-bar" class="tso-tables-bulk-bar" style="margin:12px 16px;padding:10px 14px;background:#fff;border:1px solid #ddd;border-radius:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
+            echo '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">';
+            echo '<input type="checkbox" id="tso-backup-select-all"> <strong>' . esc_html( __( 'Select all', 'tso-options-tables-cleaner' ) ) . '</strong>';
+            echo '</label>';
+            echo '<span id="tso-backup-selected-count" style="color:#666;font-size:12px">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
+            echo '<button type="submit" id="tso-backup-bulk-delete" class="button" style="margin-left:auto;color:#dc3232;border-color:#dc3232;background:#fff" disabled>';
+            echo esc_html( __( '🗑️ Delete selected', 'tso-options-tables-cleaner' ) ) . '</button>';
+            echo '</div>';
+            echo '</form>';
+
             echo '<div class="tso-table-scroll tso-stack-on-mobile">';
             echo '<table style="width:100%;border-collapse:collapse">';
             echo '<thead><tr style="background:#f8f9fa">';
+            echo '<th style="width:32px;padding:10px 12px;text-align:center"></th>';
             echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( tsootc_ui_triple_text( $lang, 'Fitxer', 'Archivo', 'File' ) ) . '</th>';
             echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( $bk_td_lab_type ) . '</th>';
             echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( $bk_td_lab_tables ) . '</th>';
@@ -2371,6 +2384,9 @@ function tsootc_page() {
                 }
 
                 echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0">';
+                echo '<td style="padding:10px 12px;text-align:center" data-label="">';
+                echo '<input type="checkbox" class="tso-backup-chk" name="backup_files[]" value="' . esc_attr( $bk['file'] ) . '" form="tso-backup-bulk-form">';
+                echo '</td>';
                 echo '<td style="padding:10px 16px;font-family:monospace;font-size:12px" data-label="' . esc_attr( $bk_td_lab_file ) . '">' . esc_html( $bk['file'] ) . '</td>';
                 echo '<td style="padding:10px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $bk_td_lab_type ) . '"><strong>' . esc_html( $backup_type ) . '</strong><span class="tso-table-muted">' . esc_html( $backup_type_note ) . '</span></td>';
                 echo '<td style="padding:10px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $bk_td_lab_tables ) . '">' . esc_html( $backup_scope ) . '</td>';
@@ -2408,7 +2424,7 @@ function tsootc_page() {
                 // Formulari de restauració (ocult)
                 if ( $can_restore ) {
                     echo '<tr id="' . esc_attr( $restore_id ) . '" class="tso-mobile-full-row" style="display:none;background:#fff8f0">';
-                    echo '<td colspan="6" style="padding:16px 20px">';
+                    echo '<td colspan="7" style="padding:16px 20px">';
                     echo '<div style="border:2px solid #e0b070;border-radius:6px;padding:16px;background:#fffdf5">';
                     echo '<strong style="color:#c00">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'RESTAURACIÓ IRREVERSIBLE', 'RESTAURACIÓN IRREVERSIBLE', 'IRREVERSIBLE RESTORE' ) ) . '</strong><br>';
 

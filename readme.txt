@@ -1,4 +1,4 @@
-﻿=== TSO Options & Tables Cleaner ===
+=== TSO Options & Tables Cleaner ===
 
 Contributors: deadko
 Donate link: https://ko-fi.com/deadko_cat
@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.1.5
+Stable tag: 1.2.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -89,6 +89,20 @@ Data stored locally:
 No external connections: This plugin does not make any HTTP requests to external servers, does not use analytics, and does not track usage of any kind.
 
 == Changelog ==
+
+= 1.2.5 =
+* History Details: version, folder, bootstrap path, and automatic "replaces" hint when a recently deleted plugin shares the same option-prefix family
+* History: show mapped_on_delete for theme keys_mapped events; enrich older rows on display
+* Detection: shared prefixes (e.g. tsosk_) resolve to the currently installed plugin folder without manual aliases
+* Backup tab: select and delete multiple backups in bulk
+* Storage: validated admin POST helper for bulk backup filenames (Plugin Check / PHPCS)
+
+= 1.2.0 =
+* Extra tables: master switch "Allow table deletion" (default off); when on, any extra table can be deleted with confirm + backup
+* Auto-clean: keep table_key_map while leftover tables still exist (better orphan attribution)
+* Expired transients: fallback now deletes timeout and value pairs
+* OPTIMIZE: only tables with estimated free space (DATA_FREE); clearer UI wording
+* Cleanup: chunked post/comment deletes; comment trash backfill uses comment_date_gmt
 
 = 1.1.5 =
 * Unified uploads layout: wp-content/uploads/tso-options-tables-cleaner/backups/ and .../options-tab-cache/

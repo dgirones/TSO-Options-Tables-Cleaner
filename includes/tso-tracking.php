@@ -562,7 +562,10 @@ function tsootc_post_upgrade_map_keys( $upgrader, $options ) {
     } elseif ( isset( $upgrader->result['destination_name'] ) ) {
         $slug = sanitize_text_field( (string) ( $upgrader->result['destination_name'] ?? '' ) );
         if ( $slug ) {
-            $plugin_files[] = $slug . '/' . $slug . '.php';
+            $plugin_file = function_exists( 'tsootc_resolve_installed_plugin_file_for_folder' )
+                ? tsootc_resolve_installed_plugin_file_for_folder( $slug )
+                : '';
+            $plugin_files[] = '' !== $plugin_file ? $plugin_file : ( $slug . '/' . $slug . '.php' );
         }
     }
 
@@ -971,13 +974,349 @@ if ( ! defined( 'TSOOTC_HISTORY_DETAIL_TABLES_MAX' ) ) {
     define( 'TSOOTC_HISTORY_DETAIL_TABLES_MAX', 30 );
 }
 
+if ( ! defined( 'TSOOTC_HISTORY_REPLACED_FOLDER_WINDOW' ) ) {
+    define( 'TSOOTC_HISTORY_REPLACED_FOLDER_WINDOW', 14 * DAY_IN_SECONDS );
+}
+
+/**
+ * All plugin folder slugs that share a prefix-hint target list with this folder.
+ *
+ * @param string $folder_slug Plugin directory slug.
+ * @return string[]
+ */
+function tsootc_history_get_prefix_hint_folder_family( $folder_slug ) {
+    $folder_slug = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+        ? tsootc_sanitize_plugin_folder_slug( $folder_slug )
+        : strtolower( sanitize_file_name( (string) $folder_slug ) );
+    if ( '' === $folder_slug ) {
+        return array();
+    }
+
+    $family = array( $folder_slug );
+    $maps   = array();
+    if ( function_exists( 'tsootc_get_option_prefix_slug_hints' ) ) {
+        $maps[] = tsootc_get_option_prefix_slug_hints();
+    }
+    if ( function_exists( 'tsootc_get_tso_option_prefix_slug_hints' ) ) {
+        $maps[] = tsootc_get_tso_option_prefix_slug_hints();
+    }
+
+    foreach ( $maps as $hints ) {
+        foreach ( $hints as $targets ) {
+            $targets = is_array( $targets ) ? $targets : array( $targets );
+            $slugs   = array();
+            foreach ( $targets as $target ) {
+                $slug = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+                    ? tsootc_sanitize_plugin_folder_slug( $target )
+                    : strtolower( sanitize_file_name( (string) $target ) );
+                if ( '' !== $slug ) {
+                    $slugs[] = $slug;
+                }
+            }
+            if ( in_array( $folder_slug, $slugs, true ) ) {
+                $family = array_merge( $family, $slugs );
+            }
+        }
+    }
+
+    return array_values( array_unique( array_filter( $family ) ) );
+}
+
+/**
+ * Recently deleted plugin folder in the same prefix-hint family (replacement context).
+ *
+ * @param string $folder_slug   Newly installed plugin folder.
+ * @param int    $before_ts     Event timestamp (0 = now).
+ * @param int    $window_seconds Look-back window.
+ * @return string Empty when none.
+ */
+function tsootc_history_find_recent_deleted_related_folder( $folder_slug, $before_ts = 0, $window_seconds = 0 ) {
+    $folder_slug = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+        ? tsootc_sanitize_plugin_folder_slug( $folder_slug )
+        : strtolower( sanitize_file_name( (string) $folder_slug ) );
+    if ( '' === $folder_slug ) {
+        return '';
+    }
+
+    $family = tsootc_history_get_prefix_hint_folder_family( $folder_slug );
+    if ( count( $family ) < 2 ) {
+        return '';
+    }
+
+    $before_ts      = $before_ts > 0 ? (int) $before_ts : time();
+    $window_seconds = $window_seconds > 0 ? (int) $window_seconds : (int) TSOOTC_HISTORY_REPLACED_FOLDER_WINDOW;
+    $min_ts         = $before_ts - $window_seconds;
+
+    $log = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_PLUGIN_HISTORY, array() );
+    if ( ! is_array( $log ) || empty( $log ) ) {
+        return '';
+    }
+
+    for ( $i = count( $log ) - 1; $i >= 0; $i-- ) {
+        $entry = $log[ $i ];
+        if ( ! is_array( $entry ) || 'plugin' !== (string) ( $entry['type'] ?? '' ) || 'deleted' !== (string) ( $entry['action'] ?? '' ) ) {
+            continue;
+        }
+        $ts = isset( $entry['ts'] ) ? (int) $entry['ts'] : 0;
+        if ( $ts < $min_ts || $ts > $before_ts ) {
+            continue;
+        }
+        $file = isset( $entry['file'] ) ? (string) $entry['file'] : '';
+        if ( '' === $file || false === strpos( $file, '/' ) ) {
+            continue;
+        }
+        $deleted_folder = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+            ? tsootc_sanitize_plugin_folder_slug( dirname( $file ) )
+            : strtolower( dirname( $file ) );
+        if ( '' === $deleted_folder || $deleted_folder === $folder_slug ) {
+            continue;
+        }
+        if ( in_array( $deleted_folder, $family, true ) ) {
+            return $deleted_folder;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Read a plugin/theme version string for history detail.
+ *
+ * @param string $type plugin|theme.
+ * @param string $file Plugin bootstrap path or theme stylesheet.
+ * @return string
+ */
+function tsootc_history_get_component_version( $type, $file ) {
+    $file = (string) $file;
+    $type = sanitize_key( (string) $type );
+
+    if ( 'theme' === $type ) {
+        $theme = wp_get_theme( $file );
+        if ( $theme->exists() ) {
+            $version = (string) $theme->get( 'Version' );
+            if ( '' !== $version ) {
+                return sanitize_text_field( $version );
+            }
+        }
+        return '';
+    }
+
+    if ( false === strpos( $file, '/' ) ) {
+        return '';
+    }
+
+    if ( ! function_exists( 'get_plugin_data' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    $resolved = function_exists( 'tsootc_reconcile_plugin_bootstrap_file' )
+        ? tsootc_reconcile_plugin_bootstrap_file( $file )
+        : $file;
+    $path     = function_exists( 'tsootc_get_plugin_file_path' ) ? tsootc_get_plugin_file_path( $resolved ) : '';
+    if ( '' === $path || ! is_readable( $path ) ) {
+        return '';
+    }
+    $data = get_plugin_data( $path, false, false );
+    return ! empty( $data['Version'] ) ? sanitize_text_field( (string) $data['Version'] ) : '';
+}
+
+/**
+ * Build inventory detail for installed/updated history rows.
+ *
+ * @param string $type   plugin|theme.
+ * @param string $action installed|updated.
+ * @param string $file   Plugin bootstrap or theme stylesheet.
+ * @param int    $event_ts Event timestamp for replacement look-back (0 = now).
+ * @return array<string,mixed>
+ */
+function tsootc_history_build_inventory_detail( $type, $action, $file, $event_ts = 0 ) {
+    $type   = sanitize_key( (string) $type );
+    $action = sanitize_key( (string) $action );
+    $file   = (string) $file;
+    $detail = array();
+
+    if ( ! in_array( $action, array( 'installed', 'updated' ), true ) ) {
+        return $detail;
+    }
+
+    $version = tsootc_history_get_component_version( $type, $file );
+    if ( '' !== $version ) {
+        $detail['version'] = $version;
+    }
+
+    if ( 'plugin' === $type && false !== strpos( $file, '/' ) ) {
+        $raw_file  = (string) $file;
+        $bootstrap = function_exists( 'tsootc_reconcile_plugin_bootstrap_file' )
+            ? tsootc_reconcile_plugin_bootstrap_file( $file )
+            : $file;
+        $folder    = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+            ? tsootc_sanitize_plugin_folder_slug( dirname( $bootstrap ) )
+            : strtolower( dirname( $bootstrap ) );
+        if ( '' !== $folder ) {
+            $detail['folder'] = $folder;
+        }
+        if ( '' !== $bootstrap && $bootstrap !== $raw_file ) {
+            $detail['bootstrap'] = sanitize_text_field( $bootstrap );
+        }
+        if ( 'installed' === $action && '' !== $folder ) {
+            $before_ts = $event_ts > 0 ? (int) $event_ts : time();
+            $replaces  = tsootc_history_find_recent_deleted_related_folder( $folder, $before_ts );
+            if ( '' !== $replaces ) {
+                $detail['replaces_folder'] = $replaces;
+            }
+        }
+    } elseif ( 'theme' === $type ) {
+        $folder = sanitize_title( $file );
+        if ( '' !== $folder ) {
+            $detail['folder'] = $folder;
+        }
+    }
+
+    return $detail;
+}
+
+/**
+ * Merge stored detail with render-time inventory fields for older log rows.
+ *
+ * @param array $ev History row.
+ * @return array<string,mixed>
+ */
+function tsootc_history_enrich_detail_for_display( array $ev ) {
+    $detail = isset( $ev['detail'] ) && is_array( $ev['detail'] ) ? $ev['detail'] : array();
+    $action = isset( $ev['action'] ) ? sanitize_key( (string) $ev['action'] ) : '';
+    $type   = isset( $ev['type'] ) ? sanitize_key( (string) $ev['type'] ) : '';
+    $file   = isset( $ev['file'] ) ? (string) $ev['file'] : '';
+
+    if ( in_array( $action, array( 'installed', 'updated' ), true ) && '' !== $file ) {
+        $event_ts = isset( $ev['ts'] ) ? (int) $ev['ts'] : 0;
+        $built    = tsootc_history_build_inventory_detail( $type, $action, $file, $event_ts );
+        $detail   = array_merge( $built, $detail );
+    }
+
+    return $detail;
+}
+
+/**
+ * Render the history table DETAILS column HTML for one event row.
+ *
+ * @param array  $ev   History row.
+ * @param string $lang UI language (ca|es|en).
+ * @return string HTML.
+ */
+function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
+    $detail = tsootc_history_enrich_detail_for_display( $ev );
+    $chunks = array();
+    $line   = 'font-size:11px;color:#555;margin:0 0 4px';
+
+    if ( ! empty( $detail['version'] ) ) {
+        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+            . esc_html( tsootc_ui_triple_text( $lang, 'Versió:', 'Versión:', 'Version:' ) )
+            . '</strong> ' . esc_html( (string) $detail['version'] ) . '</div>';
+    }
+    if ( ! empty( $detail['folder'] ) ) {
+        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+            . esc_html( tsootc_ui_triple_text( $lang, 'Carpeta:', 'Carpeta:', 'Folder:' ) )
+            . '</strong> <code style="font-size:10px;background:#f5f5f5;padding:1px 5px;border-radius:3px">'
+            . esc_html( (string) $detail['folder'] ) . '</code></div>';
+    }
+    if ( ! empty( $detail['bootstrap'] ) ) {
+        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+            . esc_html( tsootc_ui_triple_text( $lang, 'Bootstrap:', 'Bootstrap:', 'Bootstrap:' ) )
+            . '</strong> <code style="font-size:10px;background:#f5f5f5;padding:1px 5px;border-radius:3px">'
+            . esc_html( (string) $detail['bootstrap'] ) . '</code></div>';
+    }
+    if ( ! empty( $detail['replaces_folder'] ) ) {
+        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+            . esc_html( tsootc_ui_triple_text( $lang, 'Substitueix:', 'Sustituye:', 'Replaces:' ) )
+            . '</strong> <code style="font-size:10px;background:#fff8f0;padding:1px 5px;border-radius:3px">'
+            . esc_html( (string) $detail['replaces_folder'] ) . '</code></div>';
+    }
+    if ( ! empty( $detail['mapped_on_delete'] ) ) {
+        $chunks[] = '<div style="' . esc_attr( $line ) . ';color:#8a5c00"><strong>'
+            . esc_html(
+                tsootc_ui_triple_text(
+                    $lang,
+                    'Mapejat en eliminar el tema',
+                    'Mapeado al eliminar el tema',
+                    'Mapped when the theme was deleted'
+                )
+            )
+            . '</strong></div>';
+    }
+
+    if ( isset( $detail['option_keys_total'] ) && (int) $detail['option_keys_total'] > 0 ) {
+        $kt    = (int) $detail['option_keys_total'];
+        $kl    = isset( $detail['option_keys'] ) && is_array( $detail['option_keys'] ) ? $detail['option_keys'] : array();
+        $lines = array();
+        foreach ( $kl as $kn ) {
+            $lines[] = '<code style="font-size:10px;background:#f5f5f5;padding:2px 5px;border-radius:3px;display:inline-block;margin:2px 4px 0 0">' . esc_html( (string) $kn ) . '</code>';
+        }
+        $more = max( 0, $kt - count( $kl ) );
+        $head = sprintf(
+            /* translators: %d: number of new wp_options keys detected (diff snapshot). */
+            esc_html__( 'New wp_options keys (%d)', 'tso-options-tables-cleaner' ),
+            $kt
+        );
+        $tail = '';
+        if ( $more > 0 ) {
+            $tail = ' <span style="color:#888;font-size:11px">' . esc_html(
+                sprintf(
+                    /* translators: %d: number of keys not shown in the list. */
+                    __( '… +%d more', 'tso-options-tables-cleaner' ),
+                    $more
+                )
+            ) . '</span>';
+        }
+        $chunks[] = '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">' . $head . $tail . '</div><div style="line-height:1.45">' . implode( '', $lines ) . '</div></div>';
+    }
+
+    if ( isset( $detail['tables_total'] ) && (int) $detail['tables_total'] > 0 ) {
+        $tt    = (int) $detail['tables_total'];
+        $tl    = isset( $detail['tables'] ) && is_array( $detail['tables'] ) ? $detail['tables'] : array();
+        $lines = array();
+        foreach ( $tl as $tn ) {
+            $lines[] = '<code style="font-size:10px;background:#f5f5f5;padding:2px 5px;border-radius:3px;display:inline-block;margin:2px 4px 0 0">' . esc_html( (string) $tn ) . '</code>';
+        }
+        $more = max( 0, $tt - count( $tl ) );
+        $head = sprintf(
+            /* translators: %d: number of new database tables detected. */
+            esc_html__( 'New tables (%d)', 'tso-options-tables-cleaner' ),
+            $tt
+        );
+        $tail = '';
+        if ( $more > 0 ) {
+            $tail = ' <span style="color:#888;font-size:11px">' . esc_html(
+                sprintf(
+                    /* translators: %d: number of tables not shown in the list. */
+                    __( '… +%d more', 'tso-options-tables-cleaner' ),
+                    $more
+                )
+            ) . '</span>';
+        }
+        $chunks[] = '<div style="margin-bottom:0"><div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">' . $head . $tail . '</div><div style="line-height:1.45">' . implode( '', $lines ) . '</div></div>';
+    }
+
+    if ( empty( $chunks ) ) {
+        return '<span style="color:#999">—</span>';
+    }
+
+    $allowed = array(
+        'div'    => array( 'style' => true, 'class' => true ),
+        'span'   => array( 'style' => true, 'class' => true ),
+        'code'   => array( 'style' => true, 'class' => true ),
+        'strong' => array( 'style' => true ),
+    );
+
+    return wp_kses( implode( '', $chunks ), $allowed );
+}
+
 /**
  * Normalize optional history payload (limits size for wp_options storage).
  *
  * @param array|null $detail Raw detail from caller.
+ * @param string     $type   Optional plugin|theme for folder slug normalization.
  * @return array<string,mixed>
  */
-function tsootc_history_sanitize_detail( $detail ) {
+function tsootc_history_sanitize_detail( $detail, $type = '' ) {
     if ( ! is_array( $detail ) ) {
         return array();
     }
@@ -1025,6 +1364,39 @@ function tsootc_history_sanitize_detail( $detail ) {
         }
     }
 
+    if ( ! empty( $detail['version'] ) ) {
+        $out['version'] = sanitize_text_field( (string) $detail['version'] );
+    }
+    if ( ! empty( $detail['folder'] ) ) {
+        if ( 'theme' === sanitize_key( (string) $type ) ) {
+            $folder = sanitize_title( (string) $detail['folder'] );
+        } else {
+            $folder = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+                ? tsootc_sanitize_plugin_folder_slug( $detail['folder'] )
+                : sanitize_title( (string) $detail['folder'] );
+        }
+        if ( '' !== $folder ) {
+            $out['folder'] = $folder;
+        }
+    }
+    if ( ! empty( $detail['bootstrap'] ) ) {
+        $bootstrap = sanitize_text_field( (string) $detail['bootstrap'] );
+        if ( false !== strpos( $bootstrap, '/' ) ) {
+            $out['bootstrap'] = $bootstrap;
+        }
+    }
+    if ( ! empty( $detail['replaces_folder'] ) ) {
+        $replaces = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+            ? tsootc_sanitize_plugin_folder_slug( $detail['replaces_folder'] )
+            : sanitize_title( (string) $detail['replaces_folder'] );
+        if ( '' !== $replaces ) {
+            $out['replaces_folder'] = $replaces;
+        }
+    }
+    if ( ! empty( $detail['mapped_on_delete'] ) ) {
+        $out['mapped_on_delete'] = true;
+    }
+
     return $out;
 }
 
@@ -1035,22 +1407,33 @@ function tsootc_history_sanitize_detail( $detail ) {
  * @param string          $action Event slug.
  * @param string          $name   Display name.
  * @param string          $file   Plugin file or theme stylesheet.
- * @param array|null      $detail Optional keys: option_keys, option_keys_total, tables, tables_total.
+ * @param array|null      $detail Optional keys: option_keys, option_keys_total, tables, tables_total, version, folder, bootstrap, replaces_folder, mapped_on_delete.
  */
 function tsootc_history_add_event( $type, $action, $name, $file, $detail = null ) {
     $log = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_PLUGIN_HISTORY, array() );
     if ( ! is_array( $log ) ) {
         $log = array();
     }
-    $entry = array(
-        'ts'     => time(),
-        'type'   => sanitize_key( (string) $type ),
-        'action' => sanitize_key( (string) $action ),
+    $type     = sanitize_key( (string) $type );
+    $action   = sanitize_key( (string) $action );
+    $file     = sanitize_text_field( (string) $file );
+    $event_ts = time();
+    $entry    = array(
+        'ts'     => $event_ts,
+        'type'   => $type,
+        'action' => $action,
         'name'   => sanitize_text_field( (string) $name ),
-        'file'   => sanitize_text_field( (string) $file ),
+        'file'   => $file,
     );
-    if ( null !== $detail ) {
-        $san = tsootc_history_sanitize_detail( $detail );
+    $detail_payload = is_array( $detail ) ? $detail : array();
+    if ( in_array( $action, array( 'installed', 'updated' ), true ) && '' !== $file ) {
+        $detail_payload = array_merge(
+            tsootc_history_build_inventory_detail( $type, $action, $file, $event_ts ),
+            $detail_payload
+        );
+    }
+    if ( ! empty( $detail_payload ) ) {
+        $san = tsootc_history_sanitize_detail( $detail_payload, $type );
         if ( ! empty( $san ) ) {
             $entry['detail'] = $san;
         }
@@ -1194,6 +1577,9 @@ function tsootc_history_get_plugin_index( $force_rebuild = false ) {
             continue;
         }
         $file = isset( $entry['file'] ) ? sanitize_text_field( (string) $entry['file'] ) : '';
+        if ( function_exists( 'tsootc_reconcile_plugin_bootstrap_file' ) ) {
+            $file = tsootc_reconcile_plugin_bootstrap_file( $file );
+        }
         $name = isset( $entry['name'] ) ? sanitize_text_field( (string) $entry['name'] ) : '';
         $ts   = isset( $entry['ts'] ) ? (int) $entry['ts'] : 0;
         if ( '' === $file || '' === $name || false === strpos( $file, '/' ) ) {
@@ -1802,10 +2188,10 @@ function tsootc_history_mapping_is_safe_for_option( array $mapping, $option_name
     }
 
     if ( false !== strpos( $file, '/' ) ) {
-        $folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-            ? tsootc_normalize_plugin_folder_slug( dirname( $file ) )
+        $folder = function_exists( 'tsootc_sanitize_plugin_folder_slug' )
+            ? tsootc_sanitize_plugin_folder_slug( dirname( $file ) )
             : strtolower( dirname( $file ) );
-        $legacy_swiss = array( 'tso-wp-swiss', 'tso-swiss-knife' );
+        $legacy_swiss = array( 'tso-wp-swiss', 'tso-swiss-knife', 'tso-swiss-knife-advanced-maintenance-developer-toolkit' );
         if ( in_array( $folder, $legacy_swiss, true )
             && function_exists( 'tsootc_option_key_expected_plugin_folders' ) ) {
             $expected = tsootc_option_key_expected_plugin_folders( $option_name );
@@ -2264,20 +2650,10 @@ function tsootc_history_enhance_detection( $detected, $option_name, array $insta
 
     if ( function_exists( 'tsootc_option_key_expected_plugin_folders' ) ) {
         $expected = tsootc_option_key_expected_plugin_folders( $option_name );
-        if ( ! empty( $expected ) ) {
-            $det_folder = '';
-            if ( ! empty( $detected['folder'] ) ) {
-                $det_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                    ? tsootc_normalize_plugin_folder_slug( (string) $detected['folder'] )
-                    : strtolower( sanitize_file_name( (string) $detected['folder'] ) );
-            } elseif ( ! empty( $detected['file'] ) && false !== strpos( (string) $detected['file'], '/' ) ) {
-                $det_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                    ? tsootc_normalize_plugin_folder_slug( dirname( (string) $detected['file'] ) )
-                    : strtolower( dirname( (string) $detected['file'] ) );
-            }
-            if ( '' !== $det_folder && in_array( $det_folder, $expected, true ) ) {
-                return $detected;
-            }
+        if ( ! empty( $expected )
+            && function_exists( 'tsootc_detection_row_matches_expected_installed_folder' )
+            && tsootc_detection_row_matches_expected_installed_folder( $detected, $option_name, $installed_plugins ) ) {
+            return $detected;
         }
     }
 
@@ -2356,22 +2732,9 @@ function tsootc_apply_history_to_detected( $detected, $installed_plugins = array
         return $detected;
     }
 
-    if ( '' !== (string) $option_name && function_exists( 'tsootc_option_key_expected_plugin_folders' ) ) {
-        $expected = tsootc_option_key_expected_plugin_folders( $option_name );
-        if ( ! empty( $expected ) ) {
-            $det_folder = '';
-            if ( ! empty( $detected['folder'] ) ) {
-                $det_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                    ? tsootc_normalize_plugin_folder_slug( (string) $detected['folder'] )
-                    : strtolower( sanitize_file_name( (string) $detected['folder'] ) );
-            } elseif ( ! empty( $detected['file'] ) && false !== strpos( (string) $detected['file'], '/' ) ) {
-                $det_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                    ? tsootc_normalize_plugin_folder_slug( dirname( (string) $detected['file'] ) )
-                    : strtolower( dirname( (string) $detected['file'] ) );
-            }
-            if ( '' !== $det_folder && in_array( $det_folder, $expected, true ) ) {
-                return $detected;
-            }
+    if ( '' !== (string) $option_name && function_exists( 'tsootc_detection_row_matches_expected_installed_folder' ) ) {
+        if ( tsootc_detection_row_matches_expected_installed_folder( $detected, (string) $option_name, $installed_plugins ) ) {
+            return $detected;
         }
     }
 
@@ -2388,6 +2751,9 @@ function tsootc_apply_history_to_detected( $detected, $installed_plugins = array
             if ( isset( $index['by_file'][ $file_key ]['name'] ) ) {
                 $detected['name']          = (string) $index['by_file'][ $file_key ]['name'];
                 $detected['file']          = (string) $index['by_file'][ $file_key ]['file'];
+                if ( function_exists( 'tsootc_reconcile_plugin_bootstrap_file' ) ) {
+                    $detected['file'] = tsootc_reconcile_plugin_bootstrap_file( $detected['file'] );
+                }
                 $detected['from_history']  = true;
                 return $detected;
             }
@@ -2572,7 +2938,17 @@ function tsootc_history_on_upgrader_complete( $upgrader, $options ) {
             }
         } elseif ( isset( $upgrader->result['destination_name'] ) ) {
             $slug = sanitize_text_field( (string) ( $upgrader->result['destination_name'] ?? '' ) );
-            tsootc_history_add_event( 'plugin', $wp_action, $slug, $slug . '/' . $slug . '.php' );
+            if ( '' === $slug ) {
+                return;
+            }
+            $plugin_file = function_exists( 'tsootc_resolve_installed_plugin_file_for_folder' )
+                ? tsootc_resolve_installed_plugin_file_for_folder( $slug )
+                : '';
+            if ( '' === $plugin_file ) {
+                $plugin_file = $slug . '/' . $slug . '.php';
+            }
+            $name = tsootc_history_get_plugin_name( $plugin_file );
+            tsootc_history_add_event( 'plugin', $wp_action, $name, $plugin_file );
         }
     } elseif ( $type === 'theme' ) {
         if ( ! empty( $options['theme'] ) ) {

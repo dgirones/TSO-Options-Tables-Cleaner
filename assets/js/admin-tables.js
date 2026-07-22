@@ -9,12 +9,44 @@
         }
     }
 
+    var allowDeleteChk = document.getElementById('tso-allow-extra-table-delete');
+    var allowDeleteMsg = document.getElementById('tso-allow-extra-table-delete-msg');
+    if (allowDeleteChk) {
+        allowDeleteChk.addEventListener('change', function () {
+            var enabled = allowDeleteChk.checked ? '1' : '0';
+            allowDeleteChk.disabled = true;
+            if (allowDeleteMsg) {
+                allowDeleteMsg.textContent = cfg.extraTablesDeleteSaving || 'Saving…';
+            }
+            tsootcPost('tsootc_save_extra_table_delete_setting', { enabled: enabled }, function (data) {
+                if (data && data.success) {
+                    if (allowDeleteMsg && data.data && data.data.msg) {
+                        allowDeleteMsg.textContent = data.data.msg;
+                    }
+                    setTimeout(function () {
+                        location.reload();
+                    }, 350);
+                    return;
+                }
+                allowDeleteChk.disabled = false;
+                allowDeleteChk.checked = !allowDeleteChk.checked;
+                if (allowDeleteMsg) {
+                    allowDeleteMsg.textContent = (data && data.data && data.data.msg)
+                        ? data.data.msg
+                        : ((tsootcCommonJs && tsootcCommonJs.unknownLong) ? tsootcCommonJs.unknownLong : 'Error');
+                }
+            });
+        });
+    }
+
     // ---- Selecció ----
                 var selectAll  = document.getElementById("tso-tables-select-all");
                 var bulkBtn    = document.getElementById("tso-tables-bulk-delete");
                 var exportBtn  = document.getElementById("tso-tables-bulk-export");
                 var countSpan  = document.getElementById("tso-tables-selected-count");
                 if (!selectAll || !bulkBtn || !exportBtn || !countSpan) return;
+
+                var deleteUnlocked = cfg.extraTablesDeleteEnabled === true;
 
                 function downloadSqlFile(filename, sql) {
                     var blob = new Blob([sql], {type: "application/sql;charset=utf-8"});
@@ -41,8 +73,10 @@
                     if (unsafe && typeof tsootcCommonJs !== 'undefined') {
                         countSpan.textContent += " · " + tsootcCommonJs.deleteBlocked.replace(/:\s*$/, "");
                     }
-                    bulkBtn.disabled = (n === 0 || unsafe);
-                    bulkBtn.title = unsafe ? ((typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.deleteSelectionBlocked : '')).replace(/\n$/, '') : '';
+                    bulkBtn.disabled = (!deleteUnlocked || n === 0 || unsafe);
+                    bulkBtn.title = !deleteUnlocked
+                        ? ((typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.deleteBlocked : '') || '').replace(/\n$/, '')
+                        : (unsafe ? ((typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.deleteSelectionBlocked : '')).replace(/\n$/, '') : '');
                     exportBtn.disabled = (n === 0);
                 }
 

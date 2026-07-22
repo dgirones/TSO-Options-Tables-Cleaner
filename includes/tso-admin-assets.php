@@ -165,6 +165,16 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 		);
 		wp_enqueue_script( 'tso-options-tables-cleaner-admin-cron' );
 	}
+	if ( 'backup' === $tab ) {
+		wp_register_script(
+			'tso-options-tables-cleaner-admin-backup',
+			$url . 'assets/js/admin-backup.js',
+			$deps,
+			tsootc_admin_asset_file_version( 'assets/js/admin-backup.js' ),
+			true
+		);
+		wp_enqueue_script( 'tso-options-tables-cleaner-admin-backup' );
+	}
 
 	$lang      = function_exists( 'tsootc_get_ui_lang' ) ? tsootc_get_ui_lang() : 'ca';
 	$admin_cfg = tsootc_admin_get_script_config( $lang );
@@ -200,6 +210,28 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 			'Confirm automatic assignment for table:'
 		);
 		$admin_cfg['confirmError']            = isset( $table_assign_cfg['confirmError'] ) ? $table_assign_cfg['confirmError'] : '';
+		$admin_cfg['extraTablesDeleteEnabled'] = function_exists( 'tsootc_extra_table_delete_is_enabled' )
+			? (bool) tsootc_extra_table_delete_is_enabled()
+			: false;
+		$admin_cfg['extraTablesDeleteSaving']  = tsootc_ui_triple_text(
+			$lang,
+			'Desant…',
+			'Guardando…',
+			'Saving…'
+		);
+	}
+
+	if ( 'backup' === $tab ) {
+		$admin_cfg['backup'] = array(
+			'selectedOne'  => tsootc_ui_triple_text( $lang, '%d seleccionat', '%d seleccionado', '%d selected' ),
+			'selectedMany' => tsootc_ui_triple_text( $lang, '%d seleccionats', '%d seleccionados', '%d selected' ),
+			'confirmBulk'  => tsootc_ui_triple_text(
+				$lang,
+				'Eliminar %d backup(s) seleccionat(s)?',
+				'¿Eliminar %d backup(s) seleccionado(s)?',
+				'Delete %d selected backup(s)?'
+			),
+		);
 	}
 
 	wp_localize_script(

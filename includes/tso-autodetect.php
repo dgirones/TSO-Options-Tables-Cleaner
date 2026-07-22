@@ -110,6 +110,15 @@ function tsootc_autodetect_row_from_folder( $folder, array $installed_plugins ) 
 		}
 	}
 
+	if ( function_exists( 'tsootc_build_plugin_detection_row_from_folder' ) ) {
+		$row = tsootc_build_plugin_detection_row_from_folder( $folder, $installed_plugins, $folder );
+		if ( is_array( $row ) ) {
+			$row['auto']   = true;
+			$row['source'] = 'autodetect';
+			return $row;
+		}
+	}
+
 	if ( function_exists( 'tsootc_build_uninstalled_detection_row' ) ) {
 		$row = tsootc_build_uninstalled_detection_row( $folder, $installed_plugins, $folder );
 		if ( is_array( $row ) ) {

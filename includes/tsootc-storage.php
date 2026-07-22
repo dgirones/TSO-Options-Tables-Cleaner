@@ -31,6 +31,7 @@ define( 'TSOOTC_STORED_OPTION_MIGRATED_CRON_MONTHLY_V1', 'migrated_cron_monthly_
 define( 'TSOOTC_STORED_OPTION_UNSAFE_MAP_CLEANUP_DONE', 'unsafe_map_cleanup_done' );
 define( 'TSOOTC_STORED_OPTION_THEME_PREFIX_MAP_VERSION', 'theme_prefix_map_version' );
 define( 'TSOOTC_STORED_OPTION_COMMENT_TRASH_META_BACKFILL_V1', 'comment_trash_meta_backfill_v1' );
+define( 'TSOOTC_STORED_OPTION_ALLOW_EXTRA_TABLE_DELETE', 'allow_extra_table_delete' );
 
 // Stored transient symbolic ids (not transient names).
 define( 'TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD', 'options_tab_payload' );
@@ -165,6 +166,43 @@ function tsootc_get_admin_post_text( $key, $default = '' ) {
 }
 
 /**
+ * Read unslashed admin POST value (call only after tsootc_verify_admin_form_nonce()).
+ *
+ * @param string $key     POST key.
+ * @param mixed  $default Default when missing.
+ * @return mixed
+ */
+function tsootc_get_admin_post_unslashed( $key, $default = null ) {
+	$key = (string) $key;
+	if ( '' === $key || ! isset( $_POST[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Caller verified via tsootc_verify_admin_form_nonce().
+		return $default;
+	}
+	return wp_unslash( $_POST[ $key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Caller verified admin form nonce; caller sanitizes structure.
+}
+
+/**
+ * Collect sanitized backup filenames from admin POST (call only after form nonce verification).
+ *
+ * @return string[]
+ */
+function tsootc_collect_admin_backup_files_from_request() {
+	$raw = tsootc_get_admin_post_unslashed( 'backup_files', array() );
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+
+	$files = array();
+	foreach ( $raw as $file ) {
+		$file = sanitize_file_name( (string) $file );
+		if ( '' !== $file ) {
+			$files[] = $file;
+		}
+	}
+
+	return array_values( array_unique( $files ) );
+}
+
+/**
  * Collect bulk option_names payload from AJAX POST (indexed fields, JSON, or array).
  *
  * @return mixed Raw unslashed structure for tsootc_parse_bulk_assign_option_names_from_request().
@@ -216,6 +254,7 @@ function tsootc_get_stored_option_key_map() {
 		'tso_unsafe_map_cleanup_done'         => 'tso_options_tables_cleaner_unsafe_map_cleanup_done',
 		'tso_theme_prefix_map_version'        => 'tso_options_tables_cleaner_theme_prefix_map_version',
 		'tso_comment_trash_meta_backfill_v1'  => 'tso_options_tables_cleaner_comment_trash_meta_backfill_v1',
+		'tso_allow_extra_table_delete'        => 'tso_options_tables_cleaner_allow_extra_table_delete',
 	);
 }
 
