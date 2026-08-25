@@ -1840,6 +1840,11 @@ function tsootc_codescan_grep_option_key_in_plugins( $option_name ) {
  * @return array|null Detection row.
  */
 function tsootc_codescan_lookup_option_from_cache( $option_name, array $installed_plugins = array() ) {
+	// theme_mods_{stylesheet} is owned by the dedicated theme detector — never remap via codescan.
+	if ( 0 === strpos( strtolower( (string) $option_name ), 'theme_mods_' ) ) {
+		return null;
+	}
+
 	$index = tsootc_codescan_load_cached_option_index();
 	if ( ! is_array( $index ) || empty( $index['exact'] ) ) {
 		return null;

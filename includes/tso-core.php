@@ -279,8 +279,24 @@ function tsootc_get_plugin_relative_path_hint( $plugin_file ) {
 	if ( '' !== $absolute ) {
 		$relative = tsootc_get_path_relative_to_wp_content( $absolute );
 		if ( '' !== $relative ) {
+			// Files keep their basename; only directories get a trailing slash via format helper.
+			$is_php_file = (bool) preg_match( '/\.php$/i', $relative );
+			if ( $is_php_file ) {
+				$content_folder = ( defined( 'WP_CONTENT_FOLDERNAME' ) && WP_CONTENT_FOLDERNAME )
+					? (string) WP_CONTENT_FOLDERNAME
+					: 'wp-content';
+				return $content_folder . '/' . ltrim( str_replace( '\\', '/', $relative ), '/' );
+			}
 			return tsootc_format_path_hint_under_wp_content( $relative );
 		}
+	}
+
+	$normalized = ltrim( str_replace( '\\', '/', $plugin_file ), '/' );
+	if ( (bool) preg_match( '/\.php$/i', $normalized ) ) {
+		$content_folder = ( defined( 'WP_CONTENT_FOLDERNAME' ) && WP_CONTENT_FOLDERNAME )
+			? (string) WP_CONTENT_FOLDERNAME
+			: 'wp-content';
+		return $content_folder . '/plugins/' . $normalized;
 	}
 
 	return tsootc_format_path_hint_under_wp_content( 'plugins/' . $plugin_file );
@@ -1045,6 +1061,7 @@ function tsootc_ajax_confirm_table_detection() {
         $table_map = tsootc_get_table_key_map();
         $table_map[ $table_name ] = $owner;
         tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
+        tsootc_get_table_key_map( true );
     }
 
     if ( '' !== $group_key
@@ -1135,6 +1152,7 @@ function tsootc_ajax_assign_table() {
         if ( ! isset( $table_map[ $table_name ] ) ) {
             $table_map[ $table_name ] = (string) $row['file'];
             tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
+            tsootc_get_table_key_map( true );
         }
     }
 
@@ -1241,11 +1259,11 @@ function tsootc_get_strict_plugin_folder_option_rules() {
             'exact'    => array( 'wp-cleanup', 'wp_cleanup' ),
         ),
         'tso-wp-swiss'              => array(
-            'prefixes' => array( 'tsootc_', 'tsosk_', 'tsootc_swiss', 'tso-swiss' ),
+            'prefixes' => array( 'tsosk_', 'tsootc_swiss', 'tso-swiss' ),
             'exact'    => array(),
         ),
         'tso-swiss-knife'           => array(
-            'prefixes' => array( 'tsootc_', 'tsosk_', 'tsootc_swiss', 'tso-swiss' ),
+            'prefixes' => array( 'tsosk_', 'tsootc_swiss', 'tso-swiss' ),
             'exact'    => array(),
         ),
         'tso-swiss-knife-advanced-maintenance-developer-toolkit' => array(
@@ -1715,6 +1733,12 @@ function tsootc_resolve_installed_theme_slug_from_token( $token, array $installe
         return '';
     }
     if ( 'custom' === strtolower( $token ) ) {
+        return '';
+    }
+
+    // Theme slug tso-theme must not claim tso_* plugin options via token "tso".
+    if ( 'tso' === $token && function_exists( 'tsootc_site_has_tso_branded_plugins' )
+        && tsootc_site_has_tso_branded_plugins( $installed_plugins ) ) {
         return '';
     }
 
@@ -2386,6 +2410,11 @@ function tsootc_build_history_theme_prefix_map( $force_rebuild = false ) {
             continue;
         }
         $short3 = substr( $slug, 0, 3 );
+        // short3 "tso" from tso-theme must not steal tso_* plugin options/tables.
+        if ( 'tso' === $short3 && function_exists( 'tsootc_site_has_tso_branded_plugins' )
+            && tsootc_site_has_tso_branded_plugins() ) {
+            continue;
+        }
         $owners = array();
         foreach ( array_keys( $slugs ) as $candidate ) {
             if ( 0 === strpos( $candidate, $short3 ) ) {
@@ -3019,14 +3048,17 @@ function tsootc_get_tso_option_prefix_slug_hints() {
         'tsoliin_'               => $link_inspector,
         'tsootc_twrn_'              => 'tso-widget-rss-noticias',
         'tso_twrn_'                 => 'tso-widget-rss-noticias', // legacy wp_options prefix
-        'tsootc_wpt_'               => 'tso-tabs-widget',
-        'tso_wpt_'                  => 'tso-tabs-widget', // legacy wp_options prefix
-        'tsootc_lliga_'             => 'tso-tabla-liga',
-        'tso_lliga_'                => 'tso-tabla-liga', // legacy wp_options prefix
         'tsootc_an_'                => $gestor_avisos,
         'tso_an_'                   => $gestor_avisos, // legacy wp_options prefix
-        'tso_ls_'                   => array( 'tso-light-snow', 'tso-nevado', 'tso-homepage-effects' ), // legacy wp_options prefix
+        'tso_admin_notices_'        => $gestor_avisos,
+        'tsootc_wpt_'               => 'tso-tabs-widget',
+        'tso_wpt_'                  => 'tso-tabs-widget', // legacy wp_options prefix
+        'tso_tabs_widget_'          => 'tso-tabs-widget',
+        'widget_wpt_widget'         => 'tso-tabs-widget',
         'widget_tso_tab_widget'     => 'tso-tabs-widget',
+        'tsootc_lliga_'             => 'tso-tabla-liga',
+        'tso_lliga_'                => 'tso-tabla-liga', // legacy wp_options prefix
+        'tso_ls_'                   => array( 'tso-light-snow', 'tso-nevado', 'tso-homepage-effects' ), // legacy wp_options prefix
         'widget_tso_clasificacion_widget' => 'tso-tabla-liga',
     );
 
@@ -3796,25 +3828,43 @@ function tsootc_detect_wp_toolkit_hosting_option( $option_name, array $installed
 }
 
 /**
- * Hosting / installer residue (Softaculous ai-install, etc.).
+ * Whether a wp_options key belongs to Softaculous / hosting installer (not a WP plugin).
+ *
+ * @param string $option_name Option key.
+ * @return bool
+ */
+function tsootc_option_is_hosting_softaculous_key( $option_name ) {
+	$lower = strtolower( (string) $option_name );
+	if ( '' === $lower ) {
+		return false;
+	}
+	if ( 'ai-install' === $lower ) {
+		return true;
+	}
+	return 0 === strpos( $lower, 'softaculous' );
+}
+
+/**
+ * Hosting / installer residue (Softaculous ai-install, softaculous_*, etc.).
  *
  * @param string $option_name Option key.
  * @return array|null
  */
 function tsootc_detect_hosting_installer_option( $option_name ) {
-    if ( 'ai-install' !== strtolower( (string) $option_name ) ) {
-        return null;
-    }
+	if ( ! tsootc_option_is_hosting_softaculous_key( $option_name ) ) {
+		return null;
+	}
 
-    return array(
-        'name'      => 'Softaculous / hosting installer',
-        'file'      => '',
-        'folder'    => '__hosting__',
-        'active'    => null,
-        'installed' => true,
-        'auto'      => false,
-        'source'    => 'hosting',
-    );
+	return array(
+		'name'      => 'Softaculous / hosting installer',
+		'file'      => '',
+		'folder'    => '__hosting__',
+		'active'    => null,
+		'installed' => true,
+		'auto'      => false,
+		'shared'    => true,
+		'source'    => 'hosting',
+	);
 }
 
 /**
@@ -4090,9 +4140,11 @@ function tsootc_detect_tso_branded_table( $table_without_prefix, array $installe
     }
 
     $known_tables = array(
-        'tsootc_link_inspector'    => 'tso-link-inspector',
-        'pc_tso_link_inspector' => 'tso-link-inspector',
-        'tsootc_im_history'        => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tso_link_inspector'       => 'tso-link-inspector',
+        'tsootc_link_inspector'    => 'tso-link-inspector', // legacy wp_options / table prefix
+        'pc_tso_link_inspector'    => 'tso-link-inspector', // legacy table name
+        'tso_im_history'           => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tsootc_im_history'        => array( 'tso-image-master', 'tso-image-master-pro' ), // legacy
     );
     if ( isset( $known_tables[ $lower ] ) ) {
         $targets = is_array( $known_tables[ $lower ] ) ? $known_tables[ $lower ] : array( $known_tables[ $lower ] );
@@ -4186,6 +4238,12 @@ function tsootc_key_belongs_to_tso_plugin_not_theme( $name, array $installed_plu
 function tsootc_auto_option_map_is_safe_for_option( $option_name, $plugin_file, array $installed_plugins = array() ) {
     $plugin_file = (string) $plugin_file;
     if ( '' === $plugin_file ) {
+        return false;
+    }
+
+    // Softaculous / hosting keys must never be attributed to a WP plugin.
+    if ( function_exists( 'tsootc_option_is_hosting_softaculous_key' )
+        && tsootc_option_is_hosting_softaculous_key( $option_name ) ) {
         return false;
     }
 
@@ -4990,15 +5048,7 @@ function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args
         }
     }
 
-    // --- FASE ESPECIAL: softaculous_ — eina de servidor, no plugin WP ---
-    if ( strpos( $lower, 'softaculous' ) === 0 ) {
-        return array(
-            'name'   => 'Softaculous (servidor)',
-            'file'   => '',
-            'active' => false,
-            'auto'   => false,
-        );
-    }
+    // --- softaculous_* handled earlier via tsootc_detect_hosting_installer_option() ---
 
     // --- FASE widget_: opcions que comencen per widget_ ---
     // Estratègia: registre WP_Widget + escaneig de plugins (automàtic), després mapa manual.
@@ -5397,8 +5447,11 @@ function tsootc_detect_plugin_with_history( $option_name, $installed_plugins = a
         $cache_row = tsootc_codescan_lookup_option_from_cache( $option_name, $installed_plugins );
         if ( is_array( $cache_row ) && ! empty( $cache_row['file'] ) ) {
             $use_cache = empty( $detected ) || ! is_array( $detected );
-            if ( ! $use_cache && function_exists( 'tsootc_detection_row_is_theme' ) ) {
-                $use_cache = tsootc_detection_row_is_theme( $detected );
+            // Never replace a solid theme row (e.g. theme_mods_*) with a plugin codescan hit.
+            if ( ! $use_cache
+                && function_exists( 'tsootc_detection_row_is_theme' )
+                && tsootc_detection_row_is_theme( $detected ) ) {
+                $use_cache = tsootc_detection_row_is_theme( $cache_row );
             }
             if ( $use_cache ) {
                 $detected = $cache_row;
@@ -5489,7 +5542,6 @@ function tsootc_get_plugin_folder_aliases() {
         'visual-composer'         => 'js_composer',
         'action-scheduler'        => 'woocommerce',
         'action_scheduler'        => 'woocommerce',
-        'one-user-avatar'         => 'wp-user-avatar',
         'wp-user-avatar'          => 'one-user-avatar',
         'cool-crypto'             => 'cryptocurrency-price-widget',
     );
@@ -6074,9 +6126,11 @@ function tsootc_get_option_prefix_slug_hints() {
  */
 function tsootc_get_table_prefix_slug_hints() {
     return array(
-        'tsootc_link_inspector'      => 'tso-link-inspector',
-        'pc_tso_link_inspector'   => 'tso-link-inspector',
-        'tsootc_im_history'          => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tso_link_inspector'         => 'tso-link-inspector',
+        'tsootc_link_inspector'      => 'tso-link-inspector', // legacy
+        'pc_tso_link_inspector'      => 'tso-link-inspector', // legacy
+        'tso_im_history'             => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tsootc_im_history'          => array( 'tso-image-master', 'tso-image-master-pro' ), // legacy
         'mfm_'                    => 'wp-file-manager',
         'fm_files'                => 'wp-file-manager',
         'wp_file_manager_'        => 'wp-file-manager',
@@ -6846,15 +6900,29 @@ function tsootc_detect_plugin_from_table( $table_without_prefix, $installed_plug
     $lower      = strtolower( $table_without_prefix );
     $lower_nosep = str_replace( array( '-', '_' ), '', $lower );
 
-    // WordPress multisite global tables (e.g. signups, blogs) — not single-site core but WP core on networks.
+    // WordPress core / other-blog / MS global tables — never treat as plugin residue.
     global $wpdb;
     $full_table_name = $wpdb->prefix . $table_without_prefix;
-    if ( tsootc_is_extra_table_multisite_core( $full_table_name ) ) {
+    if ( function_exists( 'tsootc_is_wordpress_protected_table' )
+        && tsootc_is_wordpress_protected_table( $full_table_name ) ) {
+        $is_ms = function_exists( 'tsootc_is_extra_table_multisite_core' )
+            && tsootc_is_extra_table_multisite_core( $full_table_name );
         return array(
-            'name'            => 'WordPress Multisite',
-            'file'            => '',
-            'active'          => null,
-            'multisite_core'  => true,
+            'name'           => $is_ms ? 'WordPress Multisite' : 'WordPress',
+            'file'           => '',
+            'active'         => null,
+            'multisite_core' => true,
+            'source'         => 'multisite_core',
+        );
+    }
+    if ( function_exists( 'tsootc_table_is_hosting_softaculous' )
+        && tsootc_table_is_hosting_softaculous( $table_without_prefix ) ) {
+        return array(
+            'name'   => 'Softaculous / hosting installer',
+            'file'   => '',
+            'active' => null,
+            'folder' => '__hosting__',
+            'source' => 'hosting',
         );
     }
     $historical_folder_aliases = array(
@@ -7992,6 +8060,25 @@ function tsootc_apply_theme_label_to_detection( $detected, $context_option_name 
 		return $detected;
 	}
 
+	$context_lower = strtolower( (string) $context_option_name );
+	// theme_mods_{stylesheet} must stay a theme — never remap to a plugin via prefix evidence.
+	if ( 0 === strpos( $context_lower, 'theme_mods_' ) ) {
+		$theme_slug = sanitize_title( substr( (string) $context_option_name, 11 ) );
+		if ( '' !== $theme_slug ) {
+			$detected['type']      = 'theme';
+			$detected['file']      = $theme_slug;
+			$detected['folder']    = 'theme:' . $theme_slug;
+			$detected['installed'] = function_exists( 'tsootc_theme_slug_exists' ) && tsootc_theme_slug_exists( $theme_slug );
+			$detected['name']      = function_exists( 'tsootc_format_theme_group_label' )
+				? tsootc_format_theme_group_label( $theme_slug, isset( $detected['name'] ) ? (string) $detected['name'] : '' )
+				: ( 'Tema: ' . $theme_slug );
+			if ( $detected['installed'] && function_exists( 'tsootc_theme_slug_is_active' ) ) {
+				$detected['active'] = tsootc_theme_slug_is_active( $theme_slug );
+			}
+		}
+		return $detected;
+	}
+
 	if ( '' !== (string) $context_option_name ) {
 		$prefix_row = tsootc_resolve_plugin_row_from_table_prefix_map( (string) $context_option_name, $installed_plugins );
 		if ( is_array( $prefix_row ) && ! empty( $prefix_row['file'] ) ) {
@@ -8765,10 +8852,7 @@ function tsootc_is_plugin_folder_currently_installed( $folder_slug, array $insta
             }
         }
 
-        $folder_path = tsootc_get_plugin_folder_path( $candidate );
-        if ( '' !== $folder_path && is_dir( $folder_path ) ) {
-            return true;
-        }
+        // Do not treat a bare leftover directory (no plugin header) as installed.
     }
 
     return false;
@@ -8981,6 +9065,17 @@ function tsootc_detected_target_is_installed( $detected, $installed_plugins = ar
         return null;
     }
 
+    $folder = isset( $detected['folder'] ) ? (string) $detected['folder'] : '';
+    $source = isset( $detected['source'] ) ? (string) $detected['source'] : '';
+    // Hosting / Freemius / WP Toolkit — no real plugin folder to verify on disk.
+    if ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+        && tsootc_is_synthetic_shared_sdk_folder( $folder ) ) {
+        return null;
+    }
+    if ( in_array( $source, array( 'hosting', 'freemius', 'wp_toolkit' ), true ) ) {
+        return null;
+    }
+
     $installed_plugins = is_array( $installed_plugins ) ? $installed_plugins : array();
 
     if ( function_exists( 'tsootc_reconcile_installed_detection_row' ) ) {
@@ -9178,6 +9273,22 @@ function tsootc_get_uninstalled_group_badge_html( $lang = 'ca' ) {
  */
 function tsootc_format_removed_component_path( $folder_or_token ) {
     $folder = (string) $folder_or_token;
+    if ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+        && tsootc_is_synthetic_shared_sdk_folder( $folder ) ) {
+        if ( '__hosting__' === $folder ) {
+            return 'hosting / Softaculous (no plugin folder)';
+        }
+        if ( '__freemius__' === $folder ) {
+            return 'Freemius SDK (shared, no plugin folder)';
+        }
+        if ( '__wp_toolkit__' === $folder ) {
+            return 'WP Toolkit (hosting, no plugin folder)';
+        }
+        if ( '__wordpress_core__' === $folder ) {
+            return 'WordPress core';
+        }
+        return 'shared component (no plugin folder)';
+    }
     if ( 0 === strpos( $folder, 'theme:' ) ) {
         $theme_slug = sanitize_title( substr( $folder, 6 ) );
         return tsootc_get_theme_relative_path_hint( $theme_slug );
@@ -9463,10 +9574,23 @@ function tsootc_group_merge_items( array &$into, array $from, $lang = 'ca' ) {
 			$into['safety']         = 'inactive';
 		}
 	} elseif ( ! empty( $from['is_inactive'] ) && empty( $into['is_uninstalled'] ) ) {
-		$into['is_inactive'] = true;
-		if ( empty( $into['status'] ) && ! empty( $from['status'] ) ) {
-			$into['status']       = $from['status'];
-			$into['status_color'] = $from['status_color'];
+		// Do not let a foreign/synthetic bucket flip an installed plugin group to Inactive.
+		$into_folder = isset( $into['plugin_folder'] ) ? (string) $into['plugin_folder'] : '';
+		$from_folder = isset( $from['plugin_folder'] ) ? (string) $from['plugin_folder'] : '';
+		$same_folder = ( '' !== $into_folder && $into_folder === $from_folder );
+		$into_is_plugin = ( '' !== $into_folder
+			&& 0 !== strpos( $into_folder, 'theme:' )
+			&& ( ! function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+				|| ! tsootc_is_synthetic_shared_sdk_folder( $into_folder ) ) );
+		$from_is_synth = ( '' !== $from_folder
+			&& function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+			&& tsootc_is_synthetic_shared_sdk_folder( $from_folder ) );
+		if ( $same_folder || ( ! $into_is_plugin && ! $from_is_synth ) ) {
+			$into['is_inactive'] = true;
+			if ( empty( $into['status'] ) && ! empty( $from['status'] ) ) {
+				$into['status']       = $from['status'];
+				$into['status_color'] = $from['status_color'];
+			}
 		}
 	}
 	foreach ( array( 'detected_name', 'plugin_folder' ) as $meta_key ) {
@@ -9689,6 +9813,108 @@ function tsootc_reconcile_grouped_uninstalled_flags( array $grouped, array $plug
 				 ? tsootc_normalize_plugin_folder_slug( dirname( (string) $plugin_file ) )
 				 : strtolower( dirname( (string) $plugin_file ) );
 				if ( $pl_folder !== tsootc_normalize_plugin_folder_slug( $folder ) ) {
+					continue;
+				}
+				if ( ! function_exists( 'is_plugin_active' ) ) {
+					require_once ABSPATH . 'wp-admin/includes/plugin.php';
+				}
+				if ( function_exists( 'is_plugin_active' ) && is_plugin_active( $plugin_file ) ) {
+					$active = true;
+					break;
+				}
+			}
+		}
+		if ( $active ) {
+			$gd['is_inactive']  = false;
+			$gd['status']       = tsootc_ui_triple_text( $lang, '✅ Actiu', '✅ Activo', '✅ Active' );
+			$gd['status_color'] = '#2a7a2a';
+			$gd['safety']       = 'active';
+		} else {
+			$gd['is_inactive']  = true;
+			$gd['status']       = tsootc_ui_triple_text( $lang, '⚠️ Inactiu', '⚠️ Inactivo', '⚠️ Inactive' );
+			$gd['status_color'] = '#c07000';
+			$gd['safety']       = 'inactive';
+		}
+	}
+	unset( $gd );
+
+	return $grouped;
+}
+
+/**
+ * Align group Actiu/Inactiu with live inventory (and history folder label).
+ *
+ * Prevents Softaculous/hosting or stale merge flags from marking an active plugin as Inactive.
+ *
+ * @param array  $grouped Grouped options.
+ * @param array  $plugins Installed plugins inventory.
+ * @param string $lang    UI language.
+ * @return array
+ */
+function tsootc_reconcile_grouped_plugin_status_from_inventory( array $grouped, array $plugins, $lang = 'ca' ) {
+	foreach ( $grouped as &$gd ) {
+		$folder = isset( $gd['plugin_folder'] ) ? (string) $gd['plugin_folder'] : '';
+		if ( '' === $folder ) {
+			continue;
+		}
+		if ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+			&& tsootc_is_synthetic_shared_sdk_folder( $folder ) ) {
+			unset( $gd['is_uninstalled'] );
+			$gd['is_inactive'] = false;
+			continue;
+		}
+		if ( 0 === strpos( $folder, 'theme:' ) ) {
+			$theme_slug = sanitize_title( substr( $folder, 6 ) );
+			if ( '' === $theme_slug || ! function_exists( 'tsootc_theme_slug_exists' ) || ! tsootc_theme_slug_exists( $theme_slug ) ) {
+				continue;
+			}
+			unset( $gd['is_uninstalled'] );
+			$active = function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $theme_slug );
+			if ( $active ) {
+				$gd['is_inactive']  = false;
+				$gd['status']       = tsootc_ui_triple_text( $lang, '✅ Actiu', '✅ Activo', '✅ Active' );
+				$gd['status_color'] = '#2a7a2a';
+				$gd['safety']       = 'active';
+			} else {
+				$gd['is_inactive']  = true;
+				$gd['status']       = tsootc_ui_triple_text( $lang, '⚠️ Inactiu', '⚠️ Inactivo', '⚠️ Inactive' );
+				$gd['status_color'] = '#c07000';
+				$gd['safety']       = 'inactive';
+			}
+			continue;
+		}
+
+		if ( ! function_exists( 'tsootc_is_plugin_folder_currently_installed' )
+			|| ! tsootc_is_plugin_folder_currently_installed( $folder, $plugins ) ) {
+			continue;
+		}
+
+		unset( $gd['is_uninstalled'] );
+		$active = false;
+		$folder_n = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+			? tsootc_normalize_plugin_folder_slug( $folder )
+			: strtolower( sanitize_file_name( $folder ) );
+		foreach ( $plugins as $pl ) {
+			if ( ( $pl['type'] ?? 'plugin' ) === 'theme' || empty( $pl['file'] ) ) {
+				continue;
+			}
+			$pl_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+				? tsootc_normalize_plugin_folder_slug( dirname( (string) $pl['file'] ) )
+				: strtolower( dirname( (string) $pl['file'] ) );
+			if ( $pl_folder !== $folder_n ) {
+				continue;
+			}
+			if ( ! empty( $pl['active'] ) ) {
+				$active = true;
+				break;
+			}
+		}
+		if ( ! $active && function_exists( 'get_plugins' ) ) {
+			foreach ( array_keys( get_plugins() ) as $plugin_file ) {
+				$pl_folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+					? tsootc_normalize_plugin_folder_slug( dirname( (string) $plugin_file ) )
+					: strtolower( dirname( (string) $plugin_file ) );
+				if ( $pl_folder !== $folder_n ) {
 					continue;
 				}
 				if ( ! function_exists( 'is_plugin_active' ) ) {
@@ -10512,15 +10738,17 @@ function tsootc_get_trashed_comment_ids_older_than( $cutoff_gmt ) {
 /**
  * Build args for {@see tsootc_do_clean()} from the current admin request (POST/AJAX).
  *
+ * Partial retention_days posts (one card) overlay saved settings — never reset other thresholds to defaults.
+ *
  * @return array<string,mixed>
  */
 function tsootc_get_cleanup_run_args_from_request() {
     $args = array();
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Caller verifies nonce before invoking cleanup.
-    if ( isset( $_POST['retention_days'] ) && is_array( $_POST['retention_days'] ) ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-        $args['retention_days'] = tsootc_normalize_age_cleanup_days( map_deep( wp_unslash( $_POST['retention_days'] ), 'absint' ) );
+    if ( tsootc_request_post_is_set( 'retention_days' ) ) {
+        $posted_partial = tsootc_get_ajax_post_mapped_array( 'retention_days', 'absint' );
+        $base_days      = tsootc_get_age_cleanup_days( tsootc_auto_clean_get_settings() );
+        $args['retention_days'] = tsootc_normalize_age_cleanup_days( array_merge( $base_days, $posted_partial ) );
     }
 
     return $args;
@@ -10578,10 +10806,17 @@ function tsootc_collect_expired_transient_option_names() {
 /**
  * Flush option-related object caches after bulk option deletes.
  *
+ * @param string[] $option_names Optional option keys to drop from the options cache group.
  * @return void
  */
-function tsootc_flush_options_caches() {
+function tsootc_flush_options_caches( $option_names = array() ) {
     wp_cache_delete( 'alloptions', 'options' );
+    foreach ( (array) $option_names as $name ) {
+        $name = (string) $name;
+        if ( '' !== $name ) {
+            wp_cache_delete( $name, 'options' );
+        }
+    }
 }
 
 /**
@@ -10903,10 +11138,8 @@ function tsootc_get_cleanup_age_days_for_action( $action, $args = array() ) {
         return $runtime_days[ $action ];
     }
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- form request already verified by caller when present.
-    if ( isset( $_POST['retention_days'] ) && is_array( $_POST['retention_days'] ) ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $posted_days = map_deep( wp_unslash( $_POST['retention_days'] ), 'absint' );
+    if ( tsootc_request_post_is_set( 'retention_days' ) ) {
+        $posted_days = tsootc_get_ajax_post_mapped_array( 'retention_days', 'absint' );
         $posted_days = tsootc_normalize_age_cleanup_days( $posted_days );
         return $posted_days[ $action ];
     }
@@ -10967,7 +11200,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 55 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 56 );
 }
 
 /**
@@ -11067,7 +11300,18 @@ function tsootc_get_options_tab_invalidation_sig( $fresh = false ) {
  * @return string
  */
 function tsootc_options_tab_invalidation_sig_transient_key() {
-    return 'tsootc_opts_tab_inv_sig_' . (int) get_current_blog_id();
+    // Legacy map key (storage dual-reads → tso_options_tables_cleaner_opts_tab_inv_sig_*).
+    if ( function_exists( 'tsootc_build_stored_transient_key_by_dynamic_id' ) ) {
+        $key = tsootc_build_stored_transient_key_by_dynamic_id(
+            TSOOTC_STORED_TRANSIENT_DYNAMIC_OPTS_TAB_INV_SIG,
+            (string) (int) get_current_blog_id()
+        );
+        if ( '' !== $key ) {
+            return $key;
+        }
+    }
+
+    return 'tso_opts_tab_inv_sig_' . (int) get_current_blog_id();
 }
 
 /**
@@ -11086,8 +11330,8 @@ function tsootc_custom_map_bump_options_tab_cache() {
  * @return void
  */
 function tsootc_options_tab_invalidate_cache() {
+    // flush_cache() already drops payload + inv_sig + option blob + files.
     tsootc_options_tab_flush_cache();
-    tsootc_delete_stored_transient( tsootc_options_tab_invalidation_sig_transient_key() );
     if ( function_exists( 'tsootc_codescan_flush_cache' ) ) {
         tsootc_codescan_flush_cache();
     }
@@ -11380,6 +11624,22 @@ function tsootc_ensure_protected_uploads_dir( $dir ) {
         // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
         file_put_contents( $dir . '/.htaccess', "Options -Indexes\nDeny from all\n" );
     }
+    // IIS / some Windows hosts ignore .htaccess — deny direct HTTP access to SQL dumps.
+    if ( ! file_exists( $dir . '/web.config' ) ) {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+        file_put_contents(
+            $dir . '/web.config',
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            . "<configuration>\n"
+            . "  <system.webServer>\n"
+            . "    <authorization>\n"
+            . "      <deny users=\"*\" />\n"
+            . "    </authorization>\n"
+            . "    <directoryBrowse enabled=\"false\" />\n"
+            . "  </system.webServer>\n"
+            . "</configuration>\n"
+        );
+    }
 
     return true;
 }
@@ -11511,7 +11771,8 @@ function tsootc_legacy_options_tab_cache_file_path() {
 }
 
 function tsootc_options_tab_cache_option_key() {
-    return 'tsootc_opts_tab_cache_blob_' . (int) get_current_blog_id();
+    // Legacy map key (storage dual-reads → tso_options_tables_cleaner_opts_tab_cache_blob_*).
+    return 'tso_opts_tab_cache_blob_' . (int) get_current_blog_id();
 }
 
 /**
@@ -11721,6 +11982,10 @@ function tsootc_build_options_tab_autoload_panel( array $plugins, $lang, $al_tot
  * @return bool
  */
 function tsootc_options_tab_save_cache_file( array $payload ) {
+    // Same-request flush already purged option/transient backends — avoid duplicate delete_option SELECTs.
+    $skip_backend_purge = ! empty( $GLOBALS['tsootc_opts_tab_cache_flushed'] );
+    unset( $GLOBALS['tsootc_opts_tab_cache_flushed'] );
+
     $dir_ok = tsootc_ensure_options_tab_cache_dir();
     $path   = tsootc_options_tab_cache_file_path();
     $blob   = tsootc_options_tab_pack_payload( $payload );
@@ -11743,8 +12008,10 @@ function tsootc_options_tab_save_cache_file( array $payload ) {
             $result['storage'] = 'file';
             $result['ok']      = true;
             $result['bytes']   = (int) $written;
-            tsootc_delete_stored_option( tsootc_options_tab_cache_option_key() );
-            tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
+            if ( ! $skip_backend_purge ) {
+                tsootc_delete_stored_option( tsootc_options_tab_cache_option_key() );
+                tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
+            }
             tsootc_set_stored_transient(
                 tsootc_options_tab_invalidation_sig_transient_key(),
                 isset( $payload['invalidation_sig'] ) ? (string) $payload['invalidation_sig'] : '',
@@ -11768,7 +12035,9 @@ function tsootc_options_tab_save_cache_file( array $payload ) {
         $result['storage'] = 'option';
         $result['ok']      = true;
         $result['error']   = '';
-        tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
+        if ( ! $skip_backend_purge ) {
+            tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
+        }
         $GLOBALS['tsootc_opts_tab_cache_write_result'] = $result;
         return true;
     }
@@ -11867,14 +12136,17 @@ function tsootc_prune_stale_options_tab_cache_files() {
  */
 function tsootc_options_tab_flush_cache() {
     tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
-    tsootc_delete_stored_transient( 'tsootc_opts_tab_inv_sig_' . (int) get_current_blog_id() );
+    tsootc_delete_stored_transient( tsootc_options_tab_invalidation_sig_transient_key() );
     tsootc_delete_stored_option( tsootc_options_tab_cache_option_key() );
+
     foreach ( tsootc_get_options_tab_cache_file_search_paths() as $path ) {
         if ( '' !== $path && is_file( $path ) ) {
             wp_delete_file( $path );
         }
     }
     tsootc_prune_stale_options_tab_cache_files();
+
+    $GLOBALS['tsootc_opts_tab_cache_flushed'] = true;
 }
 
 /**
@@ -12200,6 +12472,9 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
     }
     if ( function_exists( 'tsootc_reconcile_grouped_uninstalled_flags' ) ) {
         $grouped = tsootc_reconcile_grouped_uninstalled_flags( $grouped, $plugins, $lang );
+    }
+    if ( function_exists( 'tsootc_reconcile_grouped_plugin_status_from_inventory' ) ) {
+        $grouped = tsootc_reconcile_grouped_plugin_status_from_inventory( $grouped, $plugins, $lang );
     }
 
     $tab_counts = function_exists( 'tsootc_opts_tab_counts' ) ? tsootc_opts_tab_counts( $grouped ) : array();
@@ -12866,32 +13141,21 @@ function tsootc_get_orphan_tables() {
     global $wpdb;
     $prefix            = $wpdb->prefix;
     $installed_plugins = tsootc_get_installed_plugins();
-    $core_tables       = array(
-        $prefix . 'posts',
-        $prefix . 'postmeta',
-        $prefix . 'comments',
-        $prefix . 'commentmeta',
-        $prefix . 'options',
-        $prefix . 'users',
-        $prefix . 'usermeta',
-        $prefix . 'terms',
-        $prefix . 'termmeta',
-        $prefix . 'term_taxonomy',
-        $prefix . 'term_relationships',
-        $prefix . 'links',
-    );
     $table_status_rows = $wpdb->get_results( 'SHOW TABLE STATUS', ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
     $result            = array();
 
     foreach ( $table_status_rows as $row ) {
         $table = isset( $row['Name'] ) ? (string) $row['Name'] : '';
-        if ( '' === $table || in_array( $table, $core_tables, true ) ) {
+        // Skip WordPress core / other-blog / MS global tables (never treat as deletable extras).
+        if ( '' === $table || tsootc_is_wordpress_protected_table( $table ) ) {
             continue;
         }
 
         $name_without_prefix = $table;
         if ( ! empty( $prefix ) && strpos( $table, $prefix ) === 0 ) {
             $name_without_prefix = substr( $table, strlen( $prefix ) );
+        } elseif ( ! empty( $wpdb->base_prefix ) && strpos( $table, $wpdb->base_prefix ) === 0 ) {
+            $name_without_prefix = substr( $table, strlen( $wpdb->base_prefix ) );
         }
 
         $detected = function_exists( 'tsootc_detect_table_with_confidence' )
@@ -13819,7 +14083,7 @@ function tsootc_delete_options_by_names( array $names, array $args = array() ) {
         wp_suspend_cache_invalidation( false );
     }
 
-    wp_cache_delete( 'alloptions', 'options' );
+    tsootc_flush_options_caches( $deleted_names );
 
     if ( $flush_tab_cache && function_exists( 'tsootc_options_tab_flush_cache' ) ) {
         tsootc_options_tab_flush_cache();
@@ -13878,16 +14142,8 @@ function tsootc_do_clean( $action, $args = array() ) {
 
     switch ( $action ) {
         case 'expired_transients':
-            $expired_bytes = (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-                "SELECT COALESCE(SUM(LENGTH(option_value) + LENGTH(option_name)), 0) FROM {$wpdb->options}
-                WHERE ( option_name LIKE %s OR option_name LIKE %s )
-                AND CAST(option_value AS UNSIGNED) < %d",
-                tsootc_like_prefix( '_transient_timeout_' ),
-                tsootc_like_prefix( '_site_transient_timeout_' ),
-                time()
-            ) );
+            // Disk savings are recorded inside tsootc_delete_options_by_names() (timeout + value rows).
             $n = tsootc_purge_expired_transients();
-            tsootc_record_cleanup_disk_savings( $size_before, $expired_bytes );
             return sprintf( tsootc_msg( '%d grups de transients expirats eliminats', '%d grupos de transients expirados eliminados', '%d expired transient groups removed' ), $n );
 
         case 'all_transients':
@@ -13897,9 +14153,12 @@ function tsootc_do_clean( $action, $args = array() ) {
                 tsootc_like_prefix( '_transient_' ),
                 tsootc_like_prefix( '_site_transient_' )
             ) );
-            $n = tsootc_purge_all_transients();
+            $value_groups = tsootc_count_all_transient_value_rows();
+            $n            = tsootc_purge_all_transients();
             tsootc_record_cleanup_disk_savings( $size_before, $all_trans_bytes );
-            return sprintf( tsootc_msg( '%d registres de transients eliminats', '%d registros de transients eliminados', '%d transient rows deleted' ), $n );
+            // UI counts value rows; DELETE also removes timeout rows — report groups when possible.
+            $reported = $value_groups > 0 ? $value_groups : $n;
+            return sprintf( tsootc_msg( '%d transients eliminats', '%d transients eliminados', '%d transients deleted' ), $reported );
 
         case 'revisions':
             $before = (int) tsootc_count( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision'" );
@@ -13909,6 +14168,10 @@ function tsootc_do_clean( $action, $args = array() ) {
                     return tsootc_delete_posts_by_ids_chunked( $ids );
                 }
             );
+            if ( function_exists( 'clean_post_cache' ) ) {
+                clean_post_cache( 0 );
+            }
+            tsootc_flush_post_type_count_caches();
             $after = (int) tsootc_count( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision'" );
             $n     = max( 0, $before - $after );
             tsootc_record_cleanup_disk_savings( $size_before );
@@ -13932,6 +14195,10 @@ function tsootc_do_clean( $action, $args = array() ) {
                     return tsootc_delete_posts_by_ids_chunked( $ids );
                 }
             );
+            if ( function_exists( 'clean_post_cache' ) ) {
+                clean_post_cache( 0 );
+            }
+            tsootc_flush_post_type_count_caches();
             $after = (int) tsootc_count(
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision' AND post_modified_gmt < %s",
@@ -13939,7 +14206,10 @@ function tsootc_do_clean( $action, $args = array() ) {
                 )
             );
             $n = max( 0, $before - $after );
-            if ( ! empty( $args['retention_days']['revisions_older_than_days'] ) || isset( $_POST['retention_days']['revisions_older_than_days'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
+            $posted_retention = tsootc_request_post_is_set( 'retention_days' )
+                ? (array) tsootc_get_ajax_post_unslashed( 'retention_days', array() )
+                : array();
+            if ( ! empty( $args['retention_days']['revisions_older_than_days'] ) || array_key_exists( 'revisions_older_than_days', $posted_retention ) ) {
                 tsootc_save_cleanup_age_days_for_action( 'revisions_older_than_days', $days );
             }
             tsootc_record_cleanup_disk_savings( $size_before );
@@ -13992,7 +14262,10 @@ function tsootc_do_clean( $action, $args = array() ) {
             tsootc_flush_post_type_count_caches();
             $after = tsootc_count_posts_by_status_modified_before( 'trash', $cutoff, $types );
             $n = max( 0, $before - $after );
-            if ( ! empty( $args['retention_days']['trashed_posts_older_than_days'] ) || isset( $_POST['retention_days']['trashed_posts_older_than_days'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
+            $posted_retention = tsootc_request_post_is_set( 'retention_days' )
+                ? (array) tsootc_get_ajax_post_unslashed( 'retention_days', array() )
+                : array();
+            if ( ! empty( $args['retention_days']['trashed_posts_older_than_days'] ) || array_key_exists( 'trashed_posts_older_than_days', $posted_retention ) ) {
                 tsootc_save_cleanup_age_days_for_action( 'trashed_posts_older_than_days', $days );
             }
             tsootc_record_cleanup_disk_savings( $size_before );
@@ -14028,7 +14301,10 @@ function tsootc_do_clean( $action, $args = array() ) {
             );
             $after = tsootc_count_trashed_comments_older_than( $cutoff );
             $n = max( 0, $before - $after );
-            if ( ! empty( $args['retention_days']['trashed_comments_older_than_days'] ) || isset( $_POST['retention_days']['trashed_comments_older_than_days'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
+            $posted_retention = tsootc_request_post_is_set( 'retention_days' )
+                ? (array) tsootc_get_ajax_post_unslashed( 'retention_days', array() )
+                : array();
+            if ( ! empty( $args['retention_days']['trashed_comments_older_than_days'] ) || array_key_exists( 'trashed_comments_older_than_days', $posted_retention ) ) {
                 tsootc_save_cleanup_age_days_for_action( 'trashed_comments_older_than_days', $days );
             }
             tsootc_record_cleanup_disk_savings( $size_before );
@@ -14089,8 +14365,8 @@ function tsootc_do_clean( $action, $args = array() ) {
                     'Table deletion is protected. Enable “Allow table deletion” on the Extra tables tab.'
                 );
             }
-            if ( ! empty( $_POST['table_name'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
-                $table = sanitize_text_field( (string) wp_unslash( $_POST['table_name'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            $table = tsootc_get_ajax_post_text( 'table_name' );
+            if ( '' !== $table ) {
                 $validated = tsootc_validate_extra_table_delete_candidates( array( $table ) );
                 if ( empty( $validated['valid'] ) ) {
                     $err = ! empty( $validated['errors'][0] ) ? (string) $validated['errors'][0] : '';
@@ -14098,8 +14374,8 @@ function tsootc_do_clean( $action, $args = array() ) {
                 }
                 $table = $validated['valid'][0];
                 if ( strpos( $table, $wpdb->prefix ) === 0 ) {
-                    $safe_table = str_replace( '`', '', $table );
-                    $wpdb->query( "DROP TABLE IF EXISTS `{$safe_table}`" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $safe_table sanitized and prefix-validated above
+                    $wpdb->query( 'DROP TABLE IF EXISTS ' . tsootc_quote_table_identifier( $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifier quoted after validate_extra_table_delete_candidates; DROP is intentional admin action, not cacheable
+                    tsootc_forget_extra_table_maps( $table );
                     tsootc_record_cleanup_disk_savings( $size_before );
                     return sprintf( tsootc_msg( 'Taula %s eliminada', 'Tabla %s eliminada', 'Table %s dropped' ), $table );
                 }
@@ -14107,8 +14383,8 @@ function tsootc_do_clean( $action, $args = array() ) {
             return tsootc_msg( 'Error: taula no vàlida', 'Error: tabla no válida', 'Error: invalid table' );
 
         case 'delete_option':
-            if ( ! empty( $_POST['option_name'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
-                $name = sanitize_text_field( (string) wp_unslash( $_POST['option_name'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            $name = tsootc_get_ajax_post_text( 'option_name' );
+            if ( '' !== $name ) {
                 $result = tsootc_delete_options_by_names( array( $name ) );
                 if ( $result['deleted'] < 1 ) {
                     return tsootc_msg( 'Error', 'Error', 'Error' );
@@ -14118,17 +14394,16 @@ function tsootc_do_clean( $action, $args = array() ) {
             return tsootc_msg( 'Error', 'Error', 'Error' );
 
         case 'delete_options_bulk':
-            if ( ! empty( $_POST['option_names'] ) && is_array( $_POST['option_names'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
-                // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-                $raw_names = map_deep( wp_unslash( $_POST['option_names'] ), 'sanitize_text_field' );
-                $result    = tsootc_delete_options_by_names( $raw_names );
+            $raw_names = tsootc_get_ajax_post_mapped_array( 'option_names', 'sanitize_text_field' );
+            if ( ! empty( $raw_names ) ) {
+                $result = tsootc_delete_options_by_names( $raw_names );
                 return sprintf( tsootc_msg( '%d opcions eliminades', '%d opciones eliminadas', '%d options deleted' ), (int) $result['deleted'] );
             }
             return tsootc_msg( 'Error: cap opció seleccionada', 'Error: ninguna opción seleccionada', 'Error: no options selected' );
 
         case 'disable_autoload':
-            if ( ! empty( $_POST['option_name'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by caller
-                $name = sanitize_text_field( (string) wp_unslash( $_POST['option_name'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            $name = tsootc_get_ajax_post_text( 'option_name' );
+            if ( '' !== $name ) {
                 $wpdb->update( $wpdb->options, array( 'autoload' => 'no' ), array( 'option_name' => $name ), array( '%s' ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 wp_cache_delete( 'alloptions', 'options' );
                 tsootc_record_cleanup_disk_savings( $size_before );
@@ -15114,12 +15389,23 @@ function tsootc_get_prefix_table_fragmentation( $force_refresh = false ) {
     }
     $total_free_kb = 0;
     $fragmented     = array();
+    $exclude_other_blogs = is_multisite()
+        && isset( $wpdb->base_prefix )
+        && (string) $wpdb->prefix === (string) $wpdb->base_prefix;
+    $other_blog_re = $exclude_other_blogs
+        ? '/^' . preg_quote( strtolower( (string) $wpdb->base_prefix ), '/' ) . '(\d+)_/'
+        : '';
     foreach ( $frag_results as $row ) {
+        $table_name = (string) ( $row['TABLE_NAME'] ?? '' );
+        // Main-site prefix "wp_%" also matches wp_2_* — never OPTIMIZE other blogs from this UI.
+        if ( '' !== $other_blog_re && preg_match( $other_blog_re, strtolower( $table_name ) ) ) {
+            continue;
+        }
         $free_kb = (int) round( (int) $row['DATA_FREE'] / 1024 );
         if ( $free_kb > 0 ) {
             $total_free_kb += $free_kb;
             $fragmented[]  = array(
-                'name'    => (string) $row['TABLE_NAME'],
+                'name'    => $table_name,
                 'free_kb' => $free_kb,
             );
         }
@@ -15172,7 +15458,7 @@ function tsootc_localize_optimize_table_msg( $lang, $msg_raw ) {
 }
 
 /**
- * Run OPTIMIZE TABLE on core WordPress tables plus prefix tables reporting InnoDB free space.
+ * Run OPTIMIZE TABLE on prefix tables reporting free space (DATA_FREE > 0).
  *
  * @return array{
  *   results_raw: array<int,array{table:string,msg_raw:string,kb:int}>,
@@ -15200,8 +15486,7 @@ function tsootc_run_optimize_fragmented_tables() {
         if ( ! in_array( $table, $existing_tables, true ) ) {
             continue;
         }
-        $safe    = str_replace( '`', '', $table );
-        $res     = $wpdb->get_results( "OPTIMIZE TABLE `{$safe}`" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $safe validated against existing DB tables list above
+        $res     = $wpdb->get_results( 'OPTIMIZE TABLE ' . tsootc_quote_table_identifier( $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifier quoted; table validated against SHOW TABLES
         $msg_raw = ( ! empty( $res[0] ) && isset( $res[0]->Msg_text ) ) ? (string) $res[0]->Msg_text : 'OK';
         $size_kb = (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             "SELECT ROUND((data_length + index_length) / 1024) FROM information_schema.TABLES WHERE table_schema = DATABASE() AND table_name = %s",
@@ -15246,12 +15531,21 @@ function tsootc_ajax_optimize_tables() {
         );
     }
 
+    $opt_saved_bytes = max(
+        0,
+        ( (int) $data['fragmented_kb_before'] - (int) $data['fragmented_kb_after'] ) * 1024
+    );
+    if ( $opt_saved_bytes > 0 ) {
+        tsootc_add_saved_bytes( $opt_saved_bytes );
+    }
+
     wp_send_json_success(
         array(
             'results'              => $results,
             'fragmented_kb_before' => $data['fragmented_kb_before'],
             'fragmented_kb_after'  => $data['fragmented_kb_after'],
             'frag_sub_preview'     => $data['frag_sub_preview'],
+            'saved_bytes'          => $opt_saved_bytes,
         )
     );
 }
@@ -15262,22 +15556,25 @@ add_action( 'wp_ajax_tsootc_optimize_tables', 'tsootc_ajax_optimize_tables' );
 function tsootc_get_wordpress_core_tables() {
     global $wpdb;
 
-    return array(
-        $wpdb->posts,
-        $wpdb->postmeta,
-        $wpdb->comments,
-        $wpdb->commentmeta,
-        $wpdb->users,
-        $wpdb->usermeta,
-        $wpdb->terms,
-        $wpdb->term_taxonomy,
-        $wpdb->term_relationships,
-        $wpdb->termmeta,
-        $wpdb->options,
-        $wpdb->links,
-        $wpdb->prefix . 'site',
-        $wpdb->prefix . 'sitemeta',
-    );
+    $base = isset( $wpdb->base_prefix ) ? (string) $wpdb->base_prefix : (string) $wpdb->prefix;
+    $out  = array();
+
+    foreach ( tsootc_get_wordpress_core_table_suffixes() as $suffix ) {
+        $out[] = $base . $suffix;
+        // Current blog tables when viewing a subsite (wp_2_posts, …).
+        if ( (string) $wpdb->prefix !== $base ) {
+            $out[] = (string) $wpdb->prefix . $suffix;
+        }
+    }
+
+    // Also include $wpdb object properties (users/usermeta stay on base_prefix).
+    foreach ( array( 'posts', 'postmeta', 'comments', 'commentmeta', 'users', 'usermeta', 'terms', 'term_taxonomy', 'term_relationships', 'termmeta', 'options', 'links' ) as $prop ) {
+        if ( isset( $wpdb->$prop ) && is_string( $wpdb->$prop ) && '' !== $wpdb->$prop ) {
+            $out[] = (string) $wpdb->$prop;
+        }
+    }
+
+    return array_values( array_unique( $out ) );
 }
 
 /**
@@ -15297,7 +15594,13 @@ function tsootc_validate_extra_table_names( $table_list ) {
     foreach ( $table_list as $table ) {
         $table = sanitize_text_field( (string) $table );
 
-        if ( '' === $table || strpos( $table, $wpdb->prefix ) !== 0 || in_array( $table, $core, true ) || ! tsootc_is_valid_database_table( $table ) ) {
+        if (
+            '' === $table
+            || strpos( $table, $wpdb->prefix ) !== 0
+            || tsootc_is_wordpress_protected_table( $table )
+            || in_array( $table, $core, true )
+            || ! tsootc_is_valid_database_table( $table )
+        ) {
             if ( '' !== $table ) {
                 $errors[] = $table;
             }
@@ -15338,6 +15641,80 @@ function tsootc_get_extra_table_record( $table_name ) {
 }
 
 /**
+ * WordPress core table suffixes (blog + MS global) without DB prefix.
+ *
+ * @return string[]
+ */
+function tsootc_get_wordpress_core_table_suffixes() {
+    if ( function_exists( 'tsootc_codescan_get_core_table_suffixes' ) ) {
+        return tsootc_codescan_get_core_table_suffixes();
+    }
+
+    return array(
+        'posts',
+        'postmeta',
+        'comments',
+        'commentmeta',
+        'options',
+        'users',
+        'usermeta',
+        'terms',
+        'termmeta',
+        'term_taxonomy',
+        'term_relationships',
+        'links',
+        'blogs',
+        'blogmeta',
+        'blog_versions',
+        'registration_log',
+        'signups',
+        'site',
+        'sitemeta',
+    );
+}
+
+/**
+ * Whether a physical table is WordPress core (current site, other blogs, or MS globals).
+ *
+ * Must not be listed as a deletable "extra" table. Uses $wpdb->base_prefix so
+ * subsite contexts still recognize wp_users / wp_blogs / wp_2_posts, etc.
+ *
+ * @param string $full_table_name Full name including prefix.
+ * @return bool
+ */
+function tsootc_is_wordpress_protected_table( $full_table_name ) {
+    global $wpdb;
+
+    $full = strtolower( (string) $full_table_name );
+    if ( '' === $full ) {
+        return false;
+    }
+
+    $base = isset( $wpdb->base_prefix ) ? strtolower( (string) $wpdb->base_prefix ) : '';
+    if ( '' === $base ) {
+        $base = strtolower( (string) $wpdb->prefix );
+    }
+    if ( '' === $base || 0 !== strpos( $full, $base ) ) {
+        return false;
+    }
+
+    $after_base = substr( $full, strlen( $base ) );
+    $suffixes   = tsootc_get_wordpress_core_table_suffixes();
+
+    // Network globals + main-site core (wp_posts, wp_blogs, wp_users, …).
+    if ( in_array( $after_base, $suffixes, true ) ) {
+        return true;
+    }
+
+    // Other site tables: wp_2_posts, wp_3_options, …
+    if ( preg_match( '/^(\d+)_(.+)$/', $after_base, $m ) ) {
+        return in_array( (string) $m[2], $suffixes, true );
+    }
+
+    return false;
+}
+
+/**
  * Whether a physical table is a WordPress multisite global core table (must not be dropped from this UI).
  *
  * @param string $full_table_name Full name including prefix (e.g. wp_signups).
@@ -15347,13 +15724,16 @@ function tsootc_is_extra_table_multisite_core( $full_table_name ) {
     global $wpdb;
 
     $full_table_name = strtolower( (string) $full_table_name );
-    $prefix          = strtolower( (string) $wpdb->prefix );
-    if ( '' === $full_table_name || '' === $prefix || strpos( $full_table_name, $prefix ) !== 0 ) {
+    $base            = isset( $wpdb->base_prefix ) ? strtolower( (string) $wpdb->base_prefix ) : '';
+    if ( '' === $base ) {
+        $base = strtolower( (string) $wpdb->prefix );
+    }
+    if ( '' === $full_table_name || '' === $base || 0 !== strpos( $full_table_name, $base ) ) {
         return false;
     }
 
-    $suffix = substr( $full_table_name, strlen( $prefix ) );
-    // Mirrors wpdb::$ms_global_tables in WordPress core.
+    $suffix = substr( $full_table_name, strlen( $base ) );
+    // Mirrors wpdb::$ms_global_tables in WordPress core (exact suffix under base_prefix only).
     $ms_core = array(
         'blogs',
         'blogmeta',
@@ -15365,6 +15745,20 @@ function tsootc_is_extra_table_multisite_core( $full_table_name ) {
     );
 
     return in_array( $suffix, $ms_core, true );
+}
+
+/**
+ * Whether a table name (without site prefix) looks like Softaculous / hosting installer residue.
+ *
+ * @param string $table_without_prefix Table suffix.
+ * @return bool
+ */
+function tsootc_table_is_hosting_softaculous( $table_without_prefix ) {
+    $lower = strtolower( (string) $table_without_prefix );
+    if ( '' === $lower ) {
+        return false;
+    }
+    return 0 === strpos( $lower, 'softaculous' );
 }
 
 /**
@@ -15459,7 +15853,7 @@ function tsootc_can_delete_extra_table( $table_item ) {
         return false;
     }
 
-    if ( tsootc_is_extra_table_multisite_core( $table_name ) ) {
+    if ( tsootc_is_wordpress_protected_table( $table_name ) ) {
         return false;
     }
 
@@ -15488,11 +15882,11 @@ function tsootc_get_extra_table_delete_block_reason( $table_item ) {
         $table_name = (string) $table_item;
     }
 
-    if ( '' !== $table_name && tsootc_is_extra_table_multisite_core( $table_name ) ) {
+    if ( '' !== $table_name && tsootc_is_wordpress_protected_table( $table_name ) ) {
         return tsootc_msg(
-            'Aquesta taula és del nucli de WordPress (multisite) i no s\'ha d\'eliminar des d\'aquí.',
-            'Esta tabla pertenece al núcleo de WordPress (modo red / multisitio) y no debe eliminarse desde aquí.',
-            'This table is part of WordPress multisite core and must not be deleted from this screen.'
+            'Aquesta taula és del nucli de WordPress (inclòs multisite / altres llocs) i no s\'ha d\'eliminar des d\'aquí.',
+            'Esta tabla pertenece al núcleo de WordPress (incluido multisitio / otros sitios) y no debe eliminarse desde aquí.',
+            'This table is part of WordPress core (including multisite / other sites) and must not be deleted from this screen.'
         );
     }
 
@@ -15535,6 +15929,36 @@ function tsootc_validate_extra_table_delete_candidates( $table_list ) {
         'valid'  => $valid,
         'errors' => $errors,
     );
+}
+
+/**
+ * Remove a dropped table from automatic / manual attribution maps.
+ *
+ * @param string $table_name Full table name.
+ * @return void
+ */
+function tsootc_forget_extra_table_maps( $table_name ) {
+    $table_name = sanitize_text_field( (string) $table_name );
+    if ( '' === $table_name ) {
+        return;
+    }
+
+    if ( function_exists( 'tsootc_get_table_key_map' ) ) {
+        $map = tsootc_get_table_key_map();
+        if ( is_array( $map ) && isset( $map[ $table_name ] ) ) {
+            unset( $map[ $table_name ] );
+            tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $map, false );
+            tsootc_get_table_key_map( true );
+        }
+    }
+
+    if ( function_exists( 'tsootc_custom_table_map_delete' ) ) {
+        tsootc_custom_table_map_delete( $table_name );
+    }
+
+    if ( function_exists( 'tsootc_history_reset_caches' ) ) {
+        tsootc_history_reset_caches();
+    }
 }
 
 /**
@@ -15603,7 +16027,8 @@ function tsootc_ajax_drop_table() {
 
     $table = $validated['valid'][0];
     global $wpdb;
-    $wpdb->query( 'DROP TABLE IF EXISTS `' . str_replace( '`', '', $table ) . '`' ); // phpcs:ignore
+    $wpdb->query( 'DROP TABLE IF EXISTS ' . tsootc_quote_table_identifier( $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifier quoted after validate_extra_table_delete_candidates; DROP is intentional admin action, not cacheable
+    tsootc_forget_extra_table_maps( $table );
     wp_send_json_success(
         array(
             'table'         => $table,
@@ -15687,7 +16112,8 @@ function tsootc_ajax_drop_tables_bulk() {
     $errors    = $validated['errors'];
     global $wpdb;
     foreach ( $validated['valid'] as $table ) {
-        $wpdb->query( 'DROP TABLE IF EXISTS `' . str_replace( '`', '', $table ) . '`' ); // phpcs:ignore
+        $wpdb->query( 'DROP TABLE IF EXISTS ' . tsootc_quote_table_identifier( $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifier quoted after validate_extra_table_delete_candidates; DROP is intentional admin action, not cacheable
+        tsootc_forget_extra_table_maps( $table );
         $deleted[] = $table;
     }
     wp_send_json_success(
@@ -15998,6 +16424,7 @@ function tsootc_auto_clean_run() {
     }
     if ( count( $table_map ) !== $bt ) {
         tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
+        tsootc_get_table_key_map( true );
         $results[] = sprintf(
             tsootc_msg( '%d entrades orfes eliminades del mapa de taules', '%d entradas huérfanas eliminadas del mapa de tablas', '%d orphan entries removed from the table map' ),
             $bt - count( $table_map )
@@ -16051,13 +16478,22 @@ function tsootc_auto_clean_cron_schedule_slug( $interval ) {
 
 function tsootc_auto_clean_schedule( $interval ) {
     wp_clear_scheduled_hook( 'tsootc_auto_clean_cron_hook' );
-    wp_clear_scheduled_hook( 'tsootc_auto_clean_cron_hook' );
+    // Legacy hook (pre-prefix migration) — clear so both never stay scheduled.
+    if ( function_exists( 'tsootc_legacy_wp_options_prefix' ) ) {
+        wp_clear_scheduled_hook( tsootc_legacy_wp_options_prefix() . 'auto_clean_cron_hook' );
+    } else {
+        wp_clear_scheduled_hook( 'tso_auto_clean_cron_hook' ); // legacy wp_options prefix
+    }
     wp_schedule_event( time(), tsootc_auto_clean_cron_schedule_slug( $interval ), 'tsootc_auto_clean_cron_hook' );
 }
 
 function tsootc_auto_clean_unschedule() {
     wp_clear_scheduled_hook( 'tsootc_auto_clean_cron_hook' );
-    wp_clear_scheduled_hook( 'tsootc_auto_clean_cron_hook' );
+    if ( function_exists( 'tsootc_legacy_wp_options_prefix' ) ) {
+        wp_clear_scheduled_hook( tsootc_legacy_wp_options_prefix() . 'auto_clean_cron_hook' );
+    } else {
+        wp_clear_scheduled_hook( 'tso_auto_clean_cron_hook' ); // legacy wp_options prefix
+    }
 }
 
 function tsootc_auto_clean_add_monthly_schedule( $schedules ) {
@@ -16094,16 +16530,12 @@ function tsootc_ajax_save_auto_clean() {
         wp_send_json_error( array( 'msg' => tsootc_msg( 'No autoritzat', 'No autorizado', 'Not authorized' ) ) );
         return;
     }
-    $enabled  = ! empty( $_POST['enabled'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
-    $interval = isset( $_POST['interval'] ) ? sanitize_key( (string) wp_unslash( $_POST['interval'] ) ) : 'weekly'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-    $email    = ! empty( $_POST['email'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
-    $browser_timezone = isset( $_POST['browser_timezone'] ) ? tsootc_normalize_browser_timezone( sanitize_text_field( wp_unslash( $_POST['browser_timezone'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-    $raw_actions = isset( $_POST['actions'] ) && is_array( $_POST['actions'] ) // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        ? map_deep( wp_unslash( $_POST['actions'] ), 'sanitize_key' ) // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        : array();
-    $raw_retention_days = isset( $_POST['retention_days'] ) && is_array( $_POST['retention_days'] ) // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        ? map_deep( wp_unslash( $_POST['retention_days'] ), 'absint' ) // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        : array();
+    $enabled  = tsootc_get_ajax_post_flag( 'enabled' );
+    $interval = tsootc_get_ajax_post_key( 'interval', 'weekly' );
+    $email    = tsootc_get_ajax_post_flag( 'email' );
+    $browser_timezone = tsootc_normalize_browser_timezone( tsootc_get_ajax_post_text( 'browser_timezone' ) );
+    $raw_actions        = tsootc_get_ajax_post_mapped_array( 'actions', 'sanitize_key' );
+    $raw_retention_days = tsootc_get_ajax_post_mapped_array( 'retention_days', 'absint' );
     $actions = tsootc_normalize_cleanup_actions( $raw_actions );
     $retention_days = tsootc_normalize_age_cleanup_days( $raw_retention_days );
     $cfg = array(
@@ -16332,7 +16764,7 @@ function tsootc_migrate_uploads_dir_contents( $source_dir, $target_dir ) {
         if ( ! is_string( $entry ) || '.' === $entry || '..' === $entry ) {
             continue;
         }
-        if ( in_array( $entry, array( 'index.php', '.htaccess' ), true ) ) {
+        if ( in_array( $entry, array( 'index.php', '.htaccess', 'web.config' ), true ) ) {
             continue;
         }
         $only_guards = false;
@@ -16398,7 +16830,9 @@ function tsootc_build_backup_sql_header( $type, $tables ) {
         '-- TSO Backup Created GMT: ' . $created_gmt,
     );
 
-    return implode( "\n", $header_lines ) . "\n\n";
+    return implode( "\n", $header_lines ) . "\n\n"
+        . "SET NAMES utf8mb4;\n"
+        . "SET FOREIGN_KEY_CHECKS=0;\n\n";
 }
 
 /**
@@ -16434,7 +16868,6 @@ function tsootc_build_sql_backup_for_tables( $tables, $type = 'full_db' ) {
     }
 
     $sql_out  = tsootc_build_backup_sql_header( $type, $tables );
-    $sql_out .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
 
     foreach ( $tables as $table ) {
         if ( ! tsootc_is_valid_database_table( $table ) ) {
@@ -16464,9 +16897,27 @@ function tsootc_build_sql_backup_for_tables( $tables, $type = 'full_db' ) {
         $sql_out .= 'DROP TABLE IF EXISTS ' . $table_sql . ";\n";
         $sql_out .= $create_row[1] . ";\n\n";
 
+        $order_sql = '';
+        $pk_cols   = $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND CONSTRAINT_NAME = 'PRIMARY'
+             ORDER BY ORDINAL_POSITION",
+            $table
+        ) );
+        if ( ! empty( $pk_cols ) && is_array( $pk_cols ) ) {
+            $order_parts = array();
+            foreach ( $pk_cols as $pk_col ) {
+                $order_parts[] = tsootc_quote_table_identifier( (string) $pk_col );
+            }
+            if ( ! empty( $order_parts ) ) {
+                $order_sql = ' ORDER BY ' . implode( ', ', $order_parts );
+            }
+        }
+
         $offset = 0;
         do {
-            $rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $table_sql . ' LIMIT %d OFFSET %d', 500, $offset ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The identifier is pre-validated and limits are prepared.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Identifier + optional ORDER BY columns are quoted; LIMIT/OFFSET prepared.
+            $rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $table_sql . $order_sql . ' LIMIT %d OFFSET %d', 500, $offset ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The identifier is pre-validated and limits are prepared.
             if ( empty( $rows ) ) {
                 break;
             }
@@ -16505,18 +16956,36 @@ function tsootc_create_backup_file( $tables, $type = 'full_db' ) {
     $type       = 'table_snapshot' === $type ? 'table_snapshot' : 'full_db';
     $tables     = is_array( $tables ) ? array_values( array_unique( array_filter( array_map( 'sanitize_text_field', $tables ) ) ) ) : array();
     $backup_dir = tsootc_ensure_backup_dir();
-    $sql_out    = tsootc_build_sql_backup_for_tables( $tables, $type );
+
+    if ( '' === $backup_dir ) {
+        return new WP_Error(
+            'tsootc_backup_dir_unavailable',
+            tsootc_msg(
+                'No s\'ha pogut crear el directori de backups (uploads).',
+                'No se ha podido crear el directorio de backups (uploads).',
+                'Could not create the backups directory (uploads).'
+            )
+        );
+    }
+
+    if ( function_exists( 'set_time_limit' ) ) {
+        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- long dumps on shared hosts.
+        @set_time_limit( 300 );
+    }
+
+    $sql_out = tsootc_build_sql_backup_for_tables( $tables, $type );
 
     if ( is_wp_error( $sql_out ) ) {
         return $sql_out;
     }
 
+    $unique = substr( md5( implode( '|', $tables ) . '|' . microtime( true ) . '|' . wp_generate_password( 8, false ) ), 0, 8 );
     $filename = 'full_db' === $type
-        ? 'backup-' . gmdate( 'Y-m-d-H-i-s' ) . '.sql'
-        : 'table-snapshot-' . gmdate( 'Y-m-d-H-i-s' ) . '-' . substr( md5( implode( '|', $tables ) . '|' . microtime( true ) ), 0, 8 ) . '.sql';
+        ? 'backup-' . gmdate( 'Y-m-d-H-i-s' ) . '-' . $unique . '.sql'
+        : 'table-snapshot-' . gmdate( 'Y-m-d-H-i-s' ) . '-' . $unique . '.sql';
     $filename = sanitize_file_name( $filename );
-    $filepath = $backup_dir . '/' . $filename;
-    $written  = file_put_contents( $filepath, $sql_out );
+    $filepath = trailingslashit( $backup_dir ) . $filename;
+    $written  = file_put_contents( $filepath, $sql_out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- intentional SQL dump write under protected uploads.
 
     if ( false === $written ) {
         return new WP_Error(
@@ -16678,6 +17147,11 @@ function tsootc_restore_backup_file( $path ) {
         );
     }
 
+    if ( function_exists( 'set_time_limit' ) ) {
+        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- long restores on shared hosts.
+        @set_time_limit( 300 );
+    }
+
     $sql = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
     if ( false === $sql ) {
         return new WP_Error(
@@ -16699,6 +17173,7 @@ function tsootc_restore_backup_file( $path ) {
 
         $stmt_upper = strtoupper( ltrim( $stmt ) );
         $is_allowed_stmt = 0 === strpos( $stmt_upper, 'SET FOREIGN_KEY_CHECKS=' )
+            || 0 === strpos( $stmt_upper, 'SET NAMES ' )
             || 0 === strpos( $stmt_upper, 'DROP TABLE IF EXISTS ' )
             || 0 === strpos( $stmt_upper, 'CREATE TABLE ' )
             || 0 === strpos( $stmt_upper, 'INSERT INTO ' );
@@ -16713,6 +17188,19 @@ function tsootc_restore_backup_file( $path ) {
         }
     }
     $wpdb->query( 'SET FOREIGN_KEY_CHECKS=1' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+    if ( function_exists( 'tsootc_history_reset_caches' ) ) {
+        tsootc_history_reset_caches();
+    }
+    if ( function_exists( 'tsootc_invalidate_stats_cache' ) ) {
+        tsootc_invalidate_stats_cache();
+    }
+    if ( function_exists( 'tsootc_fragmentation_hint_flush_cache' ) ) {
+        tsootc_fragmentation_hint_flush_cache();
+    }
+    if ( function_exists( 'tsootc_options_tab_invalidate_cache' ) ) {
+        tsootc_options_tab_invalidate_cache();
+    }
 
     return array(
         'errors' => $errors,
@@ -16876,11 +17364,10 @@ function tsootc_get_cleanup_dashboard_stat_displays( array $stats ) {
 function tsootc_get_cleanup_retention_days_from_preview_request() {
     $age_days = tsootc_get_age_cleanup_days( tsootc_auto_clean_get_settings() );
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Caller verifies nonce.
-    if ( isset( $_POST['retention_days'] ) && is_array( $_POST['retention_days'] ) ) {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-        $posted = tsootc_normalize_age_cleanup_days( map_deep( wp_unslash( $_POST['retention_days'] ), 'absint' ) );
-        $age_days = array_merge( $age_days, $posted );
+    if ( tsootc_request_post_is_set( 'retention_days' ) ) {
+        // Overlay only posted keys — never normalize partial input first (that fills missing keys with defaults).
+        $posted_partial = tsootc_get_ajax_post_mapped_array( 'retention_days', 'absint' );
+        $age_days       = array_merge( $age_days, $posted_partial );
     }
 
     return tsootc_normalize_age_cleanup_days( $age_days );
@@ -16899,7 +17386,7 @@ function tsootc_ajax_get_cleanup_counts() {
     }
 
     $age_days = tsootc_get_cleanup_retention_days_from_preview_request();
-    $action   = isset( $_POST['cleanup_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['cleanup_action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+    $action   = tsootc_get_ajax_post_key( 'cleanup_action' );
 
     if ( '' !== $action && in_array( $action, tsootc_get_cleanup_action_keys(), true ) ) {
         wp_send_json_success(
@@ -16937,7 +17424,7 @@ function tsootc_ajax_run_cleanup() {
         wp_send_json_error( array( 'msg' => tsootc_msg( 'No autoritzat', 'No autorizado', 'Not authorized' ) ) );
     }
 
-    $action = isset( $_POST['cleanup_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['cleanup_action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+    $action = tsootc_get_ajax_post_key( 'cleanup_action' );
     if ( ! in_array( $action, tsootc_get_cleanup_action_keys(), true ) ) {
         wp_send_json_error(
             array(
@@ -17053,7 +17540,9 @@ function tsootc_delete_backup_files( array $files ) {
 			continue;
 		}
 
-		if ( wp_delete_file( $path ) ) {
+		// wp_delete_file() only returns bool since WP 6.7; on older WP treat disappearance as success.
+		wp_delete_file( $path );
+		if ( ! file_exists( $path ) ) {
 			++$deleted;
 		}
 	}
@@ -17067,12 +17556,18 @@ function tsootc_backup_handler() {
     if ( ! current_user_can( 'manage_options' ) ) return;
     if ( ! tsootc_verify_admin_form_nonce() ) return;
 
-    $action     = tsootc_get_admin_post_action();
-    $backup_dir = tsootc_ensure_backup_dir();
-    $lang       = tsootc_get_ui_lang();
-    $uid        = get_current_user_id();
+    $action = tsootc_get_admin_post_action();
+    $lang   = tsootc_get_ui_lang();
+    $uid    = get_current_user_id();
 
-    if ( ! in_array( $action, array( 'create_backup', 'delete_backup', 'delete_backups_bulk', 'restore_backup' ), true ) ) return;
+    if ( ! in_array( $action, array( 'create_backup', 'delete_backup', 'delete_backups_bulk', 'restore_backup' ), true ) ) {
+        return;
+    }
+
+    // Ensure protected uploads dir exists before create (also refreshes .htaccess / web.config).
+    if ( 'create_backup' === $action ) {
+        tsootc_ensure_backup_dir();
+    }
 
     if ( $action === 'create_backup' ) {
         global $wpdb;
@@ -17101,6 +17596,14 @@ function tsootc_backup_handler() {
         if ( '' !== $file && tsootc_delete_backup_files( array( $file ) ) > 0 ) {
             $msg_text = tsootc_ui_triple_text( $lang, 'Backup eliminat.', 'Backup eliminado.', 'Backup deleted.' );
             tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'success', 'msg' => $msg_text ), 30 );
+        } else {
+            $msg_text = tsootc_ui_triple_text(
+                $lang,
+                'No s\'ha pogut eliminar el backup.',
+                'No se ha podido eliminar el backup.',
+                'Could not delete the backup.'
+            );
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $msg_text ), 30 );
         }
         wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
         exit;
@@ -17142,42 +17645,63 @@ function tsootc_backup_handler() {
         exit;
     }
 
-    $confirm_restore = tsootc_get_admin_post_text( 'confirm_restore' );
-    if ( $action === 'restore_backup'
-         && 'RESTAURAR' === $confirm_restore ) {
+    if ( $action === 'restore_backup' ) {
+        $confirm_restore = tsootc_get_admin_post_text( 'confirm_restore' );
+        if ( 'RESTAURAR' !== $confirm_restore ) {
+            $msg_text = tsootc_ui_triple_text(
+                $lang,
+                'Cal escriure RESTAURAR per confirmar la restauració.',
+                'Debes escribir RESTAURAR para confirmar la restauración.',
+                'Type RESTAURAR to confirm the restore.'
+            );
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $msg_text ), 30 );
+            wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
+            exit;
+        }
+
         $file = sanitize_file_name( tsootc_get_admin_post_text( 'backup_file' ) );
         $path = tsootc_resolve_backup_file_path( $file );
-        if ( '' !== $path ) {
-            $restored = tsootc_restore_backup_file( $path );
-            if ( is_wp_error( $restored ) ) {
-                tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $restored->get_error_message() ), 30 );
-                wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
-                exit;
-            }
-
-            $errors = isset( $restored['errors'] ) ? (int) $restored['errors'] : 0;
-            $meta   = isset( $restored['meta'] ) && is_array( $restored['meta'] ) ? $restored['meta'] : array();
-
-            if ( isset( $meta['type'] ) && 'table_snapshot' === $meta['type'] ) {
-                $msg_text = $errors
-                    ? sprintf(
-                        /* translators: %d: number of errors */
-                        __( 'Table snapshot restored with %d error(s).', 'tso-options-tables-cleaner' ),
-                        $errors
-                    )
-                    : __( 'Table snapshot restored successfully.', 'tso-options-tables-cleaner' );
-            } else {
-                $msg_text = $errors
-                    ? sprintf(
-                        /* translators: %d: number of errors */
-                        __( 'Database restored with %d error(s).', 'tso-options-tables-cleaner' ),
-                        $errors
-                    )
-                    : __( 'Database restored successfully.', 'tso-options-tables-cleaner' );
-            }
-
-            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => $errors ? 'warning' : 'success', 'msg' => $msg_text ), 30 );
+        if ( '' === $path ) {
+            $msg_text = tsootc_ui_triple_text(
+                $lang,
+                'No s\'ha trobat el fitxer de backup.',
+                'No se ha encontrado el archivo de backup.',
+                'Backup file not found.'
+            );
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $msg_text ), 30 );
+            wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
+            exit;
         }
+
+        $restored = tsootc_restore_backup_file( $path );
+        if ( is_wp_error( $restored ) ) {
+            tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $restored->get_error_message() ), 30 );
+            wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
+            exit;
+        }
+
+        $errors = isset( $restored['errors'] ) ? (int) $restored['errors'] : 0;
+        $meta   = isset( $restored['meta'] ) && is_array( $restored['meta'] ) ? $restored['meta'] : array();
+
+        if ( isset( $meta['type'] ) && 'table_snapshot' === $meta['type'] ) {
+            $msg_text = $errors
+                ? sprintf(
+                    /* translators: %d: number of errors */
+                    __( 'Table snapshot restored with %d error(s). Re-check Extra tables detection if needed.', 'tso-options-tables-cleaner' ),
+                    $errors
+                )
+                : __( 'Table snapshot restored successfully. Re-check Extra tables detection if assignments look incomplete.', 'tso-options-tables-cleaner' );
+        } else {
+            $msg_text = $errors
+                ? sprintf(
+                    /* translators: %d: number of errors */
+                    __( 'Database restored with %d error(s).', 'tso-options-tables-cleaner' ),
+                    $errors
+                )
+                : __( 'Database restored successfully.', 'tso-options-tables-cleaner' );
+        }
+
+        tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => $errors ? 'warning' : 'success', 'msg' => $msg_text ), 30 );
         wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );
         exit;
     }

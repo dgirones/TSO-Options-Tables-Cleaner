@@ -69,6 +69,7 @@
 .tso-badge-on   { background:#fde8e8; color:#c00; border:1px solid #f5c0c0; }
 .tso-badge-off  { background:#e8f5e9; color:#2a7a2a; border:1px solid #b0d8b0; }
 .tso-badge-auto { background:#fde8e8; color:#c00; border:1px solid #f5c0c0; }
+.tso-badge-core { background:#e8f1fb; color:#135e96; border:1px solid #c5d9ed; }
 .tso-badge-0    { background:#e8f5e9; color:#2a7a2a; border:1px solid #b0d8b0; }
 /* ---- Safety badges ---- */
 .tso-safe-core     { color:#0075be; font-size:11px; }

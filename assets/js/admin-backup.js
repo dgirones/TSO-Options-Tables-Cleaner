@@ -4,6 +4,15 @@
     var cfg = window.tsootcAdminConfig || {};
     var backupCfg = cfg.backup || {};
 
+    var createForm = document.getElementById('tso-backup-create-form');
+    var createBtn = document.getElementById('tso-backup-create-btn');
+    if (createForm && createBtn) {
+        createForm.addEventListener('submit', function () {
+            createBtn.disabled = true;
+            createBtn.textContent = backupCfg.creatingBusy || '⏳ Creating backup…';
+        });
+    }
+
     var form = document.getElementById('tso-backup-bulk-form');
     var selectAll = document.getElementById('tso-backup-select-all');
     var bulkBtn = document.getElementById('tso-backup-bulk-delete');
@@ -60,7 +69,10 @@
         msg = msg.replace('%d', String(n));
         if (!window.confirm(msg)) {
             e.preventDefault();
+            return;
         }
+        bulkBtn.disabled = true;
+        bulkBtn.textContent = backupCfg.deletingBusy || '⏳ Deleting…';
     });
 
     updateBulkBar();

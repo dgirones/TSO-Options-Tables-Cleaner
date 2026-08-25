@@ -876,14 +876,18 @@ function tsootc_get_table_prefix_map() {
         'mclean_'                   => 'Media Cleaner',
         // ---- TSO Plugins (specific before generic tso_) ----
         'tso_link_inspector'        => 'TSO Link Inspector',
-        'pc_tso_link_inspector'     => 'TSO Link Inspector',
+        'pc_tso_link_inspector'     => 'TSO Link Inspector', // legacy table name
         'tsoliin_'                  => 'TSO Link Inspector',
         'tso_liin_'                 => 'TSO Link Inspector',
         'tso_im_history'            => 'TSO Image Master',
         'tso_im_'                   => 'TSO Image Master',
         'tsoimma_'                  => 'TSO Image Master',
         'tso_auto_optimize_'        => 'TSO Auto Optimizer',
-        'tso_wpt_'                  => 'WP Tab Widget (TSO)',
+        'tso_admin_notices_'        => 'TSO Admin Notices Manager',
+        'tso_an_'                   => 'TSO Admin Notices Manager', // legacy wp_options prefix
+        'tso_tabs_widget_'          => 'TSO Tabs Widget',
+        'tso_wpt_'                  => 'TSO Tabs Widget',
+        'widget_wpt_widget'         => 'TSO Tabs Widget',
         'tso_lliga_'                => 'Lliga Futbol TSO',
         'tso_options_tables_cleaner_' => 'TSO Options & Tables Cleaner',
         'tso_neteja_'               => 'TSO Options & Tables Cleaner', // legacy wp_options prefix

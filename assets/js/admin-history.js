@@ -7,6 +7,14 @@
     var clearedMsg = hist.clearedMsg || '';
     var histBtnLabel = hist.histBtnLabel || '';
 
+    function tsootcHistoryRestoreClearButtons() {
+        var btns = document.querySelectorAll('.tso-hist-clear-btn');
+        btns.forEach(function (b) {
+            b.disabled = false;
+            b.textContent = histBtnLabel;
+        });
+    }
+
     window.tsootcHistoryClear = function () {
         if (!confirm(clearConfirm)) {
             return;
@@ -17,20 +25,19 @@
             b.textContent = '\u23F3...';
         });
         if (typeof window.tsootcPost !== 'function') {
+            tsootcHistoryRestoreClearButtons();
+            alert((tsootcCommonJs.parseErrorPrefix || 'Error: ') + (tsootcCommonJs.unknownLong || 'AJAX helper missing'));
             return;
         }
         window.tsootcPost('tsootc_clear_history', {}, function (data) {
             if (data && data.success) {
                 alert(clearedMsg);
                 location.reload();
-            } else {
-                btns.forEach(function (b) {
-                    b.disabled = false;
-                    b.textContent = histBtnLabel;
-                });
-                var err = data && data.data && data.data.msg ? data.data.msg : tsootcCommonJs.unknownLong || 'Error';
-                alert((tsootcCommonJs.parseErrorPrefix || '') + err);
+                return;
             }
+            tsootcHistoryRestoreClearButtons();
+            var err = data && data.data && data.data.msg ? data.data.msg : tsootcCommonJs.unknownLong || 'Error';
+            alert((tsootcCommonJs.parseErrorPrefix || '') + err);
         });
     };
 
@@ -43,6 +50,7 @@
         var tsFrom = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() / 1000 : 0;
         var tsTo = dateTo ? new Date(dateTo + 'T23:59:59').getTime() / 1000 : Infinity;
         var rows = document.querySelectorAll('#tso-hist-table tbody tr');
+        var visible = 0;
         searchVal = searchVal.toLowerCase();
         rows.forEach(function (row) {
             var type = row.getAttribute('data-type') || '';
@@ -66,6 +74,13 @@
                 show = false;
             }
             row.style.display = show ? '' : 'none';
+            if (show) {
+                visible++;
+            }
         });
+        var emptyMsg = document.getElementById('tso-hist-filter-empty');
+        if (emptyMsg) {
+            emptyMsg.style.display = visible === 0 && rows.length > 0 ? '' : 'none';
+        }
     };
 })();

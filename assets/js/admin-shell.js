@@ -282,19 +282,27 @@ function tsootcParseAjaxJson(text) {
             return;
         }
         var countEl = card.querySelector('.tso-action-count');
-        var btnWrap = card.querySelector('.tso-action-btn');
         var zero = parseInt(count, 10) === 0;
         if (countEl) {
             countEl.className = 'tso-action-count' + (zero ? ' zero' : '');
             countEl.textContent = tsootcFormatCleanupCountText(count);
         }
-        if (zero && btnWrap) {
-            btnWrap.innerHTML = '<button class="button button-disabled" disabled style="width:100%;text-align:center">' +
-                ((cfg.cleanup && cfg.cleanup.nothingClean) || '✅ Nothing to clean') + '</button>';
+        var submitBtn = form.querySelector('.tso-cleanup-submit');
+        if (!submitBtn) {
+            return;
         }
-        if (!zero && form.querySelector('.tso-cleanup-submit')) {
-            var submitBtn = form.querySelector('.tso-cleanup-submit');
+        if (!submitBtn.getAttribute('data-label')) {
+            submitBtn.setAttribute('data-label', submitBtn.textContent);
+        }
+        if (zero) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('button-disabled');
+            submitBtn.classList.remove('button-primary');
+            submitBtn.textContent = ((cfg.cleanup && cfg.cleanup.nothingClean) || '✅ Nothing to clean');
+        } else {
             submitBtn.disabled = false;
+            submitBtn.classList.remove('button-disabled');
+            submitBtn.classList.add('button-primary');
             submitBtn.textContent = submitBtn.getAttribute('data-label') || submitBtn.textContent;
         }
     }

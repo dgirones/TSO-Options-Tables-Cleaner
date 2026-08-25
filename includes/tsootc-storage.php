@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'TSOOTC_DB_SCHEMA' ) ) {
-	define( 'TSOOTC_DB_SCHEMA', 6 );
+	define( 'TSOOTC_DB_SCHEMA', 7 );
 }
 
 // Stored option symbolic ids (not wp_options names).
@@ -151,6 +151,54 @@ function tsootc_get_ajax_post_unslashed( $key, $default = null ) {
 }
 
 /**
+ * Read sanitized AJAX POST slug/key (call only after tsootc_verify_ajax_nonce()).
+ *
+ * @param string $key     POST key.
+ * @param string $default Default when missing.
+ * @return string
+ */
+function tsootc_get_ajax_post_key( $key, $default = '' ) {
+	$key = (string) $key;
+	if ( '' === $key || ! isset( $_POST[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Caller verified via tsootc_verify_ajax_nonce().
+		return $default;
+	}
+	return sanitize_key( (string) wp_unslash( $_POST[ $key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Caller verified via tsootc_verify_ajax_nonce().
+}
+
+/**
+ * Read a truthy AJAX POST flag/checkbox (call only after tsootc_verify_ajax_nonce()).
+ *
+ * @param string $key POST key.
+ * @return bool
+ */
+function tsootc_get_ajax_post_flag( $key ) {
+	$raw = tsootc_get_ajax_post_unslashed( $key, null );
+	if ( null === $raw ) {
+		return false;
+	}
+	if ( is_array( $raw ) ) {
+		return ! empty( $raw );
+	}
+	$raw = (string) $raw;
+	return '' !== $raw && '0' !== $raw;
+}
+
+/**
+ * Read an AJAX POST array and map each leaf with a callback (after nonce verify).
+ *
+ * @param string   $key      POST key.
+ * @param callable $callback Sanitizer (e.g. 'sanitize_key', 'absint', 'sanitize_text_field').
+ * @return array
+ */
+function tsootc_get_ajax_post_mapped_array( $key, $callback ) {
+	$raw = tsootc_get_ajax_post_unslashed( $key, null );
+	if ( ! is_array( $raw ) || ! is_callable( $callback ) ) {
+		return array();
+	}
+	return map_deep( $raw, $callback );
+}
+
+/**
  * Read sanitized admin POST text (call only after tsootc_verify_admin_form_nonce()).
  *
  * @param string $key     POST key.
@@ -265,7 +313,9 @@ function tsootc_get_stored_option_key_map() {
  */
 function tsootc_get_stored_option_dynamic_prefix_map() {
 	return array(
-		'tso_opts_tab_cache_blob_' => 'tso_options_tables_cleaner_opts_tab_cache_blob_',
+		'tso_opts_tab_cache_blob_'    => 'tso_options_tables_cleaner_opts_tab_cache_blob_',
+		// Mistaken intermediate keys (function-prefix shaped); map to same canonical.
+		'tsootc_opts_tab_cache_blob_' => 'tso_options_tables_cleaner_opts_tab_cache_blob_',
 	);
 }
 
@@ -300,6 +350,8 @@ function tsootc_get_stored_transient_key_map() {
 function tsootc_get_stored_transient_dynamic_prefix_map() {
 	return array(
 		'tso_opts_tab_inv_sig_'    => 'tso_options_tables_cleaner_opts_tab_inv_sig_',
+		// Mistaken intermediate keys (function-prefix shaped); map to same canonical.
+		'tsootc_opts_tab_inv_sig_' => 'tso_options_tables_cleaner_opts_tab_inv_sig_',
 		'tso_pre_delete_theme_'    => 'tso_options_tables_cleaner_pre_delete_theme_',
 		'tso_cleanup_msg_'         => 'tso_options_tables_cleaner_cleanup_msg_',
 		'tso_backup_msg_'          => 'tso_options_tables_cleaner_backup_msg_',
@@ -741,9 +793,14 @@ function tsootc_get_stored_transient_dynamic_id_prefix_map() {
 
 	$map = array();
 	foreach ( array_keys( tsootc_get_stored_transient_dynamic_prefix_map() ) as $legacy_prefix ) {
-		$id = tsootc_legacy_stored_key_to_id( rtrim( (string) $legacy_prefix, '_' ) );
+		$legacy_prefix = (string) $legacy_prefix;
+		// Prefer tso_* legacy prefixes; skip mistaken tsootc_* aliases for id → key builds.
+		if ( 0 === strpos( $legacy_prefix, 'tsootc_' ) ) {
+			continue;
+		}
+		$id = tsootc_legacy_stored_key_to_id( rtrim( $legacy_prefix, '_' ) );
 		if ( null !== $id ) {
-			$map[ $id ] = (string) $legacy_prefix;
+			$map[ $id ] = $legacy_prefix;
 		}
 	}
 
@@ -1049,6 +1106,20 @@ function tsootc_migrate_stored_options() {
 			tsootc_migrate_one_stored_option( (string) $option_name );
 		}
 	}
+
+	$like_mistaken = $wpdb->esc_like( 'tsootc_opts_tab_cache_blob_' ) . '%';
+	$rows_mistaken = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->prepare(
+			"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+			$like_mistaken
+		)
+	);
+
+	if ( is_array( $rows_mistaken ) ) {
+		foreach ( $rows_mistaken as $option_name ) {
+			tsootc_migrate_one_stored_option( (string) $option_name );
+		}
+	}
 }
 
 /**
@@ -1287,6 +1358,12 @@ function tsootc_maybe_run_storage_migration() {
 
 	if ( $current < 6 && function_exists( 'tsootc_migrate_unified_uploads_dirs' ) ) {
 		tsootc_migrate_unified_uploads_dirs();
+	}
+
+	if ( $current < 7 ) {
+		// Drop mistaken tsootc_opts_tab_* intermediate keys into canonical storage.
+		tsootc_migrate_stored_options();
+		tsootc_migrate_stored_dynamic_transients();
 	}
 
 	update_option( 'tso_options_tables_cleaner_db_schema', TSOOTC_DB_SCHEMA, false );

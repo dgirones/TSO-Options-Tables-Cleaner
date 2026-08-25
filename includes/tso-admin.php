@@ -269,22 +269,23 @@ function tsootc_page() {
             echo '<div class="tso-action-count' . ( $is_zero ? ' zero' : '' ) . '">' . esc_html( (string) $a['count'] ) . ( $is_zero ? esc_html( __( ' — already clean', 'tso-options-tables-cleaner' ) ) : esc_html( __( ' entries', 'tso-options-tables-cleaner' ) ) ) . '</div>';
             echo '<div class="tso-action-desc">' . esc_html( (string) $a['desc'] ) . '</div>';
             echo '<div class="tso-action-btn">';
-            if ( ! $is_zero ) {
-                echo '<form method="post" class="tso-cleanup-form" style="margin:0" data-cleanup-action="' . esc_attr( (string) $a['key'] ) . '">';
-                wp_nonce_field( TSOOTC_NONCE_FORM );
-                echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="' . esc_attr( (string) $a['key'] ) . '">';
-                echo '<input type="hidden" name="tab" value="cleanup">';
-                if ( ! empty( $a['requires_days'] ) ) {
-                    echo '<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:#555">';
-                    echo '<span>' . esc_html( __( 'Older than (days):', 'tso-options-tables-cleaner' ) ) . '</span>';
-                    echo '<input type="number" min="1" max="3650" name="retention_days[' . esc_attr( (string) $a['key'] ) . ']" value="' . esc_attr( (string) $a['days'] ) . '" style="width:90px">';
-                    echo '</label>';
-                }
-                echo '<button type="submit" class="button button-primary tso-cleanup-submit" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '" style="width:100%;text-align:center">🗑️ ' . esc_html( (string) $a['title'] ) . '</button>';
-                echo '</form>';
-            } else {
-                echo '<button class="button button-disabled" disabled style="width:100%;text-align:center">' . esc_html( __( '✅ Nothing to clean', 'tso-options-tables-cleaner' ) ) . '</button>';
+            echo '<form method="post" class="tso-cleanup-form" style="margin:0" data-cleanup-action="' . esc_attr( (string) $a['key'] ) . '">';
+            wp_nonce_field( TSOOTC_NONCE_FORM );
+            echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="' . esc_attr( (string) $a['key'] ) . '">';
+            echo '<input type="hidden" name="tab" value="cleanup">';
+            if ( ! empty( $a['requires_days'] ) ) {
+                echo '<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:#555">';
+                echo '<span>' . esc_html( __( 'Older than (days):', 'tso-options-tables-cleaner' ) ) . '</span>';
+                echo '<input type="number" min="1" max="3650" name="retention_days[' . esc_attr( (string) $a['key'] ) . ']" value="' . esc_attr( (string) $a['days'] ) . '" style="width:90px">';
+                echo '</label>';
             }
+            $btn_label = '🗑️ ' . (string) $a['title'];
+            if ( $is_zero ) {
+                echo '<button type="submit" class="button button-disabled tso-cleanup-submit" disabled data-label="' . esc_attr( $btn_label ) . '" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '" style="width:100%;text-align:center">' . esc_html( __( '✅ Nothing to clean', 'tso-options-tables-cleaner' ) ) . '</button>';
+            } else {
+                echo '<button type="submit" class="button button-primary tso-cleanup-submit" data-label="' . esc_attr( $btn_label ) . '" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '" style="width:100%;text-align:center">' . esc_html( $btn_label ) . '</button>';
+            }
+            echo '</form>';
             echo '</div>';
             echo '</div>';
         }
@@ -392,7 +393,7 @@ function tsootc_page() {
                         number_format_i18n( $hint_kb )
                     );
                 } else {
-                    $count_text = __( 'Maintenance — optimizes core and fragmented tables', 'tso-options-tables-cleaner' );
+                    $count_text = __( 'Maintenance — optimizes fragmented tables (DATA_FREE)', 'tso-options-tables-cleaner' );
                 }
             } else {
                 $count_text = (int) $scheduled_action['count'] === 0
@@ -505,6 +506,10 @@ function tsootc_page() {
 
             if ( 0 === strpos( (string) $group_name, 'WP Toolkit' ) ) {
                 return tsootc_ui_triple_text( $lang, 'WP Toolkit (Plesk / hosting, actiu — no eliminar)', 'WP Toolkit (Plesk / hosting, activo — no eliminar)', 'WP Toolkit (Plesk / hosting, active — do not delete)' );
+            }
+
+            if ( 0 === strpos( (string) $group_name, 'Softaculous' ) ) {
+                return tsootc_ui_triple_text( $lang, 'Softaculous / hosting (actiu — no eliminar)', 'Softaculous / hosting (activo — no eliminar)', 'Softaculous / hosting (active — do not delete)' );
             }
 
             return (string) $group_name;
@@ -1749,10 +1754,23 @@ function tsootc_page() {
         if ( ! is_array( $history_log ) ) {
             $history_log = array();
         }
+        // Drop malformed rows before sort/display (PHP 8+ warns on missing keys).
+        $history_log = array_values(
+            array_filter(
+                $history_log,
+                static function( $ev ) {
+                    return is_array( $ev )
+                        && isset( $ev['ts'], $ev['type'], $ev['action'], $ev['name'], $ev['file'] );
+                }
+            )
+        );
         // Ordenar del més recent al més antic
-        usort( $history_log, function( $a, $b ) {
-            return (int) $b['ts'] - (int) $a['ts'];
-        } );
+        usort(
+            $history_log,
+            static function( $a, $b ) {
+                return (int) ( $b['ts'] ?? 0 ) - (int) ( $a['ts'] ?? 0 );
+            }
+        );
 
         // ---- Llegir recently_activated de WordPress (plugins desactivats recentment) ----
         $recently_activated = get_option( 'recently_activated', array() );
@@ -1785,9 +1803,20 @@ function tsootc_page() {
         // ---- Aplicar filtres ----
         $filtered_log = array();
         foreach ( $history_log as $ev ) {
-            if ( $hist_filter_type && $ev['type'] !== $hist_filter_type ) continue;
-            if ( $hist_filter_action && $ev['action'] !== $hist_filter_action ) continue;
-            if ( $hist_search && stripos( $ev['name'], $hist_search ) === false && stripos( $ev['file'], $hist_search ) === false ) {
+            if ( ! is_array( $ev ) ) {
+                continue;
+            }
+            $ev_type   = (string) ( $ev['type'] ?? '' );
+            $ev_action = (string) ( $ev['action'] ?? '' );
+            $ev_name   = (string) ( $ev['name'] ?? '' );
+            $ev_file   = (string) ( $ev['file'] ?? '' );
+            if ( $hist_filter_type && $ev_type !== $hist_filter_type ) {
+                continue;
+            }
+            if ( $hist_filter_action && $ev_action !== $hist_filter_action ) {
+                continue;
+            }
+            if ( $hist_search && stripos( $ev_name, $hist_search ) === false && stripos( $ev_file, $hist_search ) === false ) {
                 $detail_blob = '';
                 $search_detail = function_exists( 'tsootc_history_enrich_detail_for_display' )
                     ? tsootc_history_enrich_detail_for_display( $ev )
@@ -1939,9 +1968,9 @@ function tsootc_page() {
             . wp_kses_post(
                 tsootc_ui_triple_text(
                     $lang,
-                    'L\'historial es desa a <code>wp_options</code> → <code>tso_plugin_history</code> · autoload: <strong>no</strong>',
-                    'El historial se almacena en <code>wp_options</code> → <code>tso_plugin_history</code> · autoload: <strong>no</strong>',
-                    'History is stored in <code>wp_options</code> → <code>tso_plugin_history</code> · autoload: <strong>no</strong>'
+                    'L\'historial es desa a <code>wp_options</code> → <code>tso_options_tables_cleaner_plugin_history</code> · autoload: <strong>no</strong>',
+                    'El historial se almacena en <code>wp_options</code> → <code>tso_options_tables_cleaner_plugin_history</code> · autoload: <strong>no</strong>',
+                    'History is stored in <code>wp_options</code> → <code>tso_options_tables_cleaner_plugin_history</code> · autoload: <strong>no</strong>'
                 )
             )
             . '</span>';
@@ -2056,9 +2085,7 @@ function tsootc_page() {
                 $action_label = isset( $action_labels_map[ $ev['action'] ] ) ? $action_labels_map[ $ev['action'] ] : $ev['action'];
 
                 $display_file = (string) $ev['file'];
-                if ( 'plugin' === (string) $ev['type'] && function_exists( 'tsootc_reconcile_plugin_bootstrap_file' ) ) {
-                    $display_file = tsootc_reconcile_plugin_bootstrap_file( $display_file );
-                }
+                // Keep the stored historical path; DETALLS may show a reconciled bootstrap when relevant.
 
                 $data_name = strtolower( (string) $ev['name'] . ' ' . $display_file );
                 $display_detail = function_exists( 'tsootc_history_enrich_detail_for_display' )
@@ -2104,11 +2131,10 @@ function tsootc_page() {
             echo '</tbody></table>';
             echo '</div>'; // .tso-table-scroll
 
-            if ( empty( $filtered_log ) && ( $hist_filter_type || $hist_filter_action || $hist_search ) ) {
-                echo '<div style="padding:30px;text-align:center;color:#999;font-size:13px">';
-                echo '🔍 ' . esc_html( tsootc_ui_triple_text( $lang, 'No hi ha resultats per als filtres aplicats.', 'No hay resultados para los filtros aplicados.', 'No results for the applied filters.' ) );
-                echo '</div>';
-            }
+            $hist_empty_filters = empty( $filtered_log ) && ( $hist_filter_type || $hist_filter_action || $hist_search || $hist_date_from || $hist_date_to );
+            echo '<div id="tso-hist-filter-empty" style="padding:30px;text-align:center;color:#999;font-size:13px;display:' . ( $hist_empty_filters ? 'block' : 'none' ) . '">';
+            echo '🔍 ' . esc_html( tsootc_ui_triple_text( $lang, 'No hi ha resultats per als filtres aplicats.', 'No hay resultados para los filtros aplicados.', 'No results for the applied filters.' ) );
+            echo '</div>';
         }
         echo '</div>'; // log card
 
@@ -2236,12 +2262,11 @@ function tsootc_page() {
     elseif ( $tab === 'backup' ) {
 
         $backup_dir = tsootc_ensure_backup_dir();
-        $backup_url = tsootc_get_backup_url();
 
         // Llegir missatge de l'acció anterior (Post/Redirect/Get)
-    $backup_uid = (string) get_current_user_id();
-    $saved_msg  = tsootc_get_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, $backup_uid );
-    tsootc_delete_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, $backup_uid );
+        $backup_uid = (string) get_current_user_id();
+        $saved_msg  = tsootc_get_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, $backup_uid );
+        tsootc_delete_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, $backup_uid );
         if ( $saved_msg ) {
             $icon = $saved_msg['type'] === 'warning' ? '⚠️' : '✅';
             $msg_backup = '<div class="notice notice-' . esc_attr( $saved_msg['type'] === 'warning' ? 'warning' : 'success' ) . ' is-dismissible"><p>' . $icon . ' ' . esc_html( $saved_msg['msg'] ) . '</p></div>';
@@ -2265,10 +2290,13 @@ function tsootc_page() {
                     continue;
                 }
                 $seen_files[ $base ] = true;
+                $mtime               = (int) filemtime( $f );
                 $backups[]           = array(
                     'file' => $base,
                     'size' => round( filesize( $f ) / 1024, 1 ),
-                    'date' => gmdate( 'd/m/Y H:i', filemtime( $f ) ),
+                    'date' => function_exists( 'wp_date' )
+                        ? wp_date( 'd/m/Y H:i', $mtime )
+                        : date_i18n( 'd/m/Y H:i', $mtime ),
                     'meta' => tsootc_get_backup_file_metadata( $f ),
                 );
             }
@@ -2294,10 +2322,10 @@ function tsootc_page() {
                 )
             )
             . '</p>';
-        echo '<form method="post" style="margin:0">';
+        echo '<form method="post" id="tso-backup-create-form" style="margin:0">';
         wp_nonce_field( TSOOTC_NONCE_FORM );
         echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="create_backup">';
-        echo '<button class="button button-primary" style="font-size:14px;padding:8px 20px">'
+        echo '<button type="submit" id="tso-backup-create-btn" class="button button-primary" style="font-size:14px;padding:8px 20px">'
             . '💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Crear backup ara', 'Crear backup ahora', 'Create backup now' ) )
             . '</button>';
         echo '</form>';

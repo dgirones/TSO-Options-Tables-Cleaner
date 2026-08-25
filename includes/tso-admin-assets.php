@@ -223,14 +223,16 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 
 	if ( 'backup' === $tab ) {
 		$admin_cfg['backup'] = array(
-			'selectedOne'  => tsootc_ui_triple_text( $lang, '%d seleccionat', '%d seleccionado', '%d selected' ),
-			'selectedMany' => tsootc_ui_triple_text( $lang, '%d seleccionats', '%d seleccionados', '%d selected' ),
-			'confirmBulk'  => tsootc_ui_triple_text(
+			'selectedOne'   => tsootc_ui_triple_text( $lang, '%d seleccionat', '%d seleccionado', '%d selected' ),
+			'selectedMany'  => tsootc_ui_triple_text( $lang, '%d seleccionats', '%d seleccionados', '%d selected' ),
+			'confirmBulk'   => tsootc_ui_triple_text(
 				$lang,
 				'Eliminar %d backup(s) seleccionat(s)?',
 				'¿Eliminar %d backup(s) seleccionado(s)?',
 				'Delete %d selected backup(s)?'
 			),
+			'creatingBusy'  => tsootc_ui_triple_text( $lang, '⏳ Creant backup…', '⏳ Creando backup…', '⏳ Creating backup…' ),
+			'deletingBusy'  => tsootc_ui_triple_text( $lang, '⏳ Eliminant…', '⏳ Eliminando…', '⏳ Deleting…' ),
 		);
 	}
 

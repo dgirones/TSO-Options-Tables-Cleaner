@@ -4,9 +4,9 @@ Contributors: deadko
 Donate link: https://ko-fi.com/deadko_cat
 Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.5
+Stable tag: 1.2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -89,6 +89,21 @@ Data stored locally:
 No external connections: This plugin does not make any HTTP requests to external servers, does not use analytics, and does not track usage of any kind.
 
 == Changelog ==
+
+= 1.2.7 =
+* Detection audit: theme vs plugin on-disk checks, synthetic hosting/SDK labels, group-flag mismatch detection, mixed-sample normalization
+* Detection: theme_mods_* never remapped to plugins via codescan; theme path hints under wp-content/themes
+* History: malformed rows filtered, safer upgrader slug resolution, Softaculous keys excluded from history index
+* Extra tables: WordPress core / multisite protected tables excluded; quoted DROP identifiers
+* General cleanup: expired transients savings fix, retention_days partial save, multisite OPTIMIZE scope
+* Backup: reliable delete check, uploads protection files, unique filenames, cache flush after restore
+* Tested up to WordPress 7.1; Plugin Check PHPCS on DROP TABLE queries
+
+= 1.2.6 =
+* Softaculous / hosting options (softaculous_*, ai-install) stay in their own group — never merged into WP plugins
+* Options tab: Active/Inactive group status reconciled from live plugin inventory after merge
+* Options-tab cache: avoid duplicate delete_option calls after flush; fix inv_sig / cache-blob storage keys (schema 7)
+* AJAX/admin: POST reads via storage helpers; retention_days isset preserved after helper migration
 
 = 1.2.5 =
 * History Details: version, folder, bootstrap path, and automatic "replaces" hint when a recently deleted plugin shares the same option-prefix family

@@ -69,13 +69,20 @@ function tsootc_cron_make_event_id( $hook, $timestamp, $args ) {
 /**
  * Recursively sanitize cron event arguments from POST/JSON.
  *
+ * Preserves array keys and scalar types so md5(serialize()) still matches
+ * WordPress cron event keys used by wp_unschedule_event().
+ *
  * @param array $args Decoded arguments.
  * @return array
  */
 function tsootc_cron_sanitize_decoded_args( array $args ) {
 	$clean = array();
 	foreach ( $args as $key => $value ) {
-		$clean_key = is_int( $key ) ? $key : sanitize_key( (string) $key );
+		// Keep original key type (int vs string) for serialize parity with WP-Cron.
+		$clean_key = is_int( $key ) ? $key : (string) $key;
+		if ( is_string( $clean_key ) ) {
+			$clean_key = str_replace( "\0", '', $clean_key );
+		}
 		if ( is_array( $value ) ) {
 			$clean[ $clean_key ] = tsootc_cron_sanitize_decoded_args( $value );
 			continue;
@@ -84,7 +91,7 @@ function tsootc_cron_sanitize_decoded_args( array $args ) {
 			$clean[ $clean_key ] = $value;
 			continue;
 		}
-		$str = is_string( $value ) ? wp_unslash( $value ) : (string) $value;
+		$str = is_string( $value ) ? $value : (string) $value;
 		$str = wp_check_invalid_utf8( $str, true );
 		$clean[ $clean_key ] = str_replace( "\0", '', $str );
 	}
@@ -685,6 +692,9 @@ function tsootc_cron_ajax_post_int( $key ) {
 /**
  * Decoded cron event args from POST (nonce verified by caller).
  *
+ * Do not run sanitize_textarea_field() on the raw JSON string — it can strip
+ * fragments containing "<" and break wp_unschedule_event() arg matching.
+ *
  * @param string $key POST field name.
  * @return array
  */
@@ -695,11 +705,11 @@ function tsootc_cron_ajax_post_args( $key = 'args' ) {
 	}
 
 	if ( is_array( $_POST[ $key ] ) ) {
-		$raw = map_deep( wp_unslash( $_POST[ $key ] ), 'sanitize_textarea_field' );
-		return tsootc_cron_decode_args( $raw );
+		$raw = wp_unslash( $_POST[ $key ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in tsootc_cron_decode_args().
+		return tsootc_cron_decode_args( is_array( $raw ) ? $raw : array() );
 	}
 
-	$raw = sanitize_textarea_field( wp_unslash( (string) $_POST[ $key ] ) );
+	$raw = wp_unslash( (string) $_POST[ $key ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON decoded then sanitized in tsootc_cron_decode_args().
 	$raw = wp_check_invalid_utf8( $raw, true );
 	if ( '' === $raw ) {
 		return array();
@@ -709,12 +719,63 @@ function tsootc_cron_ajax_post_args( $key = 'args' ) {
 }
 
 /**
- * Sanitized POST key (slug) for cron AJAX handlers (nonce verified by caller).
+ * Sanitize schedule slug from POST without destroying known custom schedule names.
  *
  * @param string $key POST field name.
  * @return string
  */
+function tsootc_cron_ajax_post_schedule( $key = 'schedule' ) {
+	$raw = tsootc_cron_ajax_post_string( $key );
+	if ( '' === $raw ) {
+		return '';
+	}
+	// Allow WordPress schedule keys: letters, numbers, underscore, hyphen.
+	$clean = preg_replace( '/[^a-z0-9_\-]/i', '', $raw );
+	return is_string( $clean ) ? strtolower( $clean ) : '';
+}
+
+/**
+ * Find a cron row by hook + timestamp + args (exact serialize match via WP helpers).
+ *
+ * @param string $hook      Hook name.
+ * @param int    $timestamp Event timestamp.
+ * @param array  $args      Event args.
+ * @return array|null Event data from cron array.
+ */
+function tsootc_cron_find_event_row( $hook, $timestamp, array $args ) {
+	tsootc_cron_bootstrap();
+	$crons = _get_cron_array();
+	$ts    = (int) $timestamp;
+	$hook  = (string) $hook;
+	if ( ! is_array( $crons ) || ! isset( $crons[ $ts ][ $hook ] ) || ! is_array( $crons[ $ts ][ $hook ] ) ) {
+		return null;
+	}
+
+	$want = md5( serialize( $args ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Matches WordPress cron keying.
+	foreach ( $crons[ $ts ][ $hook ] as $key => $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$row_args = isset( $row['args'] ) && is_array( $row['args'] ) ? $row['args'] : array();
+		if ( (string) $key === $want || md5( serialize( $row_args ) ) === $want ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Matches WordPress cron keying.
+			return $row;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Schedule slug from POST (prefer schedule helper over generic sanitize_key).
+ *
+ * @param string $key POST field name.
+ * @return string
+ * @deprecated Use {@see tsootc_cron_ajax_post_schedule()}.
+ */
 function tsootc_cron_ajax_post_key( $key ) {
+	if ( 'schedule' === (string) $key ) {
+		return tsootc_cron_ajax_post_schedule( $key );
+	}
 	if ( ! isset( $_POST[ $key ] ) ) {
 		return '';
 	}
@@ -853,9 +914,8 @@ function tsootc_ajax_cron_postpone() {
 	if ( ! $minutes ) {
 		$minutes = 60;
 	}
-	$args      = tsootc_cron_ajax_post_args( 'args' );
-	$schedule  = tsootc_cron_ajax_post_key( 'schedule' );
-	$interval  = tsootc_cron_ajax_post_int( 'interval' );
+	$args     = tsootc_cron_ajax_post_args( 'args' );
+	$schedule = tsootc_cron_ajax_post_schedule( 'schedule' );
 
 	if ( '' === $hook || ! $timestamp || $minutes < 1 ) {
 		wp_send_json_error( array( 'msg' => tsootc_msg( 'Dades invàlides', 'Datos no válidos', 'Invalid data' ) ) );
@@ -863,28 +923,38 @@ function tsootc_ajax_cron_postpone() {
 	}
 
 	tsootc_cron_bootstrap();
-	$data = null;
-	$crons = _get_cron_array();
-	if ( isset( $crons[ $timestamp ][ $hook ] ) ) {
-		foreach ( $crons[ $timestamp ][ $hook ] as $row ) {
-			$row_args = isset( $row['args'] ) && is_array( $row['args'] ) ? $row['args'] : array();
-			if ( wp_json_encode( $row_args ) === wp_json_encode( $args ) ) {
-				$data = $row;
-				break;
-			}
-		}
+	$data = tsootc_cron_find_event_row( $hook, $timestamp, $args );
+	if ( null === $data ) {
+		wp_send_json_error( array( 'msg' => tsootc_msg( 'No s\'ha trobat l\'esdeveniment', 'No se encontró el evento', 'Event not found' ) ) );
+		return;
 	}
 
-	wp_unschedule_event( $timestamp, $hook, $args );
+	$unscheduled = wp_unschedule_event( $timestamp, $hook, $args );
+	if ( false === $unscheduled ) {
+		wp_send_json_error( array( 'msg' => tsootc_msg( 'No s\'ha pogut desprogramar l\'esdeveniment', 'No se pudo desprogramar el evento', 'Could not unschedule the event' ) ) );
+		return;
+	}
 
-	$new_ts   = time() + ( $minutes * MINUTE_IN_SECONDS );
-	$sched    = $schedule ? $schedule : ( is_array( $data ) && ! empty( $data['schedule'] ) ? (string) $data['schedule'] : '' );
-	$interval = $interval ? $interval : ( is_array( $data ) && ! empty( $data['interval'] ) ? (int) $data['interval'] : 0 );
+	$new_ts = time() + ( $minutes * MINUTE_IN_SECONDS );
+	$sched  = $schedule ? $schedule : ( ! empty( $data['schedule'] ) ? (string) $data['schedule'] : '' );
 
-	if ( $sched ) {
-		wp_schedule_event( $new_ts, $sched, $hook, $args );
+	$schedules = wp_get_schedules();
+	$scheduled = false;
+	if ( $sched && isset( $schedules[ $sched ] ) ) {
+		$scheduled = wp_schedule_event( $new_ts, $sched, $hook, $args );
 	} else {
-		wp_schedule_single_event( $new_ts, $hook, $args );
+		$scheduled = wp_schedule_single_event( $new_ts, $hook, $args );
+	}
+
+	if ( false === $scheduled ) {
+		// Best-effort restore of the original timestamp.
+		if ( $sched && isset( $schedules[ $sched ] ) ) {
+			wp_schedule_event( $timestamp, $sched, $hook, $args );
+		} else {
+			wp_schedule_single_event( $timestamp, $hook, $args );
+		}
+		wp_send_json_error( array( 'msg' => tsootc_msg( 'No s\'ha pogut reprogramar; s\'ha restaurat l\'hora original', 'No se pudo reprogramar; se restauró la hora original', 'Could not reschedule; original time restored' ) ) );
+		return;
 	}
 
 	wp_send_json_success(
@@ -910,7 +980,7 @@ function tsootc_ajax_cron_pause() {
 	$hook      = tsootc_cron_ajax_post_string( 'hook' );
 	$timestamp = tsootc_cron_ajax_post_int( 'timestamp' );
 	$args      = tsootc_cron_ajax_post_args( 'args' );
-	$schedule  = tsootc_cron_ajax_post_key( 'schedule' );
+	$schedule  = tsootc_cron_ajax_post_schedule( 'schedule' );
 	$interval  = tsootc_cron_ajax_post_int( 'interval' );
 
 	if ( '' === $hook || ! $timestamp ) {
@@ -919,7 +989,24 @@ function tsootc_ajax_cron_pause() {
 	}
 
 	tsootc_cron_bootstrap();
-	wp_unschedule_event( $timestamp, $hook, $args );
+	$row = tsootc_cron_find_event_row( $hook, $timestamp, $args );
+	if ( null === $row ) {
+		wp_send_json_error( array( 'msg' => tsootc_msg( 'No s\'ha trobat l\'esdeveniment', 'No se encontró el evento', 'Event not found' ) ) );
+		return;
+	}
+
+	if ( '' === $schedule && ! empty( $row['schedule'] ) ) {
+		$schedule = (string) $row['schedule'];
+	}
+	if ( ! $interval && ! empty( $row['interval'] ) ) {
+		$interval = (int) $row['interval'];
+	}
+
+	$unscheduled = wp_unschedule_event( $timestamp, $hook, $args );
+	if ( false === $unscheduled ) {
+		wp_send_json_error( array( 'msg' => tsootc_msg( 'No s\'ha pogut pausar l\'esdeveniment', 'No se pudo pausar el evento', 'Could not pause the event' ) ) );
+		return;
+	}
 
 	$paused   = tsootc_cron_get_paused_events();
 	$paused[] = array(
@@ -979,10 +1066,21 @@ function tsootc_ajax_cron_resume() {
 	$schedule = ! empty( $found['schedule'] ) ? (string) $found['schedule'] : '';
 	$new_ts   = time() + MINUTE_IN_SECONDS;
 
+	$scheduled = false;
 	if ( $schedule ) {
-		wp_schedule_event( $new_ts, $schedule, $hook, $args );
+		$schedules = wp_get_schedules();
+		if ( isset( $schedules[ $schedule ] ) ) {
+			$scheduled = wp_schedule_event( $new_ts, $schedule, $hook, $args );
+		} else {
+			$scheduled = wp_schedule_single_event( $new_ts, $hook, $args );
+		}
 	} else {
-		wp_schedule_single_event( $new_ts, $hook, $args );
+		$scheduled = wp_schedule_single_event( $new_ts, $hook, $args );
+	}
+
+	if ( false === $scheduled ) {
+		wp_send_json_error( array( 'msg' => tsootc_msg( 'No s\'ha pogut restaurar l\'esdeveniment al cron', 'No se pudo restaurar el evento al cron', 'Could not restore the event to cron' ) ) );
+		return;
 	}
 
 	tsootc_cron_save_paused_events( $remain );
@@ -1125,11 +1223,12 @@ function tsootc_cron_human_time_diff( $from, $to, $lang ) {
 function tsootc_cron_schedule_label( $schedule_key, $interval, $lang ) {
 	$key = sanitize_key( (string) $schedule_key );
 	$map = array(
-		'hourly'     => array( 'ca' => 'Cada hora', 'es' => 'Cada hora', 'en' => 'Once every hour' ),
-		'twicedaily' => array( 'ca' => 'Dues vegades al dia', 'es' => 'Dos veces al día', 'en' => 'Twice daily' ),
-		'daily'      => array( 'ca' => 'Un cop al dia', 'es' => 'Una vez al día', 'en' => 'Once daily' ),
-		'weekly'     => array( 'ca' => 'Un cop per setmana', 'es' => 'Una vez por semana', 'en' => 'Once weekly' ),
-		'monthly'    => array( 'ca' => 'Un cop al mes', 'es' => 'Una vez al mes', 'en' => 'Once monthly' ),
+		'hourly'                   => array( 'ca' => 'Cada hora', 'es' => 'Cada hora', 'en' => 'Once every hour' ),
+		'twicedaily'               => array( 'ca' => 'Dues vegades al dia', 'es' => 'Dos veces al día', 'en' => 'Twice daily' ),
+		'daily'                    => array( 'ca' => 'Un cop al dia', 'es' => 'Una vez al día', 'en' => 'Once daily' ),
+		'weekly'                   => array( 'ca' => 'Un cop per setmana', 'es' => 'Una vez por semana', 'en' => 'Once weekly' ),
+		'monthly'                  => array( 'ca' => 'Un cop al mes', 'es' => 'Una vez al mes', 'en' => 'Once monthly' ),
+		'tsootc_auto_clean_monthly'=> array( 'ca' => 'Un cop al mes (TSO)', 'es' => 'Una vez al mes (TSO)', 'en' => 'Once monthly (TSO)' ),
 	);
 	if ( $key && isset( $map[ $key ] ) ) {
 		return $map[ $key ][ $lang ] ?? $map[ $key ]['ca'];
@@ -1307,7 +1406,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		echo ' data-core="' . ( $ev['is_core'] ? '1' : '0' ) . '">';
 		echo '<td><code style="font-size:12px">' . esc_html( $hook ) . '</code>';
 		if ( $ev['is_core'] ) {
-			echo ' <span class="tso-badge tso-badge-auto" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';
+			echo ' <span class="tso-badge tso-badge-core" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';
 		}
 		if ( ! $ev['has_callback'] ) {
 			echo ' <span class="tso-badge" style="background:#f6f7f7;color:#666" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_no_cb ) . '</span>';
