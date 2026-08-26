@@ -90,6 +90,8 @@ No external connections: This plugin does not make any HTTP requests to external
 
 == Changelog ==
 
+Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+
 = 1.2.8 =
 * wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
 * Options tab groups by owner token (folder/theme) instead of display label only; mixed/outlier badges
@@ -119,48 +121,4 @@ No external connections: This plugin does not make any HTTP requests to external
 * Detection: shared prefixes (e.g. tsosk_) resolve to the currently installed plugin folder without manual aliases
 * Backup tab: select and delete multiple backups in bulk
 * Storage: validated admin POST helper for bulk backup filenames (Plugin Check / PHPCS)
-
-= 1.2.0 =
-* Extra tables: master switch "Allow table deletion" (default off); when on, any extra table can be deleted with confirm + backup
-* Auto-clean: keep table_key_map while leftover tables still exist (better orphan attribution)
-* Expired transients: fallback now deletes timeout and value pairs
-* OPTIMIZE: only tables with estimated free space (DATA_FREE); clearer UI wording
-* Cleanup: chunked post/comment deletes; comment trash backfill uses comment_date_gmt
-
-= 1.1.5 =
-* Unified uploads layout: wp-content/uploads/tso-options-tables-cleaner/backups/ and .../options-tab-cache/
-* Auto-migrates legacy folders (tso-backups, tso-options-tables-cleaner-backups, tso-options-tab-cache, tso-options-tables-cleaner-options-tab-cache)
-* Schema 6 migration with dual-read fallback for backups and options-tab cache
-* Ensures index.php and .htaccess on unified subfolders after migration
-* Migration fallback when WP_Filesystem move fails (rename/copy)
-* Readme, privacy policy, and Backup tab UI updated to new paths
-
-= 1.1.0 =
-* Freemius fs_* options grouped as "Freemius (no borrar)" with delete protection
-* Extra tables: history + inventory reconcile pass (fixes false orphans e.g. CleanTalk active)
-* CleanTalk cleantalk_ slug hint -> cleantalk-spam-protect
-* YARPP false orphan fix (stale table_key_map / prefix label)
-* Delete: confirmed uninstalled residue allowed with recent_writes MySQL signal
-* Detection regression fixtures (Freemius, CleanTalk, YARPP)
-
-= 1.0.1 =
-* Table detection: confidence scoring, prefix-map reconciliation, and regression fixtures (Yoast, ODB, Meow Gallery, YARPP)
-* Extra tables: custom table map, Confirm/Assign actions, detection source badges
-* Table inspector: layered created/updated dates (row data, TSO history, MySQL metadata) with reliability hints
-* Orphan vs active: fixes for false positives on uninstalled plugins and false orphans on active plugins
-* Delete safety: confirmed uninstalled residue may be deleted even when MySQL shows recent activity
-* Readme: documented heuristic detection limits and review-only safeguards
-* Release tooling: scripts/release-check.ps1 chains phpcs-check + detection regression + Plugin Check checklist
-
-= 1.0.0 =
-* First public release on WordPress.org
-* General cleanup: expired transients, revisions, drafts, trash, spam, orphan metadata
-* wp_options manager with plugin/theme detection (300+ known prefixes), grouping, and bulk delete
-* Extra tables tab: detect leftover plugin tables, export SQL, drop with safeguards
-* Plugin and theme history log with automatic key mapping on install/activate/switch
-* Full database backup to wp-content/uploads/tso-backups/ (download, restore, delete)
-* Table optimizer for fragmented InnoDB/MyISAM tables
-* Scheduled cleanup via WP-Cron with optional email summary
-* Admin UI in Catalan, Spanish, and English (per-user language preference)
-* Compatible with LiteSpeed Cache and WordPress 7.0
 
