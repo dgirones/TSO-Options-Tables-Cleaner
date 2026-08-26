@@ -161,18 +161,26 @@ if ( ! function_exists( 'apply_filters' ) ) {
 		return $value;
 	}
 }
+$GLOBALS['tsootc_regression_options'] = array();
 if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $option, $default = false ) {
+		$key = (string) $option;
+		if ( array_key_exists( $key, $GLOBALS['tsootc_regression_options'] ) ) {
+			return $GLOBALS['tsootc_regression_options'][ $key ];
+		}
 		return $default;
 	}
 }
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( $option, $value, $autoload = null ) {
+		unset( $autoload );
+		$GLOBALS['tsootc_regression_options'][ (string) $option ] = $value;
 		return true;
 	}
 }
 if ( ! function_exists( 'delete_option' ) ) {
 	function delete_option( $option ) {
+		unset( $GLOBALS['tsootc_regression_options'][ (string) $option ] );
 		return true;
 	}
 }

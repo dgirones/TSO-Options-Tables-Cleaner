@@ -867,3 +867,27 @@ function tsootc_detection_resolve_option_group_bucket( $option_name, $detected, 
 		'owner_token'   => '',
 	);
 }
+
+/**
+ * Unified entry point for extra-table owner resolution (adapter over table detection).
+ *
+ * Mirrors tsootc_detection_resolve_option() for wp_options; tables keep their own
+ * collect/score pipeline until a full merge (RFC v2).
+ *
+ * @param string $table_without_prefix Table name without site DB prefix.
+ * @param array  $installed_plugins    Plugin/theme inventory.
+ * @param array  $args                 Optional: full_table_name (string).
+ * @return array|null
+ */
+function tsootc_detection_resolve_table( $table_without_prefix, array $installed_plugins = array(), $args = array() ) {
+	$args = is_array( $args ) ? $args : array();
+	$full = isset( $args['full_table_name'] ) ? (string) $args['full_table_name'] : '';
+
+	if ( function_exists( 'tsootc_detect_table_with_confidence' ) ) {
+		return tsootc_detect_table_with_confidence( $table_without_prefix, $installed_plugins, $full );
+	}
+	if ( function_exists( 'tsootc_detect_plugin_from_table' ) ) {
+		return tsootc_detect_plugin_from_table( $table_without_prefix, $installed_plugins );
+	}
+	return null;
+}

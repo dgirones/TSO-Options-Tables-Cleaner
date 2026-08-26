@@ -9204,9 +9204,18 @@ function tsootc_detected_target_is_installed( $detected, $installed_plugins = ar
  * @return bool
  */
 function tsootc_plugin_label_tokens_match( $label_a, $label_b ) {
-    $tokenize = static function ( $label ) {
+    $stopwords = array( 'by', 'for', 'the', 'and', 'of', 'a', 'an' );
+    $tokenize = static function ( $label ) use ( $stopwords ) {
         $clean = strtolower( preg_replace( '/[^\p{L}\p{N}\s]/u', ' ', (string) $label ) );
-        $words = array_values( array_filter( preg_split( '/\s+/', $clean ) ) );
+        $words = array_values(
+            array_filter(
+                preg_split( '/\s+/', $clean ),
+                static function ( $word ) use ( $stopwords ) {
+                    $word = (string) $word;
+                    return strlen( $word ) >= 2 && ! in_array( $word, $stopwords, true );
+                }
+            )
+        );
         sort( $words );
         return $words;
     };
@@ -12703,16 +12712,18 @@ function tsootc_get_autoload_top( $limit = 40 ) {
  *
  * @param array      $table_item Extra table row or partial row.
  * @param array|null $detected   Optional detection row.
+ * @param array|null $inventory  Optional plugin inventory (avoids empty get_installed_plugins in tests).
  * @return bool
  */
-function tsootc_extra_table_is_confirmed_uninstalled_residue( array $table_item, $detected = null ) {
+function tsootc_extra_table_is_confirmed_uninstalled_residue( array $table_item, $detected = null, $inventory = null ) {
 	$plugin_file = (string) ( $table_item['plugin_file'] ?? '' );
 	if ( '' !== $plugin_file ) {
 		if ( function_exists( 'tsootc_plugin_file_exists' ) && tsootc_plugin_file_exists( $plugin_file ) ) {
 			return false;
 		}
+		$inventory_for_detected = is_array( $inventory ) ? $inventory : array();
 		if ( function_exists( 'tsootc_detected_target_is_installed' ) && is_array( $detected )
-			&& tsootc_detected_target_is_installed( $detected, array() ) ) {
+			&& tsootc_detected_target_is_installed( $detected, $inventory_for_detected ) ) {
 			return false;
 		}
 		if ( false !== strpos( $plugin_file, '/' ) ) {
@@ -12739,9 +12750,11 @@ function tsootc_extra_table_is_confirmed_uninstalled_residue( array $table_item,
 		$without_prefix = substr( $table_name, strlen( $prefix ) );
 	}
 
-	$installed_plugins = function_exists( 'tsootc_get_installed_plugins' )
-		? tsootc_get_installed_plugins()
-		: array();
+	$installed_plugins = is_array( $inventory )
+		? $inventory
+		: ( function_exists( 'tsootc_get_installed_plugins' )
+			? tsootc_get_installed_plugins()
+			: array() );
 
 	if ( is_array( $detected ) && empty( $detected['file'] ) && ! empty( $detected['name'] ) ) {
 		$inferred = tsootc_infer_extra_table_status_from_prefix_map_label(
@@ -12849,7 +12862,7 @@ function tsootc_reconcile_extra_tables_with_history( array $tables, array $insta
             continue;
         }
 
-        if ( tsootc_extra_table_is_confirmed_uninstalled_residue( $table ) ) {
+        if ( tsootc_extra_table_is_confirmed_uninstalled_residue( $table, null, $installed_plugins ) ) {
             continue;
         }
 
@@ -12896,11 +12909,37 @@ function tsootc_reconcile_extra_tables_with_history( array $tables, array $insta
             }
         }
 
+        if ( ( ! is_array( $resolved ) || empty( $resolved['file'] ) )
+            && '' !== $table_name
+            && function_exists( 'tsootc_detect_table_with_confidence' ) ) {
+            $without_prefix = $table_name;
+            $prefix         = isset( $GLOBALS['wpdb']->prefix ) ? (string) $GLOBALS['wpdb']->prefix : 'wp_';
+            if ( '' !== $prefix && 0 === strpos( $table_name, $prefix ) ) {
+                $without_prefix = substr( $table_name, strlen( $prefix ) );
+            } elseif ( 0 === strpos( $table_name, 'wp_' ) ) {
+                $without_prefix = substr( $table_name, 3 );
+            }
+            $det_row = tsootc_detect_table_with_confidence( $without_prefix, $installed_plugins, $table_name );
+            if ( is_array( $det_row ) && ! empty( $det_row['file'] ) ) {
+                $resolved = $det_row;
+            }
+        }
+
         if ( ! is_array( $resolved ) || empty( $resolved['file'] ) ) {
             continue;
         }
 
-        if ( function_exists( 'tsootc_plugin_file_exists' ) && ! tsootc_plugin_file_exists( (string) $resolved['file'] ) ) {
+        $resolved_file = (string) $resolved['file'];
+        $in_inventory  = false;
+        foreach ( $installed_plugins as $pl ) {
+            if ( ! empty( $pl['file'] ) && (string) $pl['file'] === $resolved_file ) {
+                $in_inventory = true;
+                break;
+            }
+        }
+        if ( ! $in_inventory
+            && function_exists( 'tsootc_plugin_file_exists' )
+            && ! tsootc_plugin_file_exists( $resolved_file ) ) {
             continue;
         }
 
