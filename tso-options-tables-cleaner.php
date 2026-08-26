@@ -57,6 +57,10 @@ if ( ! defined( 'TSOOTC_NONCE_FORM_LEGACY' ) ) {
 	define( 'TSOOTC_NONCE_FORM_LEGACY', 'tso_options_tables_cleaner' );
 }
 
+if ( ! defined( 'TSOOTC_DETECTION_ENGINE_V2' ) ) {
+	define( 'TSOOTC_DETECTION_ENGINE_V2', true );
+}
+
 // Carregar els mòduls del plugin
 require_once TSOOTC_PATH . 'includes/tsootc-storage.php';
 require_once TSOOTC_PATH . 'includes/tso-maps.php';

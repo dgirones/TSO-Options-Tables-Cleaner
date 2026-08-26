@@ -29,7 +29,7 @@ function tsootc_detection_engine_v2_enabled() {
 	 *
 	 * @param bool $enabled Default false (Phase A).
 	 */
-	return (bool) apply_filters( 'tsootc_detection_engine_v2', false );
+	return (bool) apply_filters( 'tsootc_detection_engine_v2', true );
 }
 
 /**
@@ -564,4 +564,140 @@ function tsootc_detection_debug_diff_cascade_vs_v2( $option_name, array $install
 	}
 
 	return $result;
+}
+
+/**
+ * Reconcile option groups for owner-token coherence (outliers / mixed groups).
+ *
+ * @param array $grouped             Grouped options payload.
+ * @param array $installed_plugins   Inventory.
+ * @param array $args                Detection args (fast batch).
+ * @return array<string,array<string,mixed>>
+ */
+function tsootc_detection_reconcile_option_groups( array $grouped, array $installed_plugins = array(), $args = array() ) {
+	unset( $args, $installed_plugins );
+
+	foreach ( $grouped as $group_key => &$group_data ) {
+		if ( ! is_array( $group_data ) || empty( $group_data['items'] ) || ! is_array( $group_data['items'] ) ) {
+			continue;
+		}
+		if ( function_exists( 'tsootc_is_synthetic_options_group_key' )
+			&& tsootc_is_synthetic_options_group_key( (string) $group_key ) ) {
+			continue;
+		}
+
+		$items = $group_data['items'];
+		if ( count( $items ) < 3 ) {
+			continue;
+		}
+
+		$token_counts = array();
+		foreach ( $items as $opt ) {
+			$token = isset( $opt->tsootc_detect_owner_token ) ? (string) $opt->tsootc_detect_owner_token : '';
+			if ( '' === $token && function_exists( 'tsootc_audit_detection_owner_token' ) ) {
+				$token = tsootc_audit_detection_owner_token(
+					array(
+						'folder' => isset( $group_data['plugin_folder'] ) ? (string) $group_data['plugin_folder'] : '',
+						'name'   => isset( $group_data['detected_name'] ) ? (string) $group_data['detected_name'] : '',
+					)
+				);
+			}
+			if ( '' === $token ) {
+				continue;
+			}
+			if ( ! isset( $token_counts[ $token ] ) ) {
+				$token_counts[ $token ] = 0;
+			}
+			++$token_counts[ $token ];
+		}
+
+		if ( empty( $token_counts ) ) {
+			continue;
+		}
+
+		arsort( $token_counts );
+		$dominant_token  = (string) key( $token_counts );
+		$dominant_count  = (int) current( $token_counts );
+		$total           = count( $items );
+		$dominant_ratio  = $dominant_count / $total;
+
+		if ( $dominant_ratio < 0.6 ) {
+			$group_data['is_mixed_group'] = true;
+			continue;
+		}
+
+		$outliers = 0;
+		foreach ( $items as $opt ) {
+			$token = isset( $opt->tsootc_detect_owner_token ) ? (string) $opt->tsootc_detect_owner_token : '';
+			if ( '' === $token || $token === $dominant_token ) {
+				continue;
+			}
+			$opt->tsootc_detect_outlier    = true;
+			$opt->tsootc_detect_confidence = 'low';
+			++$outliers;
+		}
+
+		if ( $outliers > 0 ) {
+			$group_data['has_outliers'] = true;
+		}
+	}
+	unset( $group_data );
+
+	return $grouped;
+}
+
+/**
+ * Human-readable evidence summary for a detection row (audit / tooltips).
+ *
+ * @param array|null $detected Detection row.
+ * @param string     $lang     UI language.
+ * @return string
+ */
+function tsootc_detection_format_row_evidence_summary( $detected, $lang = 'ca' ) {
+	if ( empty( $detected ) || ! is_array( $detected ) ) {
+		return '';
+	}
+
+	$parts  = array();
+	$source = (string) ( $detected['source'] ?? '' );
+	if ( '' !== $source && function_exists( 'tsootc_detection_format_source_label' ) ) {
+		$parts[] = tsootc_detection_format_source_label( $source, $lang );
+	}
+	$confidence = (string) ( $detected['confidence'] ?? '' );
+	if ( '' !== $confidence ) {
+		$parts[] = $confidence;
+	}
+	$score = (int) ( $detected['confidence_score'] ?? 0 );
+	if ( $score > 0 ) {
+		$parts[] = (string) $score;
+	}
+
+	return implode( ' · ', array_filter( $parts ) );
+}
+
+/**
+ * Whether a grouped options payload has uncertain rows (filter helper).
+ *
+ * @param array $group_data Group bucket.
+ * @return bool
+ */
+function tsootc_detection_group_has_uncertain_items( array $group_data ) {
+	if ( empty( $group_data['items'] ) || ! is_array( $group_data['items'] ) ) {
+		return false;
+	}
+	if ( ! empty( $group_data['is_mixed_group'] ) || ! empty( $group_data['has_outliers'] ) ) {
+		return true;
+	}
+	foreach ( $group_data['items'] as $opt ) {
+		if ( ! empty( $opt->tsootc_detect_needs_confirm ) ) {
+			return true;
+		}
+		if ( isset( $opt->tsootc_detect_source ) && 'unconfirmed' === (string) $opt->tsootc_detect_source ) {
+			return true;
+		}
+		if ( ! empty( $opt->tsootc_detect_outlier ) ) {
+			return true;
+		}
+	}
+	return false;
 }
