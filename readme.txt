@@ -112,7 +112,7 @@ No external connections: This plugin does not make any HTTP requests to external
 * AJAX/admin: POST reads via storage helpers; retention_days isset preserved after helper migration
 * Tested up to WordPress 7.1; Plugin Check PHPCS on DROP TABLE queries
 
-= 1.2.6 =
+= 1.2.5 =
 * History Details: version, folder, bootstrap path, and automatic "replaces" hint when a recently deleted plugin shares the same option-prefix family
 * History: show mapped_on_delete for theme keys_mapped events; enrich older rows on display
 * Detection: shared prefixes (e.g. tsosk_) resolve to the currently installed plugin folder without manual aliases

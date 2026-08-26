@@ -1436,9 +1436,9 @@ function tsootc_codescan_maybe_warm_cache_deferred() {
 		return;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
-	if ( isset( $_GET['page'] ) && 'tso-options-tables-cleaner' === $_GET['page'] ) {
+	if ( isset( $_GET['page'] ) && 'tso-options-tables-cleaner' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'cleanup';
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'cleanup'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( 'options' === $tab ) {
 			return;
 		}

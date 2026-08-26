@@ -10849,7 +10849,7 @@ function tsootc_maybe_prune_stale_options_tab_cache_files() {
         return;
     }
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check.
-    if ( ! isset( $_GET['page'] ) || 'tso-options-tables-cleaner' !== $_GET['page'] ) {
+    if ( ! isset( $_GET['page'] ) || 'tso-options-tables-cleaner' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         return;
     }
     tsootc_prune_stale_options_tab_cache_files();
