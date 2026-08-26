@@ -73,6 +73,10 @@ $tsootc_detection_score_file = TSOOTC_PATH . 'includes/tso-detection-score.php';
 if ( is_readable( $tsootc_detection_score_file ) ) {
 	require_once $tsootc_detection_score_file;
 }
+$tsootc_detection_rules_file = TSOOTC_PATH . 'includes/tso-detection-rules.php';
+if ( is_readable( $tsootc_detection_rules_file ) ) {
+	require_once $tsootc_detection_rules_file;
+}
 $tsootc_detection_generators_file = TSOOTC_PATH . 'includes/tso-detection-generators.php';
 if ( is_readable( $tsootc_detection_generators_file ) ) {
 	require_once $tsootc_detection_generators_file;

@@ -234,6 +234,35 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'     => 'softaculous_hosting_engine_v2',
+			'type'   => 'resolve_v2',
+			'option' => 'softaculous_preferences',
+			'assert' => array(
+				'source'            => 'hosting',
+				'folder'            => '__hosting__',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'     => 'freemius_fs_accounts_engine_v2',
+			'type'   => 'resolve_v2',
+			'option' => 'fs_accounts',
+			'assert' => array(
+				'source'            => 'freemius',
+				'folder'            => '__freemius__',
+				'name_substring'    => 'Freemius',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'     => 'tml_version_engine_v2',
+			'type'   => 'resolve_v2',
+			'option' => '_tml_version',
+			'assert' => array(
+				'file_substring' => 'theme-my-login',
+			),
+		),
+		array(
 			'id'     => 'needs_confirm_weak_score',
 			'type'   => 'needs_confirm',
 			'row'    => array(

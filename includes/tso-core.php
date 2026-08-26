@@ -5409,6 +5409,15 @@ function tsootc_detect_plugin_with_history( $option_name, $installed_plugins = a
         $installed_plugins = tsootc_get_installed_plugins();
     }
 
+    if ( empty( $args['force_cascade'] )
+        && function_exists( 'tsootc_detection_engine_v2_enabled' )
+        && tsootc_detection_engine_v2_enabled()
+        && function_exists( 'tsootc_detection_resolve_option' ) ) {
+        $v2_args = is_array( $args ) ? $args : array();
+        $v2_args['force_v2'] = true;
+        return tsootc_detection_resolve_option( $option_name, $installed_plugins, $v2_args );
+    }
+
     if ( ! empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
         $cache_key = (string) $option_name . '|' . ( $fast ? 'f' : 's' );
         if ( isset( $GLOBALS['tsootc_opts_detect_cache'][ $cache_key ] ) ) {
