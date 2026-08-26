@@ -733,10 +733,6 @@ function tsootc_is_assignable_options_group_label( $label ) {
  */
 function tsootc_resolve_assignable_group_display_label( $group_key, $group_data = array(), array $plugins = array() ) {
     $group_key = (string) $group_key;
-    if ( is_array( $group_data ) && ! empty( $group_data['display_label'] ) ) {
-        $display = trim( (string) $group_data['display_label'] );
-        return tsootc_is_assignable_options_group_label( $display ) ? $display : '';
-    }
 
     if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
         && tsootc_detection_is_owner_token_group_key( $group_key ) ) {
@@ -746,6 +742,16 @@ function tsootc_resolve_assignable_group_display_label( $group_key, $group_data 
                 && tsootc_is_synthetic_shared_sdk_folder( $token ) ) ) {
             return '';
         }
+    }
+
+    if ( is_array( $group_data ) && ! empty( $group_data['display_label'] ) ) {
+        $display = trim( (string) $group_data['display_label'] );
+        return tsootc_is_assignable_options_group_label( $display ) ? $display : '';
+    }
+
+    if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
+        && tsootc_detection_is_owner_token_group_key( $group_key ) ) {
+        $token   = substr( $group_key, strlen( 'owner:' ) );
         $display = function_exists( 'tsootc_detection_resolve_owner_display_label' )
             ? (string) tsootc_detection_resolve_owner_display_label( $token, null, $plugins, '' )
             : '';
