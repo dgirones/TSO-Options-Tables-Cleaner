@@ -135,6 +135,29 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'generic_widget_detection_stays_in_widgets',
+			'type'      => 'widget_group',
+			'option'    => 'widget_example_plugin',
+			'inventory' => array(
+				array(
+					'name'   => 'Example Plugin',
+					'file'   => 'example-plugin/example-plugin.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'row'       => array(
+				'name'   => 'Example Plugin',
+				'file'   => 'example-plugin/example-plugin.php',
+				'folder' => 'example-plugin',
+				'active' => true,
+				'source' => 'autodetect',
+			),
+			'assert'    => array(
+				'uses_plugin_group' => false,
+			),
+		),
+		array(
 			'id'     => 'freemius_remains_deletable_by_admin',
 			'type'   => 'delete_blocked',
 			'option' => 'fs_accounts',
@@ -1233,6 +1256,17 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $blocked === $expect,
 			'message' => $blocked === $expect ? 'ok' : 'expected blocked=' . ( $expect ? 'true' : 'false' ),
+		);
+	}
+
+	if ( 'widget_group' === $type ) {
+		$row    = isset( $fixture['row'] ) && is_array( $fixture['row'] ) ? $fixture['row'] : null;
+		$uses   = tsootc_widget_uses_plugin_group( $option, $row, $inventory );
+		$expect = ! empty( $assert['uses_plugin_group'] );
+		return array(
+			'id'      => $id,
+			'pass'    => $uses === $expect,
+			'message' => $uses === $expect ? 'ok' : 'unexpected widget plugin grouping',
 		);
 	}
 

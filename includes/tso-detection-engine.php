@@ -349,6 +349,10 @@ function tsootc_detection_apply_structural_filters( array $candidates, $option_n
 			&& ! tsootc_option_key_matches_plugin_folder_evidence( $option_name, $folder ) ) {
 			$evidence_types = wp_list_pluck( (array) ( $candidate['evidence'] ?? array() ), 'type' );
 			$trusted_evidence = array( 'custom_map', 'option_key_map', 'theme_mods_exact', 'legacy_installed' );
+			if ( in_array( 'branded_rule', $evidence_types, true )
+				&& tsootc_detection_row_matches_inventory( $row, $installed_plugins ) ) {
+				$trusted_evidence[] = 'branded_rule';
+			}
 			if ( empty( array_intersect( $evidence_types, $trusted_evidence ) ) ) {
 				continue;
 			}
@@ -358,6 +362,28 @@ function tsootc_detection_apply_structural_filters( array $candidates, $option_n
 	}
 
 	return $filtered;
+}
+
+/**
+ * Whether a detection row points to a currently installed inventory entry.
+ *
+ * @param array $row       Detection row.
+ * @param array $inventory Installed plugin/theme inventory.
+ * @return bool
+ */
+function tsootc_detection_row_matches_inventory( array $row, array $inventory ) {
+	$file   = strtolower( str_replace( '\\', '/', (string) ( $row['file'] ?? '' ) ) );
+	$folder = strtolower( (string) ( $row['folder'] ?? '' ) );
+	foreach ( $inventory as $item ) {
+		$item_file = strtolower( str_replace( '\\', '/', (string) ( $item['file'] ?? '' ) ) );
+		if ( '' !== $file && $file === $item_file ) {
+			return true;
+		}
+		if ( '' !== $folder && '' !== $item_file && $folder === strtolower( dirname( $item_file ) ) ) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -807,8 +833,17 @@ function tsootc_detection_resolve_owner_display_label( $owner_token, $detected, 
 		}
 	}
 
-	if ( '__freemius__' === $token && function_exists( 'tsootc_get_freemius_group_label' ) ) {
-		return tsootc_get_freemius_group_label();
+	if ( '__freemius__' === $token ) {
+		return 'Freemius (Hosting web - No eliminar)';
+	}
+	if ( '__hosting__' === $token ) {
+		return 'Softaculous (Hosting web - No eliminar)';
+	}
+	if ( '__wp_toolkit__' === $token ) {
+		return 'WP Toolkit (Hosting web - No eliminar)';
+	}
+	if ( '__wordpress_core__' === $token ) {
+		return 'WordPress';
 	}
 
 	if ( is_array( $detected ) && ! empty( $detected['name'] ) ) {

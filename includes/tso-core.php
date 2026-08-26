@@ -9814,15 +9814,18 @@ function tsootc_is_wp_core_widget_option( $option_name ) {
  *
  * @param string     $option_name Option key.
  * @param array|null $detected    Detection row.
+ * @param array|null $inventory   Optional installed plugin inventory.
  * @return bool
  */
-function tsootc_widget_uses_plugin_group( $option_name, $detected ) {
+function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = null ) {
     $lower = strtolower( (string) $option_name );
     if ( 0 !== strpos( $lower, 'widget_' ) ) {
         return false;
     }
 
-    $installed = function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array();
+    $installed = is_array( $inventory )
+        ? $inventory
+        : ( function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array() );
 
     if ( function_exists( 'tsootc_get_widget_option_folder_hints' ) ) {
         $hints = tsootc_get_widget_option_folder_hints();
@@ -9836,6 +9839,10 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected ) {
         return false;
     }
     if ( 'unconfirmed' === (string) ( $detected['source'] ?? '' ) ) {
+        return false;
+    }
+    $source = (string) ( $detected['source'] ?? '' );
+    if ( ! in_array( $source, array( 'custom_map', 'option_key_map', 'widget_map', 'legacy_installed' ), true ) ) {
         return false;
     }
 
@@ -11886,7 +11893,7 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
         }
 
         $widget_plugin_group = function_exists( 'tsootc_widget_uses_plugin_group' )
-            && tsootc_widget_uses_plugin_group( $name, $detected );
+            && tsootc_widget_uses_plugin_group( $name, $detected, $plugins );
 
         $group_display_label = '';
 

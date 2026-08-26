@@ -99,7 +99,7 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * SweepPress d4p_* and Jetpack subscription/stats/sharing keys resolve to installed plugins
 * Widgets without an identified plugin are ordered directly above WordPress Core
 * Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
-* Detection regression expanded to 56 fixtures
+* Detection regression expanded to 57 fixtures
 
 = 1.2.8 =
 * wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
