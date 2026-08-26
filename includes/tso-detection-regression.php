@@ -751,6 +751,86 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'table_schema_fluentform_submissions',
+			'type'      => 'table_schema_signature',
+			'columns'   => array( 'id', 'form_id', 'serial_number', 'response', 'source_url', 'user_id', 'status', 'is_favourite', 'browser', 'device' ),
+			'inventory' => array(
+				array(
+					'name'   => 'Fluent Forms',
+					'file'   => 'fluentform/fluentform.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'fluentform',
+				'source'         => 'table_schema_signature',
+			),
+		),
+		array(
+			'id'        => 'table_schema_elementor_submissions',
+			'type'      => 'table_schema_signature',
+			'columns'   => array( 'id', 'type', 'hash_id', 'main_meta_id', 'post_id', 'element_id', 'form_name', 'user_id', 'user_ip', 'actions_count', 'status', 'is_read' ),
+			'inventory' => array(
+				array(
+					'name'   => 'Elementor Pro',
+					'file'   => 'elementor-pro/elementor-pro.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'elementor-pro',
+				'source'         => 'table_schema_signature',
+			),
+		),
+		array(
+			'id'        => 'table_schema_mailpoet_subscribers',
+			'type'      => 'table_schema_signature',
+			'columns'   => array( 'id', 'wp_user_id', 'first_name', 'last_name', 'email', 'status', 'subscribed_ip', 'created_at', 'updated_at' ),
+			'inventory' => array(
+				array(
+					'name'   => 'MailPoet',
+					'file'   => 'mailpoet/mailpoet.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'mailpoet',
+				'source'         => 'table_schema_signature',
+			),
+		),
+		array(
+			'id'    => 'table_candidates_summary_top_score',
+			'type'  => 'table_candidates_summary',
+			'table' => 'acme_jobs',
+			'full_table' => 'wp_acme_jobs',
+			'inventory' => array(
+				array(
+					'name'   => 'Acme Plugin',
+					'file'   => 'acme-plugin/acme.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'=> array(
+				'min_count' => 0,
+			),
+		),
+		array(
+			'id'     => 'history_trigger_activation_sanitized',
+			'type'   => 'history_trigger_sanitize',
+			'detail' => array(
+				'trigger'      => 'activation',
+				'tables'       => array( 'wp_acme_logs' ),
+				'tables_total' => 1,
+			),
+			'assert' => array(
+				'trigger' => 'activation',
+			),
+		),
+		array(
 			'id'     => 'table_needs_confirm_trusted_map',
 			'type'   => 'table_needs_confirm',
 			'row'    => array(
@@ -1608,6 +1688,37 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 		$columns = isset( $fixture['columns'] ) && is_array( $fixture['columns'] ) ? $fixture['columns'] : array();
 		$row     = tsootc_table_detection_resolve_schema_signature( $columns, $inventory );
 		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
+
+	if ( 'table_candidates_summary' === $type ) {
+		if ( ! function_exists( 'tsootc_table_detection_summarize_candidates' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_table_detection_summarize_candidates missing',
+			);
+		}
+		$table = (string) ( $fixture['table'] ?? '' );
+		$full  = (string) ( $fixture['full_table'] ?? ( 'wp_' . $table ) );
+		$list  = tsootc_table_detection_summarize_candidates( $table, $full, $inventory, 3 );
+		$min   = isset( $assert['min_count'] ) ? (int) $assert['min_count'] : 0;
+		$pass  = is_array( $list ) && count( $list ) >= $min;
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'candidate summary failed',
+		);
+	}
+
+	if ( 'history_trigger_sanitize' === $type ) {
+		$detail = isset( $fixture['detail'] ) && is_array( $fixture['detail'] ) ? $fixture['detail'] : array();
+		$san    = tsootc_history_sanitize_detail( $detail, 'plugin' );
+		$pass   = isset( $san['trigger'] ) && (string) $san['trigger'] === (string) ( $assert['trigger'] ?? '' );
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'history trigger was not sanitized',
+		);
 	}
 
 	if ( 'table_score' === $type ) {

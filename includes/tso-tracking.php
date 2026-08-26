@@ -595,6 +595,21 @@ function tsootc_remap_existing_tables_to_plugin_file( $plugin_file, $rebuild_cod
     if ( ! empty( $assigned_tables ) ) {
         tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
         tsootc_get_table_key_map( true );
+        if ( function_exists( 'tsootc_history_add_event' ) ) {
+            tsootc_history_add_event(
+                'plugin',
+                'tables_mapped',
+                function_exists( 'tsootc_history_get_plugin_name' )
+                    ? tsootc_history_get_plugin_name( $plugin_file )
+                    : $plugin_file,
+                $plugin_file,
+                array(
+                    'tables'       => $assigned_tables,
+                    'tables_total' => count( $assigned_tables ),
+                    'trigger'      => 'remap',
+                )
+            );
+        }
     }
 
     return array(
@@ -1052,6 +1067,7 @@ function tsootc_post_upgrade_map_tables( $upgrader, $options ) {
             array(
                 'tables'       => $tables_added,
                 'tables_total' => count( $new_tables ),
+                'trigger'      => (string) ( $options['action'] ?? 'install' ),
             )
         );
     }
@@ -1438,6 +1454,21 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
             )
             . '</strong></div>';
     }
+    if ( ! empty( $detail['trigger'] ) ) {
+        $trigger_labels = array(
+            'activation' => tsootc_ui_triple_text( $lang, 'Activació', 'Activación', 'Activation' ),
+            'install'    => tsootc_ui_triple_text( $lang, 'Instal·lació', 'Instalación', 'Install' ),
+            'update'     => tsootc_ui_triple_text( $lang, 'Actualització', 'Actualización', 'Update' ),
+            'remap'      => tsootc_ui_triple_text( $lang, 'Reassignació', 'Reasignación', 'Remap' ),
+            'family'     => tsootc_ui_triple_text( $lang, 'Família de taules', 'Familia de tablas', 'Table family' ),
+        );
+        $trigger_key = sanitize_key( (string) $detail['trigger'] );
+        if ( isset( $trigger_labels[ $trigger_key ] ) ) {
+            $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+                . esc_html( tsootc_ui_triple_text( $lang, 'Origen:', 'Origen:', 'Source:' ) )
+                . '</strong> ' . esc_html( $trigger_labels[ $trigger_key ] ) . '</div>';
+        }
+    }
 
     if ( isset( $detail['option_keys_total'] ) && (int) $detail['option_keys_total'] > 0 ) {
         $kt    = (int) $detail['option_keys_total'];
@@ -1591,6 +1622,12 @@ function tsootc_history_sanitize_detail( $detail, $type = '' ) {
     }
     if ( ! empty( $detail['mapped_on_delete'] ) ) {
         $out['mapped_on_delete'] = true;
+    }
+    if ( ! empty( $detail['trigger'] ) ) {
+        $trigger = sanitize_key( (string) $detail['trigger'] );
+        if ( in_array( $trigger, array( 'activation', 'install', 'update', 'remap', 'family' ), true ) ) {
+            $out['trigger'] = $trigger;
+        }
     }
 
     return $out;

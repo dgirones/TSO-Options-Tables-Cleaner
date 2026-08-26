@@ -976,8 +976,19 @@ function tsootc_get_table_prefix_map() {
         'newsletter'                => 'Newsletter',
         // ---- LayerSlider ----
         'layerslider'               => 'LayerSlider',
-        // ---- Elementor ----
+		// ---- Elementor ----
         'e_events'                  => 'Elementor',
+        'e_submissions'             => 'Elementor Pro',
+        'e_notes'                   => 'Elementor Pro',
+        // ---- Fluent Forms ----
+        'fluentform_'               => 'Fluent Forms',
+        'ff_'                       => 'Fluent Forms',
+        // ---- LearnDash ----
+        'learndash_'                => 'LearnDash LMS',
+        'sfwd_'                     => 'LearnDash LMS',
+        'ld_'                       => 'LearnDash LMS',
+        // ---- LiteSpeed Cache ----
+        'litespeed_'                => 'LiteSpeed Cache',
         // ---- Post Views Counter (slug: post-views-counter, dFactory) ----
         'post_views'                => 'Post Views Counter',
         // ---- Independent Analytics (slug: independent-analytics) ----

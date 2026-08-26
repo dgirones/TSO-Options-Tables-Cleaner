@@ -1836,6 +1836,38 @@ function tsootc_page() {
                         . esc_html( $detect_hint )
                         . '</span>';
                 }
+                $detect_candidates = isset( $t['detect_candidates'] ) && is_array( $t['detect_candidates'] )
+                    ? $t['detect_candidates']
+                    : array();
+                $show_candidates = ! empty( $detect_candidates )
+                    && (
+                        $needs_confirm
+                        || in_array( (string) ( $t['status_key'] ?? '' ), array( 'unknown', 'orphan_candidate' ), true )
+                        || 'unconfirmed' === $detect_source
+                        || count( $detect_candidates ) > 1
+                    );
+                if ( $show_candidates ) {
+                    $cand_bits = array();
+                    foreach ( array_slice( $detect_candidates, 0, 3 ) as $cand ) {
+                        if ( ! is_array( $cand ) || '' === (string) ( $cand['name'] ?? '' ) ) {
+                            continue;
+                        }
+                        $src_lab = function_exists( 'tsootc_detection_format_source_label' )
+                            ? tsootc_detection_format_source_label( (string) ( $cand['source'] ?? '' ), $lang )
+                            : (string) ( $cand['source'] ?? '' );
+                        $cand_bits[] = esc_html( (string) $cand['name'] )
+                            . ' <span style="color:#888">('
+                            . esc_html( $src_lab )
+                            . ( isset( $cand['score'] ) ? ' · ' . (int) $cand['score'] : '' )
+                            . ')</span>';
+                    }
+                    if ( ! empty( $cand_bits ) ) {
+                        echo '<span class="tso-table-muted">'
+                            . esc_html( tsootc_ui_triple_text( $lang, 'Candidats: ', 'Candidatos: ', 'Candidates: ' ) )
+                            . implode( ' · ', $cand_bits ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pieces escaped above
+                            . '</span>';
+                    }
+                }
                 echo '</td>';
                 echo '<td data-label="' . esc_attr( $xt_td_lab_status ) . '">' . $status_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 echo '<td style="text-align:right" data-label="' . esc_attr( $xt_td_lab_size ) . '"><span class="tso-size-chip" style="color:' . esc_attr( $color ) . '">' . number_format( $t['kb'] ) . ' KB</span><span class="tso-table-muted">' . esc_html( $xt_td_lab_frag . ': ' . $size_sub ) . '</span></td>';

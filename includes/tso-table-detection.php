@@ -519,6 +519,46 @@ function tsootc_table_detection_schema_signatures() {
 			'folder'   => 'seo-by-rank-math',
 			'label'    => 'Rank Math SEO',
 		),
+		'learnpress_orders' => array(
+			'required' => array( 'order_id', 'user_id', 'order_key', 'order_total', 'order_currency', 'order_status', 'order_date', 'order_data' ),
+			'folder'   => 'learnpress',
+			'label'    => 'LearnPress',
+		),
+		'fluentform_submissions' => array(
+			'required' => array( 'id', 'form_id', 'serial_number', 'response', 'source_url', 'user_id', 'status', 'is_favourite', 'browser', 'device' ),
+			'folder'   => 'fluentform',
+			'label'    => 'Fluent Forms',
+		),
+		'elementor_submissions' => array(
+			'required' => array( 'id', 'type', 'hash_id', 'main_meta_id', 'post_id', 'element_id', 'form_name', 'user_id', 'user_ip', 'actions_count', 'status', 'is_read' ),
+			'folder'   => 'elementor-pro',
+			'label'    => 'Elementor Pro',
+		),
+		'wordfence_hits' => array(
+			'required' => array( 'id', 'attackLogTime', 'ctime', 'IP', 'statusCode', 'isGoogle', 'userID', 'newVisit', 'URL', 'referer', 'UA' ),
+			'folder'   => 'wordfence',
+			'label'    => 'Wordfence Security',
+		),
+		'mailpoet_subscribers' => array(
+			'required' => array( 'id', 'wp_user_id', 'first_name', 'last_name', 'email', 'status', 'subscribed_ip', 'created_at', 'updated_at' ),
+			'folder'   => 'mailpoet',
+			'label'    => 'MailPoet',
+		),
+		'give_donors' => array(
+			'required' => array( 'id', 'user_id', 'email', 'name', 'purchase_value', 'purchase_count', 'payment_ids', 'date_created' ),
+			'folder'   => 'give',
+			'label'    => 'GiveWP',
+		),
+		'buddypress_activity' => array(
+			'required' => array( 'id', 'user_id', 'component', 'type', 'action', 'content', 'primary_link', 'item_id', 'date_recorded', 'hide_sitewide', 'is_spam' ),
+			'folder'   => 'buddypress',
+			'label'    => 'BuddyPress',
+		),
+		'formidable_items' => array(
+			'required' => array( 'id', 'item_key', 'name', 'form_id', 'post_id', 'user_id', 'is_draft', 'created_at', 'updated_at' ),
+			'folder'   => 'formidable',
+			'label'    => 'Formidable Forms',
+		),
 	);
 }
 
@@ -1099,6 +1139,116 @@ function tsootc_table_detection_pick_scored_winner( $table_without_prefix, $full
 
 	$best_row['confidence_score'] = $best_score;
 	return $best_row;
+}
+
+/**
+ * Summarize top scored candidates for Extra Tables diagnostics UI.
+ *
+ * @param string $table_without_prefix Table without site prefix.
+ * @param string $full_table_name      Full table name.
+ * @param array  $installed_plugins    Inventory.
+ * @param int    $limit                Max candidates to return.
+ * @return array<int,array{name:string,file:string,source:string,score:int}>
+ */
+function tsootc_table_detection_summarize_candidates(
+	$table_without_prefix,
+	$full_table_name,
+	array $installed_plugins = array(),
+	$limit = 3
+) {
+	$limit      = max( 1, min( 5, (int) $limit ) );
+	$candidates = tsootc_table_detection_collect_scored_candidates( $table_without_prefix, $full_table_name, $installed_plugins );
+	$candidates = tsootc_table_detection_merge_scored_candidates_by_owner( $candidates );
+	usort(
+		$candidates,
+		static function( $a, $b ) {
+			$score_cmp = (int) ( $b['score'] ?? 0 ) <=> (int) ( $a['score'] ?? 0 );
+			if ( 0 !== $score_cmp ) {
+				return $score_cmp;
+			}
+			$pa = tsootc_table_detection_source_priority( (string) ( $a['row']['source'] ?? '' ) );
+			$pb = tsootc_table_detection_source_priority( (string) ( $b['row']['source'] ?? '' ) );
+			return $pb <=> $pa;
+		}
+	);
+
+	$out = array();
+	foreach ( array_slice( $candidates, 0, $limit ) as $candidate ) {
+		$row = is_array( $candidate['row'] ?? null ) ? $candidate['row'] : array();
+		$name = (string) ( $row['name'] ?? '' );
+		if ( '' === $name ) {
+			continue;
+		}
+		$out[] = array(
+			'name'   => $name,
+			'file'   => (string) ( $row['file'] ?? '' ),
+			'source' => (string) ( $row['source'] ?? '' ),
+			'score'  => (int) ( $candidate['score'] ?? 0 ),
+		);
+	}
+	return $out;
+}
+
+/**
+ * Persist sibling-propagated owners into the automatic table map.
+ *
+ * @param array<int,array<string,mixed>> $tables Extra table rows after propagation.
+ * @return int Number of newly mapped tables.
+ */
+function tsootc_table_detection_persist_propagated_siblings( array $tables ) {
+	if ( empty( $tables ) || ! function_exists( 'tsootc_get_table_key_map' ) ) {
+		return 0;
+	}
+
+	$map       = tsootc_get_table_key_map();
+	$added     = 0;
+	$by_file   = array();
+	foreach ( $tables as $table ) {
+		if ( ! is_array( $table ) ) {
+			continue;
+		}
+		if ( (string) ( $table['detect_source'] ?? '' ) !== 'table_family_map' ) {
+			continue;
+		}
+		$full = (string) ( $table['name'] ?? '' );
+		$file = (string) ( $table['plugin_file'] ?? '' );
+		if ( '' === $full || '' === $file || false === strpos( $file, '/' ) ) {
+			continue;
+		}
+		if ( isset( $map[ $full ] ) ) {
+			continue;
+		}
+		$map[ $full ] = $file;
+		++$added;
+		if ( ! isset( $by_file[ $file ] ) ) {
+			$by_file[ $file ] = array();
+		}
+		$by_file[ $file ][] = $full;
+	}
+
+	if ( $added > 0 ) {
+		tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $map, false );
+		tsootc_get_table_key_map( true );
+		if ( function_exists( 'tsootc_history_add_event' ) ) {
+			foreach ( $by_file as $file => $mapped_tables ) {
+				tsootc_history_add_event(
+					'plugin',
+					'tables_mapped',
+					function_exists( 'tsootc_history_get_plugin_name' )
+						? tsootc_history_get_plugin_name( $file )
+						: $file,
+					$file,
+					array(
+						'tables'       => $mapped_tables,
+						'tables_total' => count( $mapped_tables ),
+						'trigger'      => 'family',
+					)
+				);
+			}
+		}
+	}
+
+	return $added;
 }
 
 /**

@@ -99,10 +99,14 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * SweepPress d4p_* and Jetpack subscription/stats/sharing keys resolve to installed plugins
 * Widgets without an identified plugin are ordered directly above WordPress Core
 * Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
-* Detection regression expanded to 74 fixtures
+* Detection regression expanded to 79 fixtures
 * Extra tables: activation snapshots map newly created tables to the activating plugin
 * Extra tables: codescan sibling families and confirmed-sibling propagation reduce unknowns
-* Extra tables: schema signatures for WPForms, Gravity Forms and Rank Math SEO
+* Extra tables: schema signatures for WPForms, Gravity Forms, Rank Math SEO, LearnPress, Fluent Forms, Elementor Pro, Wordfence, MailPoet, GiveWP, BuddyPress and Formidable
+* Extra tables: uncertain rows show top detection candidates with source and score
+* Extra tables: sibling propagation persists into the table map and records history (family trigger)
+* History: tables_mapped events show activation / install / update / remap / family source
+* Extra tables: prefix map + folder hints for Fluent Forms, LearnDash, Elementor Pro and LiteSpeed Cache
 * Storage: duplicate transient invalidations are collapsed within each request
 * Extra tables: candidates are merged by plugin before margin checks; codescan recognizes prefix aliases and sprintf table names
 * Extra tables: confirmed sibling families can identify related tables; combined evidence is shown in the UI

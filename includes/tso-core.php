@@ -5624,6 +5624,25 @@ function tsootc_get_table_prefix_slug_hints() {
         'meow_'                   => array( 'media-file-renamer', 'media-file-renamer-pro', 'meow-gallery', 'meow-lightbox' ),
         'cleantalk_'              => 'cleantalk-spam-protect',
         'cleantalk'               => 'cleantalk-spam-protect',
+        'fluentform_'             => 'fluentform',
+        'ff_'                     => 'fluentform',
+        'learndash_'              => 'sfwd-lms',
+        'sfwd_'                   => 'sfwd-lms',
+        'ld_'                     => 'sfwd-lms',
+        'e_submissions'           => 'elementor-pro',
+        'e_notes'                 => 'elementor-pro',
+        'litespeed_'              => 'litespeed-cache',
+        'rank_math_'              => 'seo-by-rank-math',
+        'wpforms_'                => 'wpforms',
+        'gf_'                     => 'gravityforms',
+        'rg_'                     => 'gravityforms',
+        'mailpoet_'               => 'mailpoet',
+        'give_'                   => 'give',
+        'nf3_'                    => 'ninja-forms',
+        'frm_'                    => 'formidable',
+        'icl_'                    => 'sitepress-multilingual-cms',
+        'redirection_'            => 'redirection',
+        'wf'                      => 'wordfence',
     );
 }
 
@@ -12789,8 +12808,24 @@ function tsootc_get_orphan_tables() {
             'confidence_score'   => $detect_score,
             'detect_needs_confirm' => $detect_needs_confirm,
             'detect_hint'        => $detect_hint,
+            'detect_candidates'  => array(),
             'is_custom'          => $is_custom_table,
         );
+        if (
+            function_exists( 'tsootc_table_detection_summarize_candidates' )
+            && (
+                $detect_needs_confirm
+                || 'unconfirmed' === (string) ( is_array( $detected ) ? ( $detected['source'] ?? '' ) : '' )
+                || in_array( $status_key, array( 'unknown', 'orphan_candidate' ), true )
+            )
+        ) {
+            $table_item['detect_candidates'] = tsootc_table_detection_summarize_candidates(
+                $name_without_prefix,
+                $table,
+                $installed_plugins,
+                3
+            );
+        }
         $table_item['usage_estimate'] = tsootc_get_extra_table_usage_estimate( $table_item );
 
         /*
@@ -12822,6 +12857,9 @@ function tsootc_get_orphan_tables() {
 
     if ( function_exists( 'tsootc_table_detection_propagate_confirmed_siblings' ) ) {
         $result = tsootc_table_detection_propagate_confirmed_siblings( $result, $installed_plugins );
+        if ( function_exists( 'tsootc_table_detection_persist_propagated_siblings' ) ) {
+            tsootc_table_detection_persist_propagated_siblings( $result );
+        }
     }
 
     $result = tsootc_reconcile_extra_tables_with_history( $result, $installed_plugins );
