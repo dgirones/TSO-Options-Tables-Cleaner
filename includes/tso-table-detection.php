@@ -441,6 +441,85 @@ function tsootc_table_detection_collect_scored_candidates( $table_without_prefix
 }
 
 /**
+ * Stable owner token for an extra-table detection row.
+ *
+ * @param array $row Detection row.
+ * @return string
+ */
+function tsootc_table_detection_owner_token( array $row ) {
+	$folder = strtolower( (string) ( $row['folder'] ?? '' ) );
+	if ( '' !== $folder ) {
+		return $folder;
+	}
+
+	$file = strtolower( str_replace( '\\', '/', (string) ( $row['file'] ?? '' ) ) );
+	if ( '' !== $file ) {
+		if ( ! empty( $row['type'] ) && 'theme' === $row['type'] && false === strpos( $file, '/' ) ) {
+			return 'theme:' . sanitize_title( $file );
+		}
+		return false !== strpos( $file, '/' ) ? dirname( $file ) : $file;
+	}
+
+	$name = strtolower( trim( (string) ( $row['name'] ?? '' ) ) );
+	return '' !== $name ? 'name:' . $name : '';
+}
+
+/**
+ * Merge scored candidates by owner before applying the winner margin.
+ *
+ * Independent sources for one plugin are evidence for the same candidate; they
+ * must not become first and second place and incorrectly force Unconfirmed.
+ *
+ * @param array<int,array{score:int,row:array}> $candidates Scored candidates.
+ * @return array<int,array{score:int,row:array}>
+ */
+function tsootc_table_detection_merge_scored_candidates_by_owner( array $candidates ) {
+	$merged = array();
+	foreach ( $candidates as $index => $candidate ) {
+		if ( ! is_array( $candidate ) || ! is_array( $candidate['row'] ?? null ) ) {
+			continue;
+		}
+
+		$row   = $candidate['row'];
+		$token = tsootc_table_detection_owner_token( $row );
+		$key   = '' !== $token ? $token : '__candidate_' . (string) $index;
+		$source = (string) ( $row['source'] ?? '' );
+
+		if ( ! isset( $merged[ $key ] ) ) {
+			$candidate['owner_token']     = $token;
+			$candidate['evidence_sources'] = '' !== $source ? array( $source ) : array();
+			$merged[ $key ]               = $candidate;
+			continue;
+		}
+
+		if ( '' !== $source && ! in_array( $source, $merged[ $key ]['evidence_sources'], true ) ) {
+			$merged[ $key ]['evidence_sources'][] = $source;
+		}
+
+		$current_score    = (int) ( $merged[ $key ]['score'] ?? 0 );
+		$new_score        = (int) ( $candidate['score'] ?? 0 );
+		$current_source   = (string) ( $merged[ $key ]['row']['source'] ?? '' );
+		$current_priority = tsootc_table_detection_source_priority( $current_source );
+		$new_priority     = tsootc_table_detection_source_priority( $source );
+
+		if ( $new_score > $current_score
+			|| ( $new_score === $current_score && $new_priority > $current_priority ) ) {
+			$merged[ $key ]['row']   = $row;
+			$merged[ $key ]['score'] = $new_score;
+		}
+	}
+
+	foreach ( $merged as &$candidate ) {
+		if ( ! empty( $candidate['evidence_sources'] ) ) {
+			$candidate['row']['evidence_sources'] = $candidate['evidence_sources'];
+		}
+	}
+	unset( $candidate );
+
+	return array_values( $merged );
+}
+
+/**
  * Pick the highest-scoring table candidate above threshold.
  *
  * @param string $table_without_prefix Table without site prefix.
@@ -453,7 +532,10 @@ function tsootc_table_detection_pick_scored_winner( $table_without_prefix, $full
 	$best_score = 0;
 	$second     = 0;
 
-	foreach ( tsootc_table_detection_collect_scored_candidates( $table_without_prefix, $full_table_name, $installed_plugins ) as $candidate ) {
+	$candidates = tsootc_table_detection_collect_scored_candidates( $table_without_prefix, $full_table_name, $installed_plugins );
+	$candidates = tsootc_table_detection_merge_scored_candidates_by_owner( $candidates );
+
+	foreach ( $candidates as $candidate ) {
 		$score = (int) ( $candidate['score'] ?? 0 );
 		if ( $score > $best_score ) {
 			$second     = $best_score;

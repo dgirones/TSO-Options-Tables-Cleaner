@@ -1529,6 +1529,45 @@ function tsootc_codescan_extract_table_literals( $source ) {
 		}
 	}
 
+	// Follow simple aliases such as $table_prefix_local = $wpdb->prefix.
+	if ( preg_match_all(
+		'/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*\$wpdb->(?:prefix|base_prefix)\s*;/i',
+		$source,
+		$alias_matches
+	) ) {
+		foreach ( array_unique( $alias_matches[1] ) as $alias ) {
+			$quoted_alias = preg_quote( (string) $alias, '/' );
+			$alias_patterns = array(
+				'/\$' . $quoted_alias . '\s*\.\s*[\'"]([a-zA-Z0-9_]+)[\'"]/i',
+				'/\{\$' . $quoted_alias . '\}([a-zA-Z0-9_]+)/i',
+			);
+			foreach ( $alias_patterns as $pattern ) {
+				if ( preg_match_all( $pattern, $source, $matches, PREG_SET_ORDER ) ) {
+					foreach ( $matches as $match ) {
+						if ( ! empty( $match[1] ) ) {
+							$found[ strtolower( $match[1] ) ] = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Common sprintf() forms used by migration and schema classes.
+	$sprintf_patterns = array(
+		'/sprintf\s*\(\s*[\'"]%s([a-zA-Z0-9_]+)[\'"]\s*,\s*\$wpdb->(?:prefix|base_prefix)\s*\)/i',
+		'/sprintf\s*\(\s*[\'"]%s%s[\'"]\s*,\s*\$wpdb->(?:prefix|base_prefix)\s*,\s*[\'"]([a-zA-Z0-9_]+)[\'"]\s*\)/i',
+	);
+	foreach ( $sprintf_patterns as $pattern ) {
+		if ( preg_match_all( $pattern, $source, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				if ( ! empty( $match[1] ) ) {
+					$found[ strtolower( $match[1] ) ] = true;
+				}
+			}
+		}
+	}
+
 	if ( '' !== $db_prefix ) {
 		$quoted_prefix = preg_quote( $db_prefix, '/' );
 		$full_patterns = array(

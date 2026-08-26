@@ -298,6 +298,14 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'     => 'codescan_table_literals_alias_and_sprintf',
+			'type'   => 'codescan_table_literals',
+			'source' => '<?php $schema_prefix = $wpdb->prefix; $a = $schema_prefix . "acme_logs"; $b = sprintf( "%sacme_events", $wpdb->prefix ); $c = sprintf( "%s%s", $wpdb->base_prefix, "acme_network" );',
+			'assert' => array(
+				'contains' => array( 'acme_logs', 'acme_events', 'acme_network' ),
+			),
+		),
+		array(
 			'id'     => 'reserved_unconfirmed_label',
 			'type'   => 'reserved_label',
 			'label'  => 'Sense confirmar',
@@ -492,6 +500,41 @@ function tsootc_detection_regression_fixtures() {
 			),
 			'assert' => array(
 				'min_score' => 35,
+			),
+		),
+		array(
+			'id'         => 'table_merge_same_owner_before_margin',
+			'type'       => 'table_candidate_merge',
+			'candidates' => array(
+				array(
+					'score' => 75,
+					'row'   => array(
+						'name'   => 'Example Plugin',
+						'file'   => 'example-plugin/example.php',
+						'source' => 'codescan',
+					),
+				),
+				array(
+					'score' => 72,
+					'row'   => array(
+						'name'   => 'Example Plugin',
+						'file'   => 'example-plugin/example.php',
+						'source' => 'history',
+					),
+				),
+				array(
+					'score' => 40,
+					'row'   => array(
+						'name'   => 'Other Plugin',
+						'file'   => 'other-plugin/other.php',
+						'source' => 'table_slug',
+					),
+				),
+			),
+			'assert'     => array(
+				'count'            => 2,
+				'first_score'      => 75,
+				'evidence_sources' => array( 'codescan', 'history' ),
 			),
 		),
 		array(
@@ -860,6 +903,32 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 		);
 	}
 
+	if ( 'codescan_table_literals' === $type ) {
+		if ( ! function_exists( 'tsootc_codescan_extract_table_literals' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_codescan_extract_table_literals missing',
+			);
+		}
+		$found    = tsootc_codescan_extract_table_literals( (string) ( $fixture['source'] ?? '' ) );
+		$expected = isset( $assert['contains'] ) && is_array( $assert['contains'] ) ? $assert['contains'] : array();
+		foreach ( $expected as $table_suffix ) {
+			if ( ! in_array( $table_suffix, $found, true ) ) {
+				return array(
+					'id'      => $id,
+					'pass'    => false,
+					'message' => 'missing table literal: ' . (string) $table_suffix,
+				);
+			}
+		}
+		return array(
+			'id'      => $id,
+			'pass'    => true,
+			'message' => 'ok',
+		);
+	}
+
 	if ( 'reserved_label' === $type ) {
 		if ( ! function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' ) ) {
 			return array(
@@ -1176,6 +1245,41 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $unreliable === $expect,
 			'message' => $unreliable === $expect ? 'ok' : 'expected unreliable=' . ( $expect ? 'true' : 'false' ) . ' got=' . ( $unreliable ? 'true' : 'false' ),
+		);
+	}
+
+	if ( 'table_candidate_merge' === $type ) {
+		$candidates = isset( $fixture['candidates'] ) && is_array( $fixture['candidates'] ) ? $fixture['candidates'] : array();
+		$merged     = tsootc_table_detection_merge_scored_candidates_by_owner( $candidates );
+		$expected_count = isset( $assert['count'] ) ? (int) $assert['count'] : 0;
+		if ( count( $merged ) !== $expected_count ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'expected merged count=' . $expected_count . ' got=' . count( $merged ),
+			);
+		}
+		$first = $merged[0] ?? array();
+		if ( isset( $assert['first_score'] ) && (int) ( $first['score'] ?? 0 ) !== (int) $assert['first_score'] ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'unexpected merged top score',
+			);
+		}
+		$expected_sources = isset( $assert['evidence_sources'] ) && is_array( $assert['evidence_sources'] )
+			? $assert['evidence_sources']
+			: array();
+		$actual_sources = isset( $first['evidence_sources'] ) && is_array( $first['evidence_sources'] )
+			? $first['evidence_sources']
+			: array();
+		sort( $expected_sources );
+		sort( $actual_sources );
+		$pass = $expected_sources === $actual_sources;
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'merged evidence sources mismatch',
 		);
 	}
 

@@ -38,28 +38,6 @@ $wpdb = (object) array(
 	'options' => 'wp_options',
 );
 
-// Codescan stubs (avoid wp-admin includes during CLI regression).
-if ( ! function_exists( 'tsootc_codescan_lookup_option_from_cache' ) ) {
-	function tsootc_codescan_lookup_option_from_cache( $option_name, array $installed_plugins = array() ) {
-		return null;
-	}
-}
-if ( ! function_exists( 'tsootc_codescan_allowed_during_request' ) ) {
-	function tsootc_codescan_allowed_during_request() {
-		return false;
-	}
-}
-if ( ! function_exists( 'tsootc_codescan_detect_option' ) ) {
-	function tsootc_codescan_detect_option( $option_name, array $installed_plugins = array() ) {
-		return null;
-	}
-}
-if ( ! function_exists( 'tsootc_codescan_is_generic_option_prefix' ) ) {
-	function tsootc_codescan_is_generic_option_prefix( $prefix ) {
-		$generic = array( 'widget', 'theme', 'cron', 'site', 'blog' );
-		return in_array( strtolower( (string) $prefix ), $generic, true );
-	}
-}
 if ( ! function_exists( 'plugin_dir_path' ) ) {
 	function plugin_dir_path( $file ) {
 		return trailingslashit( dirname( $file ) );
@@ -124,6 +102,11 @@ if ( ! function_exists( 'wp_parse_args' ) ) {
 if ( ! function_exists( 'get_current_user_id' ) ) {
 	function get_current_user_id() {
 		return 0;
+	}
+}
+if ( ! function_exists( 'get_current_blog_id' ) ) {
+	function get_current_blog_id() {
+		return 1;
 	}
 }
 if ( ! function_exists( 'get_user_meta' ) ) {
@@ -293,6 +276,7 @@ if ( ! function_exists( 'is_dir' ) ) {
 require_once TSOOTC_PATH . 'includes/tsootc-storage.php';
 require_once TSOOTC_PATH . 'includes/tso-maps.php';
 require_once TSOOTC_PATH . 'includes/tso-core.php';
+require_once TSOOTC_PATH . 'includes/tso-code-scan.php';
 require_once TSOOTC_PATH . 'includes/tso-autodetect.php';
 require_once TSOOTC_PATH . 'includes/tso-tracking.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-score.php';
@@ -301,6 +285,10 @@ require_once TSOOTC_PATH . 'includes/tso-detection-rules.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-generators.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-engine.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-regression.php';
+
+if ( function_exists( 'tsootc_detection_codescan_grep_allowed' ) ) {
+	tsootc_detection_codescan_grep_allowed( false );
+}
 
 if ( ! function_exists( 'tsootc_detection_regression_run' ) ) {
 	fwrite( STDERR, "Regression runner not available.\n" );
