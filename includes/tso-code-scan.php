@@ -82,6 +82,23 @@ function tsootc_codescan_flush_cache() {
 }
 
 /**
+ * Clear only the table code-scan cache.
+ *
+ * @return void
+ */
+function tsootc_codescan_flush_table_cache() {
+	tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_CODESCAN_TABLE_INDEX );
+	tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_CODESCAN_TABLE_INDEX_SIG );
+
+	$path = function_exists( 'tsootc_codescan_table_index_file_path' )
+		? tsootc_codescan_table_index_file_path()
+		: '';
+	if ( '' !== $path && is_file( $path ) ) {
+		wp_delete_file( $path );
+	}
+}
+
+/**
  * Whether code-scan (index build / grep) may run in this request.
  *
  * Disabled during bulk wp_options tab detection to avoid 60–120s page loads.

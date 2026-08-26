@@ -139,6 +139,10 @@ function tsootc_detection_regression_fixtures() {
 			'type' => 'transient_delete_dedupe',
 		),
 		array(
+			'id'   => 'codescan_table_flush_is_scoped',
+			'type' => 'codescan_table_flush_scoped',
+		),
+		array(
 			'id'        => 'generic_widget_detection_stays_in_widgets',
 			'type'      => 'widget_group',
 			'option'    => 'widget_example_plugin',
@@ -1541,6 +1545,39 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $pass,
 			'message' => $pass ? 'ok' : 'transient dual-delete calls were not deduplicated',
+		);
+	}
+
+	if ( 'codescan_table_flush_scoped' === $type ) {
+		$option_legacy = 'tso_codescan_option_index';
+		$table_legacy  = 'tso_codescan_table_index';
+		$table_sig_legacy = 'tso_codescan_table_index_sig';
+		$keys = array(
+			$option_legacy,
+			tsootc_resolve_stored_transient_key( $option_legacy ),
+			$table_legacy,
+			tsootc_resolve_stored_transient_key( $table_legacy ),
+			$table_sig_legacy,
+			tsootc_resolve_stored_transient_key( $table_sig_legacy ),
+		);
+		tsootc_set_stored_transient( $option_legacy, 'option', 60 );
+		tsootc_set_stored_transient( $table_legacy, 'table', 60 );
+		tsootc_set_stored_transient( $table_sig_legacy, 'sig', 60 );
+		foreach ( $keys as $key ) {
+			$GLOBALS['tsootc_regression_delete_transient_calls'][ $key ] = 0;
+		}
+
+		tsootc_codescan_flush_table_cache();
+		$pass = 0 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $option_legacy ]
+			&& 0 === $GLOBALS['tsootc_regression_delete_transient_calls'][ tsootc_resolve_stored_transient_key( $option_legacy ) ]
+			&& 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $table_legacy ]
+			&& 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ tsootc_resolve_stored_transient_key( $table_legacy ) ]
+			&& 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $table_sig_legacy ]
+			&& 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ tsootc_resolve_stored_transient_key( $table_sig_legacy ) ];
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'table cache flush touched option cache or repeated deletes',
 		);
 	}
 

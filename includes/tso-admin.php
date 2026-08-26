@@ -1440,6 +1440,35 @@ function tsootc_page() {
             tsootc_admin_inject_assign_groups_script( $tso_assign_group_names );
         }
 
+        $table_refresh_url = wp_nonce_url(
+            add_query_arg(
+                array(
+                    'page' => 'tso-options-tables-cleaner',
+                    'tab'  => 'tables',
+                    TSOOTC_ADMIN_QUERY_REFRESH => '1',
+                ),
+                admin_url( 'tools.php' )
+            ),
+            TSOOTC_NONCE_FORM
+        );
+        $table_refresh_value = tsootc_get_admin_query_arg( TSOOTC_ADMIN_QUERY_REFRESH, TSOOTC_ADMIN_QUERY_REFRESH_LEGACY );
+        $table_deep_scan_done = false;
+        $table_deep_scan_count = 0;
+        if ( '1' === sanitize_key( $table_refresh_value )
+            && current_user_can( 'manage_options' )
+            && tsootc_verify_admin_form_nonce() ) {
+            if ( function_exists( 'tsootc_codescan_flush_table_cache' ) ) {
+                tsootc_codescan_flush_table_cache();
+            }
+            if ( function_exists( 'tsootc_codescan_get_table_index' ) ) {
+                $deep_table_index = tsootc_codescan_get_table_index( true );
+                $table_deep_scan_count = isset( $deep_table_index['exact'] ) && is_array( $deep_table_index['exact'] )
+                    ? count( $deep_table_index['exact'] )
+                    : 0;
+                $table_deep_scan_done = true;
+            }
+        }
+
         if ( function_exists( 'tsootc_codescan_warm_cache' ) ) {
             tsootc_codescan_warm_cache();
         }
@@ -1582,6 +1611,29 @@ function tsootc_page() {
             'Por defecto todo está bloqueado. Si la activas, podrás eliminar cualquier tabla extra de esta lista (con confirmación y backup automático). Desactívala cuando termines.',
             'Everything is locked by default. When enabled, you can delete any extra table in this list (with confirmation and automatic backup). Turn it off when you finish.'
         );
+
+        $table_deep_scan_text = $table_deep_scan_done
+            ? sprintf(
+                tsootc_ui_triple_text(
+                    $lang,
+                    'Escaneig profund completat: %d signatures de taula indexades.',
+                    'Escaneo profundo completado: %d firmas de tabla indexadas.',
+                    'Deep scan completed: %d table signatures indexed.'
+                ),
+                $table_deep_scan_count
+            )
+            : tsootc_ui_triple_text(
+                $lang,
+                'Escaneja en profunditat les migracions i esquemes dels plugins instal·lats per identificar més taules desconegudes.',
+                'Escanea en profundidad las migraciones y esquemas de los plugins instalados para identificar más tablas desconocidas.',
+                'Deep-scan installed plugin migrations and schemas to identify more unknown tables.'
+            );
+        echo '<div class="notice notice-info" style="margin:12px 0 16px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">';
+        echo '<span>' . esc_html( $table_deep_scan_text ) . '</span>';
+        echo '<a class="button button-secondary" href="' . esc_url( $table_refresh_url ) . '">'
+            . esc_html( tsootc_ui_triple_text( $lang, '↻ Escaneig profund de taules', '↻ Escaneo profundo de tablas', '↻ Deep table scan' ) )
+            . '</a>';
+        echo '</div>';
 
         echo '<div class="tso-section" id="tso-extra-table-delete-setting" style="padding:16px 18px;background:#fff8f0;border:1px solid #f0c070;border-radius:8px;margin-bottom:16px">';
         echo '<h3 style="margin:0 0 10px;font-size:15px;color:#8a5c00">🔒 ' . esc_html( $txt_allow_delete_label ) . '</h3>';
