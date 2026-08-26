@@ -41,6 +41,7 @@ function tsootc_table_detection_source_priority( $source ) {
 		'theme_prefix'     => 70,
 		'history'          => 65,
 		'table_family_map' => 62,
+		'table_codescan_family' => 58,
 		'table_slug_hint'  => 60,
 		'table_slug'       => 40,
 		'autodetect'       => 30,
@@ -70,6 +71,7 @@ function tsootc_table_detection_source_score_weights() {
 		'multisite_core'    => 99,
 		'history'           => 40,
 		'table_family_map'  => 38,
+		'table_codescan_family' => 36,
 		'table_slug_hint'   => 42,
 		'table_slug'        => 28,
 		'autodetect'        => 22,
@@ -247,6 +249,235 @@ function tsootc_table_detection_resolve_family_candidate(
 }
 
 /**
+ * Infer an owner from two or more codescan-indexed sibling tables with the same family.
+ *
+ * @param string     $table_without_prefix Table suffix.
+ * @param array      $installed_plugins    Inventory.
+ * @param array|null $table_index          Optional codescan index override for tests.
+ * @return array|null
+ */
+function tsootc_table_detection_resolve_codescan_family_candidate(
+	$table_without_prefix,
+	array $installed_plugins = array(),
+	$table_index = null
+) {
+	$family = tsootc_table_detection_family_prefix( $table_without_prefix );
+	if ( '' === $family ) {
+		return null;
+	}
+
+	if ( null === $table_index ) {
+		if ( ! function_exists( 'tsootc_codescan_get_table_index' ) ) {
+			return null;
+		}
+		$table_index = tsootc_codescan_get_table_index( false );
+	}
+	if ( empty( $table_index['exact'] ) || ! is_array( $table_index['exact'] ) ) {
+		return null;
+	}
+
+	$owners = array();
+	foreach ( array_keys( $table_index['exact'] ) as $literal ) {
+		$literal = strtolower( (string) $literal );
+		if ( 0 !== strpos( $literal, $family ) ) {
+			continue;
+		}
+		$mapping = $table_index['exact'][ $literal ];
+		if ( ! is_array( $mapping ) ) {
+			continue;
+		}
+		$file = (string) ( $mapping['file'] ?? '' );
+		if ( '' === $file ) {
+			continue;
+		}
+		if ( ! isset( $owners[ $file ] ) ) {
+			$owners[ $file ] = 0;
+		}
+		++$owners[ $file ];
+	}
+
+	$qualified = array_filter(
+		$owners,
+		static function( $count ) {
+			return (int) $count >= 2;
+		}
+	);
+	if ( 1 !== count( $owners ) || 1 !== count( $qualified ) ) {
+		return null;
+	}
+
+	$owner_file = (string) array_key_first( $qualified );
+	foreach ( $installed_plugins as $plugin ) {
+		if ( (string) ( $plugin['file'] ?? '' ) !== $owner_file ) {
+			continue;
+		}
+		return array(
+			'name'      => (string) ( $plugin['name'] ?? '' ),
+			'file'      => $owner_file,
+			'folder'    => strtolower( dirname( $owner_file ) ),
+			'active'    => ! empty( $plugin['active'] ),
+			'installed' => true,
+			'source'    => 'table_codescan_family',
+			'family'    => $family,
+		);
+	}
+
+	return array(
+		'name'      => ucwords( str_replace( array( '-', '_' ), ' ', pathinfo( $owner_file, PATHINFO_FILENAME ) ) ),
+		'file'      => $owner_file,
+		'folder'    => strtolower( dirname( $owner_file ) ),
+		'active'    => false,
+		'installed' => false,
+		'source'    => 'table_codescan_family',
+		'family'    => $family,
+	);
+}
+
+/**
+ * Propagate a confirmed owner to weaker sibling tables that share the same family prefix.
+ *
+ * @param array<int,array<string,mixed>> $tables            Extra table rows.
+ * @param array                          $installed_plugins Inventory.
+ * @return array<int,array<string,mixed>>
+ */
+function tsootc_table_detection_propagate_confirmed_siblings( array $tables, array $installed_plugins = array() ) {
+	if ( empty( $tables ) ) {
+		return $tables;
+	}
+
+	$threshold = defined( 'TSOOTC_DETECTION_SCORE_THRESHOLD' ) ? (int) TSOOTC_DETECTION_SCORE_THRESHOLD : 35;
+	global $wpdb;
+	$db_prefix = is_object( $wpdb ) && isset( $wpdb->prefix ) ? (string) $wpdb->prefix : '';
+
+	$family_groups = array();
+	foreach ( $tables as $idx => $table ) {
+		$full_name = (string) ( $table['name'] ?? '' );
+		if ( '' === $full_name ) {
+			continue;
+		}
+		$suffix = ( '' !== $db_prefix && 0 === strpos( $full_name, $db_prefix ) )
+			? substr( $full_name, strlen( $db_prefix ) )
+			: $full_name;
+		$family = tsootc_table_detection_family_prefix( $suffix );
+		if ( '' === $family ) {
+			continue;
+		}
+		if ( ! isset( $family_groups[ $family ] ) ) {
+			$family_groups[ $family ] = array();
+		}
+		$family_groups[ $family ][] = $idx;
+	}
+
+	foreach ( $family_groups as $family => $indices ) {
+		if ( count( $indices ) < 2 ) {
+			continue;
+		}
+
+		$owner_votes = array();
+		foreach ( $indices as $idx ) {
+			$table  = $tables[ $idx ];
+			$score  = (int) ( $table['confidence_score'] ?? 0 );
+			$source = (string) ( $table['detect_source'] ?? '' );
+			$name   = (string) ( $table['plugin_name'] ?? '' );
+			$file   = (string) ( $table['plugin_file'] ?? '' );
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$trusted    = in_array( $source, tsootc_table_detection_trusted_sources(), true );
+			$confirmed  = $score >= $threshold || $trusted;
+			if ( ! $confirmed ) {
+				continue;
+			}
+
+			$row = array(
+				'name'   => $name,
+				'file'   => $file,
+				'folder' => '' !== $file ? strtolower( dirname( $file ) ) : '',
+				'source' => $source,
+			);
+			$token = tsootc_table_detection_owner_token( $row );
+			if ( '' === $token ) {
+				continue;
+			}
+			if ( ! isset( $owner_votes[ $token ] ) ) {
+				$owner_votes[ $token ] = array(
+					'row'   => $row,
+					'count' => 0,
+				);
+			}
+			++$owner_votes[ $token ]['count'];
+		}
+
+		if ( 1 !== count( $owner_votes ) ) {
+			continue;
+		}
+
+		$winner     = reset( $owner_votes );
+		$winner_row = is_array( $winner['row'] ?? null ) ? $winner['row'] : null;
+		if ( empty( $winner_row ) || (int) ( $winner['count'] ?? 0 ) < 1 ) {
+			continue;
+		}
+
+		foreach ( $indices as $idx ) {
+			$table  = $tables[ $idx ];
+			$score  = (int) ( $table['confidence_score'] ?? 0 );
+			$source = (string) ( $table['detect_source'] ?? '' );
+			if ( $score >= $threshold && in_array( $source, tsootc_table_detection_trusted_sources(), true ) ) {
+				continue;
+			}
+			if ( ! empty( $table['is_custom'] ) ) {
+				continue;
+			}
+			if ( ! empty( $table['plugin_name'] ) && $score >= $threshold ) {
+				continue;
+			}
+
+			$tables[ $idx ]['plugin_name']   = (string) ( $winner_row['name'] ?? '' );
+			$tables[ $idx ]['plugin_file']   = (string) ( $winner_row['file'] ?? '' );
+			$tables[ $idx ]['detect_source'] = 'table_family_map';
+			$evidence                        = isset( $table['detect_evidence_sources'] ) && is_array( $table['detect_evidence_sources'] )
+				? $table['detect_evidence_sources']
+				: array();
+			if ( ! in_array( 'table_family_map', $evidence, true ) ) {
+				$evidence[] = 'table_family_map';
+			}
+			$tables[ $idx ]['detect_evidence_sources'] = array_values( array_unique( $evidence ) );
+			$tables[ $idx ]['confidence_score']          = max( $score, $threshold );
+			$tables[ $idx ]['detect_needs_confirm']    = false;
+			$tables[ $idx ]['detect_hint']             = '';
+			$tables[ $idx ]['status_key']              = function_exists( 'tsootc_get_extra_table_status_key' )
+				? tsootc_get_extra_table_status_key(
+					array(
+						'name'   => $tables[ $idx ]['plugin_name'],
+						'file'   => $tables[ $idx ]['plugin_file'],
+						'source' => 'table_family_map',
+					),
+					$installed_plugins,
+					( '' !== $db_prefix && 0 === strpos( (string) $table['name'], $db_prefix ) )
+						? substr( (string) $table['name'], strlen( $db_prefix ) )
+						: (string) $table['name']
+				)
+				: (string) ( $table['status_key'] ?? 'unknown' );
+			$tables[ $idx ]['group_key']               = function_exists( 'tsootc_get_extra_table_group_key' )
+				? tsootc_get_extra_table_group_key(
+					array(
+						'name'   => $tables[ $idx ]['plugin_name'],
+						'file'   => $tables[ $idx ]['plugin_file'],
+						'source' => 'table_family_map',
+					)
+				)
+				: (string) ( $table['group_key'] ?? '__unknown__' );
+			$tables[ $idx ]['usage_estimate']          = function_exists( 'tsootc_get_extra_table_usage_estimate' )
+				? tsootc_get_extra_table_usage_estimate( $tables[ $idx ] )
+				: ( $table['usage_estimate'] ?? array() );
+		}
+	}
+
+	return $tables;
+}
+
+/**
  * High-confidence column signatures for well-known custom table families.
  *
  * @return array<string,array<string,mixed>>
@@ -272,6 +503,21 @@ function tsootc_table_detection_schema_signatures() {
 			'required' => array( 'action_id', 'hook', 'status', 'scheduled_date_gmt', 'scheduled_date_local', 'args', 'schedule', 'group_id', 'priority', 'attempts' ),
 			'folder'   => '__action_scheduler__',
 			'label'    => 'Action Scheduler (shared component)',
+		),
+		'wpforms_tasks_meta' => array(
+			'required' => array( 'id', 'action', 'data', 'date' ),
+			'folder'   => 'wpforms',
+			'label'    => 'WPForms',
+		),
+		'gravityforms_entry' => array(
+			'required' => array( 'id', 'form_id', 'date_created', 'is_starred', 'is_read', 'ip', 'source_url', 'user_agent' ),
+			'folder'   => 'gravityforms',
+			'label'    => 'Gravity Forms',
+		),
+		'rank_math_internal_links' => array(
+			'required' => array( 'id', 'url', 'post_id', 'target_post_id', 'type' ),
+			'folder'   => 'seo-by-rank-math',
+			'label'    => 'Rank Math SEO',
 		),
 	);
 }
@@ -694,6 +940,14 @@ function tsootc_table_detection_collect_scored_candidates( $table_without_prefix
 	);
 	if ( is_array( $family_row ) ) {
 		$add( $family_row, 'table_family_map' );
+	}
+
+	$codescan_family_row = tsootc_table_detection_resolve_codescan_family_candidate(
+		$table_without_prefix,
+		$installed_plugins
+	);
+	if ( is_array( $codescan_family_row ) ) {
+		$add( $codescan_family_row, 'table_codescan_family' );
 	}
 
 	$columns_map = isset( $GLOBALS['tsootc_table_detection_columns_map'] )

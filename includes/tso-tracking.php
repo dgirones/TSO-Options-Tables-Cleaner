@@ -363,6 +363,17 @@ function tsootc_pre_activate_snapshot( $plugin_file ) { // phpcs:ignore Generic.
 }
 add_action( 'activate_plugin', 'tsootc_pre_activate_snapshot', 1, 1 );
 
+/**
+ * Snapshot database tables before plugin activation (dbDelta may create new tables).
+ *
+ * @param string $plugin_file Plugin bootstrap path.
+ * @return void
+ */
+function tsootc_pre_activate_table_snapshot( $plugin_file ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Hook signature.
+    tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_TABLE_SNAPSHOT, tsootc_snapshot_tables(), 30 );
+}
+add_action( 'activate_plugin', 'tsootc_pre_activate_table_snapshot', 1, 1 );
+
 // Hook POST-activació: calcular diff i desar el mapa
 function tsootc_post_activate_map_keys( $plugin_file ) {
     $before = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_SNAPSHOT );
@@ -384,6 +395,63 @@ function tsootc_post_activate_map_keys( $plugin_file ) {
     );
 }
 add_action( 'activated_plugin', 'tsootc_post_activate_map_keys', 20, 1 );
+
+/**
+ * After activation: map newly created database tables to the activated plugin.
+ *
+ * @param string $plugin_file Plugin bootstrap path.
+ * @return void
+ */
+function tsootc_post_activate_map_new_tables( $plugin_file ) {
+    $before = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_TABLE_SNAPSHOT );
+    tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_TABLE_SNAPSHOT );
+    if ( ! is_array( $before ) ) {
+        return;
+    }
+
+    $plugin_file = (string) $plugin_file;
+    if ( '' === $plugin_file || false === strpos( $plugin_file, '/' ) ) {
+        return;
+    }
+
+    $after      = tsootc_snapshot_tables();
+    $new_tables = array_keys( array_diff_key( $after, $before ) );
+    if ( empty( $new_tables ) ) {
+        return;
+    }
+
+    $map          = tsootc_get_table_key_map();
+    $tables_added = array();
+    foreach ( $new_tables as $table ) {
+        $table = preg_replace( '/[^a-zA-Z0-9_]/', '', (string) $table );
+        if ( '' === $table ) {
+            continue;
+        }
+        if ( ! isset( $map[ $table ] ) ) {
+            $map[ $table ]  = $plugin_file;
+            $tables_added[] = $table;
+        }
+    }
+
+    if ( empty( $tables_added ) ) {
+        return;
+    }
+
+    tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $map, false );
+    tsootc_get_table_key_map( true );
+    tsootc_history_add_event(
+        'plugin',
+        'tables_mapped',
+        tsootc_history_get_plugin_name( $plugin_file ),
+        $plugin_file,
+        array(
+            'tables'       => $tables_added,
+            'tables_total' => count( $new_tables ),
+            'trigger'      => 'activation',
+        )
+    );
+}
+add_action( 'activated_plugin', 'tsootc_post_activate_map_new_tables', 21, 1 );
 
 /**
  * Deep code-scan + remap existing keys when a plugin is activated.

@@ -1831,6 +1831,11 @@ function tsootc_page() {
                         . esc_html( implode( ', ', $evidence_labels ) )
                         . '</span>';
                 }
+                if ( '' !== $detect_hint ) {
+                    echo '<span class="tso-table-muted" title="' . esc_attr( $detect_hint ) . '">'
+                        . esc_html( $detect_hint )
+                        . '</span>';
+                }
                 echo '</td>';
                 echo '<td data-label="' . esc_attr( $xt_td_lab_status ) . '">' . $status_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 echo '<td style="text-align:right" data-label="' . esc_attr( $xt_td_lab_size ) . '"><span class="tso-size-chip" style="color:' . esc_attr( $color ) . '">' . number_format( $t['kb'] ) . ' KB</span><span class="tso-table-muted">' . esc_html( $xt_td_lab_frag . ': ' . $size_sub ) . '</span></td>';

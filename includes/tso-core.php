@@ -12820,6 +12820,10 @@ function tsootc_get_orphan_tables() {
 
     $result = tsootc_reconcile_extra_table_group_signals( $result );
 
+    if ( function_exists( 'tsootc_table_detection_propagate_confirmed_siblings' ) ) {
+        $result = tsootc_table_detection_propagate_confirmed_siblings( $result, $installed_plugins );
+    }
+
     $result = tsootc_reconcile_extra_tables_with_history( $result, $installed_plugins );
 
     usort( $result, function( $a, $b ) { return $b['kb'] - $a['kb']; } );

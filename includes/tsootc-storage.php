@@ -46,6 +46,7 @@ define( 'TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_SNAPSHOT', 'pre_activate_snapshot'
 define( 'TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT', 'pre_install_snapshot' );
 define( 'TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT_THEME', 'pre_install_snapshot_theme' );
 define( 'TSOOTC_STORED_TRANSIENT_PRE_INSTALL_TABLE_SNAPSHOT', 'pre_install_table_snapshot' );
+define( 'TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_TABLE_SNAPSHOT', 'pre_activate_table_snapshot' );
 
 // Dynamic transient prefix ids (suffix appended at runtime).
 define( 'TSOOTC_STORED_TRANSIENT_DYNAMIC_OPTS_TAB_INV_SIG', 'opts_tab_inv_sig' );
@@ -339,6 +340,7 @@ function tsootc_get_stored_transient_key_map() {
 		'tso_pre_install_snapshot_theme'    => 'tso_options_tables_cleaner_pre_install_snapshot_theme',
 		'tsootc_pre_install_snapshot_theme' => 'tso_options_tables_cleaner_pre_install_snapshot_theme',
 		'tso_pre_install_table_snapshot'    => 'tso_options_tables_cleaner_pre_install_table_snapshot',
+		'tso_pre_activate_table_snapshot'   => 'tso_options_tables_cleaner_pre_activate_table_snapshot',
 	);
 }
 

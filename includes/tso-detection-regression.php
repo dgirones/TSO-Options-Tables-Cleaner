@@ -602,6 +602,71 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'         => 'table_codescan_family_two_siblings',
+			'type'       => 'table_codescan_family',
+			'table'      => 'acme_jobs',
+			'table_index'=> array(
+				'exact' => array(
+					'acme_logs'   => array( 'file' => 'acme-plugin/acme.php' ),
+					'acme_events' => array( 'file' => 'acme-plugin/acme.php' ),
+				),
+			),
+			'inventory'  => array(
+				array(
+					'name'   => 'Acme Plugin',
+					'file'   => 'acme-plugin/acme.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'     => array(
+				'file_substring' => 'acme-plugin',
+				'source'         => 'table_codescan_family',
+			),
+		),
+		array(
+			'id'         => 'table_codescan_family_one_sibling_rejected',
+			'type'       => 'table_codescan_family',
+			'table'      => 'acme_jobs',
+			'table_index'=> array(
+				'exact' => array(
+					'acme_logs' => array( 'file' => 'acme-plugin/acme.php' ),
+				),
+			),
+			'assert'     => array(
+				'is_null' => true,
+			),
+		),
+		array(
+			'id'    => 'table_propagate_confirmed_sibling',
+			'type'  => 'table_propagate_siblings',
+			'tables'=> array(
+				array(
+					'name'              => 'wp_acme_logs',
+					'plugin_name'       => 'Acme Plugin',
+					'plugin_file'       => 'acme-plugin/acme.php',
+					'detect_source'     => 'table_key_map',
+					'confidence_score'  => 48,
+					'status_key'        => 'active',
+					'is_custom'         => false,
+				),
+				array(
+					'name'              => 'wp_acme_jobs',
+					'plugin_name'       => '',
+					'plugin_file'       => '',
+					'detect_source'     => 'autodetect',
+					'confidence_score'  => 10,
+					'status_key'        => 'unknown',
+					'is_custom'         => false,
+				),
+			),
+			'assert'=> array(
+				'propagated_table' => 'wp_acme_jobs',
+				'plugin_substring' => 'acme-plugin',
+				'source'           => 'table_family_map',
+			),
+		),
+		array(
 			'id'   => 'table_map_survives_plugin_delete_when_table_remains',
 			'type' => 'table_map_delete_reconcile',
 			'assert' => array(
@@ -649,6 +714,40 @@ function tsootc_detection_regression_fixtures() {
 			),
 			'assert'=> array(
 				'min_score' => 68,
+			),
+		),
+		array(
+			'id'        => 'table_schema_wpforms_tasks_meta',
+			'type'      => 'table_schema_signature',
+			'columns'   => array( 'id', 'action', 'data', 'date' ),
+			'inventory' => array(
+				array(
+					'name'   => 'WPForms',
+					'file'   => 'wpforms/wpforms.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'wpforms',
+				'source'         => 'table_schema_signature',
+			),
+		),
+		array(
+			'id'        => 'table_schema_gravityforms_entry',
+			'type'      => 'table_schema_signature',
+			'columns'   => array( 'id', 'form_id', 'date_created', 'is_starred', 'is_read', 'ip', 'source_url', 'user_agent' ),
+			'inventory' => array(
+				array(
+					'name'   => 'Gravity Forms',
+					'file'   => 'gravityforms/gravityforms.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'gravityforms',
+				'source'         => 'table_schema_signature',
 			),
 		),
 		array(
@@ -1423,6 +1522,54 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			);
 		}
 		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
+
+	if ( 'table_codescan_family' === $type ) {
+		$table       = (string) ( $fixture['table'] ?? '' );
+		$table_index = isset( $fixture['table_index'] ) && is_array( $fixture['table_index'] ) ? $fixture['table_index'] : array();
+		$row         = tsootc_table_detection_resolve_codescan_family_candidate( $table, $inventory, $table_index );
+		if ( ! empty( $assert['is_null'] ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => null === $row,
+				'message' => null === $row ? 'ok' : 'expected no codescan family candidate',
+			);
+		}
+		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
+
+	if ( 'table_propagate_siblings' === $type ) {
+		$tables = isset( $fixture['tables'] ) && is_array( $fixture['tables'] ) ? $fixture['tables'] : array();
+		if ( ! function_exists( 'tsootc_table_detection_propagate_confirmed_siblings' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_table_detection_propagate_confirmed_siblings missing',
+			);
+		}
+		$result = tsootc_table_detection_propagate_confirmed_siblings( $tables, $inventory );
+		$target = (string) ( $assert['propagated_table'] ?? '' );
+		$found  = null;
+		foreach ( $result as $row ) {
+			if ( (string) ( $row['name'] ?? '' ) === $target ) {
+				$found = $row;
+				break;
+			}
+		}
+		if ( null === $found ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'propagated table not found: ' . $target,
+			);
+		}
+		$pass = false !== strpos( (string) ( $found['plugin_file'] ?? '' ), (string) ( $assert['plugin_substring'] ?? '' ) )
+			&& (string) ( $found['detect_source'] ?? '' ) === (string) ( $assert['source'] ?? '' );
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'sibling propagation did not apply expected owner',
+		);
 	}
 
 	if ( 'table_map_delete_reconcile' === $type ) {
