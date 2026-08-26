@@ -3515,7 +3515,7 @@ function tsootc_get_freemius_group_label() {
 function tsootc_is_synthetic_shared_sdk_folder( $folder ) {
 	return in_array(
 		(string) $folder,
-		array( '__freemius__', '__wp_toolkit__', '__hosting__', '__wordpress_core__' ),
+		array( '__freemius__', '__wp_toolkit__', '__hosting__', '__wordpress_core__', '__action_scheduler__' ),
 		true
 	);
 }
@@ -12691,6 +12691,16 @@ function tsootc_get_orphan_tables() {
     $installed_plugins = tsootc_get_installed_plugins();
     $table_status_rows = $wpdb->get_results( 'SHOW TABLE STATUS', ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
     $result            = array();
+    $schema_table_names = array();
+    foreach ( (array) $table_status_rows as $status_row ) {
+        $status_name = isset( $status_row['Name'] ) ? (string) $status_row['Name'] : '';
+        if ( '' !== $status_name && ! tsootc_is_wordpress_protected_table( $status_name ) ) {
+            $schema_table_names[] = $status_name;
+        }
+    }
+    $GLOBALS['tsootc_table_detection_columns_map'] = function_exists( 'tsootc_table_detection_load_columns_map' )
+        ? tsootc_table_detection_load_columns_map( $schema_table_names )
+        : array();
 
     foreach ( $table_status_rows as $row ) {
         $table = isset( $row['Name'] ) ? (string) $row['Name'] : '';
@@ -12813,6 +12823,7 @@ function tsootc_get_orphan_tables() {
     $result = tsootc_reconcile_extra_tables_with_history( $result, $installed_plugins );
 
     usort( $result, function( $a, $b ) { return $b['kb'] - $a['kb']; } );
+    unset( $GLOBALS['tsootc_table_detection_columns_map'] );
     return $result;
 }
 

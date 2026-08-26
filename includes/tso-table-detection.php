@@ -36,6 +36,7 @@ function tsootc_table_detection_source_priority( $source ) {
 		'table_prefix_map' => 85,
 		'codescan'         => 80,
 		'codescan_cache'   => 78,
+		'table_schema_signature' => 76,
 		'tso_branded'      => 75,
 		'theme_prefix'     => 70,
 		'history'          => 65,
@@ -62,6 +63,7 @@ function tsootc_table_detection_source_score_weights() {
 		'custom_map'        => 48,
 		'codescan'          => 50,
 		'codescan_cache'    => 48,
+		'table_schema_signature' => 68,
 		'table_prefix_map'  => 45,
 		'tso_branded'       => 55,
 		'theme_prefix'      => 52,
@@ -245,6 +247,158 @@ function tsootc_table_detection_resolve_family_candidate(
 }
 
 /**
+ * High-confidence column signatures for well-known custom table families.
+ *
+ * @return array<string,array<string,mixed>>
+ */
+function tsootc_table_detection_schema_signatures() {
+	return array(
+		'woocommerce_order_items' => array(
+			'required' => array( 'order_item_id', 'order_item_name', 'order_item_type', 'order_id' ),
+			'folder'   => 'woocommerce',
+			'label'    => 'WooCommerce',
+		),
+		'yoast_indexable' => array(
+			'required' => array( 'id', 'permalink', 'object_id', 'object_type', 'object_sub_type', 'author_id', 'post_status', 'is_public' ),
+			'folder'   => 'wordpress-seo',
+			'label'    => 'Yoast SEO',
+		),
+		'redirection_items' => array(
+			'required' => array( 'id', 'url', 'regex', 'position', 'last_count', 'last_access', 'group_id', 'status', 'action_type', 'action_code', 'match_type' ),
+			'folder'   => 'redirection',
+			'label'    => 'Redirection',
+		),
+		'action_scheduler' => array(
+			'required' => array( 'action_id', 'hook', 'status', 'scheduled_date_gmt', 'scheduled_date_local', 'args', 'schedule', 'group_id', 'priority', 'attempts' ),
+			'folder'   => '__action_scheduler__',
+			'label'    => 'Action Scheduler (shared component)',
+		),
+	);
+}
+
+/**
+ * Resolve a table owner from a unique structural column signature.
+ *
+ * @param array $columns           Column names.
+ * @param array $installed_plugins Inventory.
+ * @return array|null
+ */
+function tsootc_table_detection_resolve_schema_signature( array $columns, array $installed_plugins = array() ) {
+	$columns = array_values( array_unique( array_map( 'strtolower', array_map( 'strval', $columns ) ) ) );
+	if ( empty( $columns ) ) {
+		return null;
+	}
+
+	$matches = array();
+	foreach ( tsootc_table_detection_schema_signatures() as $id => $signature ) {
+		$required = isset( $signature['required'] ) && is_array( $signature['required'] ) ? $signature['required'] : array();
+		if ( ! empty( $required ) && empty( array_diff( $required, $columns ) ) ) {
+			$matches[ $id ] = $signature;
+		}
+	}
+	if ( 1 !== count( $matches ) ) {
+		return null;
+	}
+
+	$id        = (string) array_key_first( $matches );
+	$signature = $matches[ $id ];
+	$folder    = (string) ( $signature['folder'] ?? '' );
+	$label     = (string) ( $signature['label'] ?? '' );
+
+	if ( '__action_scheduler__' === $folder ) {
+		$hosts = function_exists( 'tsootc_get_installed_action_scheduler_host_plugins' )
+			? tsootc_get_installed_action_scheduler_host_plugins( $installed_plugins )
+			: array();
+		if ( 1 === count( $hosts ) ) {
+			$host = $hosts[0];
+			return array(
+				'name'      => (string) ( $host['name'] ?? $label ),
+				'file'      => (string) ( $host['file'] ?? '' ),
+				'folder'    => strtolower( dirname( (string) ( $host['file'] ?? '' ) ) ),
+				'active'    => ! empty( $host['active'] ),
+				'installed' => true,
+				'source'    => 'table_schema_signature',
+				'signature' => $id,
+			);
+		}
+		return array(
+			'name'      => $label,
+			'file'      => '',
+			'folder'    => $folder,
+			'active'    => null,
+			'installed' => null,
+			'source'    => 'table_schema_signature',
+			'signature' => $id,
+		);
+	}
+
+	if ( function_exists( 'tsootc_build_plugin_detection_row_from_folder' ) ) {
+		$row = tsootc_build_plugin_detection_row_from_folder( $folder, $installed_plugins, $label );
+		if ( is_array( $row ) ) {
+			$row['source']    = 'table_schema_signature';
+			$row['signature'] = $id;
+			return $row;
+		}
+	}
+
+	return array(
+		'name'      => $label,
+		'file'      => '',
+		'folder'    => $folder,
+		'active'    => false,
+		'installed' => false,
+		'source'    => 'table_schema_signature',
+		'signature' => $id,
+	);
+}
+
+/**
+ * Fetch columns for extra tables in batched information_schema queries.
+ *
+ * @param string[] $table_names Full table names.
+ * @return array<string,string[]>
+ */
+function tsootc_table_detection_load_columns_map( array $table_names ) {
+	global $wpdb;
+
+	$table_names = array_values(
+		array_unique(
+			array_filter(
+				array_map(
+					static function( $table_name ) {
+						return preg_replace( '/[^a-zA-Z0-9_]/', '', (string) $table_name );
+					},
+					$table_names
+				)
+			)
+		)
+	);
+	if ( empty( $table_names ) ) {
+		return array();
+	}
+
+	$map = array();
+	foreach ( array_chunk( $table_names, 200 ) as $table_chunk ) {
+		$placeholders = implode( ', ', array_fill( 0, count( $table_chunk ), '%s' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPlaceholder -- placeholders match validated table names.
+		$sql  = "SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ($placeholders)";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $table_chunk ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		foreach ( (array) $rows as $row ) {
+			$table  = isset( $row['TABLE_NAME'] ) ? (string) $row['TABLE_NAME'] : '';
+			$column = isset( $row['COLUMN_NAME'] ) ? strtolower( (string) $row['COLUMN_NAME'] ) : '';
+			if ( '' === $table || '' === $column ) {
+				continue;
+			}
+			if ( ! isset( $map[ $table ] ) ) {
+				$map[ $table ] = array();
+			}
+			$map[ $table ][] = $column;
+		}
+	}
+	return $map;
+}
+
+/**
  * Infer detection source when the legacy heuristic row lacks one.
  *
  * @param array|null $row                 Detection row.
@@ -312,7 +466,7 @@ function tsootc_table_detection_row_is_weak( $detected ) {
 	}
 
 	$source = (string) ( $detected['source'] ?? '' );
-	if ( 'table_prefix_map' === $source || 'multisite_core' === $source ) {
+	if ( in_array( $source, array( 'table_prefix_map', 'table_schema_signature', 'multisite_core' ), true ) ) {
 		return false;
 	}
 
@@ -540,6 +694,20 @@ function tsootc_table_detection_collect_scored_candidates( $table_without_prefix
 	);
 	if ( is_array( $family_row ) ) {
 		$add( $family_row, 'table_family_map' );
+	}
+
+	$columns_map = isset( $GLOBALS['tsootc_table_detection_columns_map'] )
+		&& is_array( $GLOBALS['tsootc_table_detection_columns_map'] )
+		? $GLOBALS['tsootc_table_detection_columns_map']
+		: array();
+	if ( ! empty( $columns_map[ $full_table_name ] ) ) {
+		$schema_row = tsootc_table_detection_resolve_schema_signature(
+			$columns_map[ $full_table_name ],
+			$installed_plugins
+		);
+		if ( is_array( $schema_row ) ) {
+			$add( $schema_row, 'table_schema_signature' );
+		}
 	}
 
 	if ( function_exists( 'tsootc_detect_plugin_from_table' ) ) {

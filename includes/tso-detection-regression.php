@@ -607,6 +607,47 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'table_schema_woocommerce_order_items',
+			'type'      => 'table_schema_signature',
+			'columns'   => array( 'order_item_id', 'order_item_name', 'order_item_type', 'order_id' ),
+			'inventory' => array(
+				array(
+					'name'   => 'WooCommerce',
+					'file'   => 'woocommerce/woocommerce.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'woocommerce',
+				'source'         => 'table_schema_signature',
+			),
+		),
+		array(
+			'id'      => 'table_schema_action_scheduler_shared',
+			'type'    => 'table_schema_signature',
+			'columns' => array( 'action_id', 'hook', 'status', 'scheduled_date_gmt', 'scheduled_date_local', 'args', 'schedule', 'group_id', 'priority', 'attempts' ),
+			'assert'  => array(
+				'folder'         => '__action_scheduler__',
+				'name_substring' => 'Action Scheduler',
+				'source'         => 'table_schema_signature',
+			),
+		),
+		array(
+			'id'    => 'table_schema_signature_score_is_strong',
+			'type'  => 'table_score',
+			'table' => 'actionscheduler_actions',
+			'row'   => array(
+				'name'   => 'Action Scheduler (shared component)',
+				'file'   => '',
+				'folder' => '__action_scheduler__',
+				'source' => 'table_schema_signature',
+			),
+			'assert'=> array(
+				'min_score' => 68,
+			),
+		),
+		array(
 			'id'     => 'table_needs_confirm_trusted_map',
 			'type'   => 'table_needs_confirm',
 			'row'    => array(
@@ -1410,6 +1451,12 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'pass'    => $pass,
 			'message' => $pass ? 'ok' : 'table maps were not reconciled safely after plugin deletion',
 		);
+	}
+
+	if ( 'table_schema_signature' === $type ) {
+		$columns = isset( $fixture['columns'] ) && is_array( $fixture['columns'] ) ? $fixture['columns'] : array();
+		$row     = tsootc_table_detection_resolve_schema_signature( $columns, $inventory );
+		return tsootc_detection_regression_assert_row( $id, $row, $assert );
 	}
 
 	if ( 'table_score' === $type ) {
