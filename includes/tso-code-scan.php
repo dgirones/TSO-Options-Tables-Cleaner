@@ -714,6 +714,17 @@ function tsootc_codescan_prioritize_scan_paths( array $paths ) {
 				if ( false !== strpos( $path, '/admin/includes/' ) ) {
 					$s += 60;
 				}
+				if ( false !== strpos( $path, '/migrations/' )
+					|| false !== strpos( $path, '/database/' )
+					|| false !== strpos( $path, '/schema/' ) ) {
+					$s += 80;
+				}
+				if ( false !== strpos( $path, 'dbdelta' )
+					|| false !== strpos( $path, 'installer' )
+					|| false !== strpos( $path, 'activator' )
+					|| false !== strpos( $path, 'upgrade' ) ) {
+					$s += 65;
+				}
 				if ( false !== strpos( $path, '/sr6/admin/includes/' ) ) {
 					$s += 55;
 				}
@@ -821,7 +832,23 @@ function tsootc_codescan_plugin_files_to_read( $plugin_file ) {
  * @return string[]
  */
 function tsootc_codescan_plugin_deep_subdirs() {
-	return array( 'includes', 'inc', 'admin', 'src', 'classes', 'class', 'core', 'modules', 'lib' );
+	return array(
+		'includes',
+		'inc',
+		'admin',
+		'src',
+		'classes',
+		'class',
+		'core',
+		'modules',
+		'lib',
+		'database',
+		'db',
+		'migrations',
+		'schema',
+		'install',
+		'upgrade',
+	);
 }
 
 /**
@@ -934,12 +961,13 @@ function tsootc_codescan_plugin_files_to_read_deep( $plugin_file ) {
  * Deep-scan one plugin and merge literals into the persisted option index.
  *
  * @param string $plugin_file Plugin bootstrap relative path.
- * @return array{files_scanned:int,literals_added:int}
+ * @return array{files_scanned:int,literals_added:int,table_literals_added:int}
  */
 function tsootc_codescan_deep_scan_plugin( $plugin_file ) {
 	$result = array(
-		'files_scanned'  => 0,
-		'literals_added' => 0,
+		'files_scanned'       => 0,
+		'literals_added'      => 0,
+		'table_literals_added'=> 0,
 	);
 
 	$plugin_file = str_replace( "\0", '', (string) $plugin_file );
@@ -983,10 +1011,17 @@ function tsootc_codescan_deep_scan_plugin( $plugin_file ) {
 		$index = tsootc_codescan_empty_index( $sig );
 	}
 
-	$before = isset( $index['exact'] ) && is_array( $index['exact'] ) ? count( $index['exact'] ) : 0;
+	$table_index = tsootc_codescan_load_index_file( tsootc_codescan_table_index_file_path(), $sig );
+	if ( ! is_array( $table_index ) ) {
+		$table_index = tsootc_codescan_empty_index( $sig );
+	}
+
+	$before       = isset( $index['exact'] ) && is_array( $index['exact'] ) ? count( $index['exact'] ) : 0;
+	$table_before = isset( $table_index['exact'] ) && is_array( $table_index['exact'] ) ? count( $table_index['exact'] ) : 0;
 
 	foreach ( tsootc_codescan_plugin_files_to_read_deep( $plugin_file ) as $path ) {
 		tsootc_codescan_index_file_literals( $index, $path, $plugin_file, $label );
+		tsootc_codescan_index_file_table_literals( $table_index, $path, $plugin_file, $label );
 		++$result['files_scanned'];
 	}
 
@@ -997,6 +1032,15 @@ function tsootc_codescan_deep_scan_plugin( $plugin_file ) {
 	tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_CODESCAN_OPTION_INDEX_SIG, $index['sig'], DAY_IN_SECONDS );
 
 	$result['literals_added'] = max( 0, ( isset( $index['exact'] ) && is_array( $index['exact'] ) ? count( $index['exact'] ) : 0 ) - $before );
+
+	tsootc_codescan_build_table_prefix_index( $table_index );
+	$table_index['sig'] = $index['sig'];
+	tsootc_codescan_save_index_file( tsootc_codescan_table_index_file_path(), $table_index );
+	tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_CODESCAN_TABLE_INDEX_SIG, $table_index['sig'], DAY_IN_SECONDS );
+	$result['table_literals_added'] = max(
+		0,
+		( isset( $table_index['exact'] ) && is_array( $table_index['exact'] ) ? count( $table_index['exact'] ) : 0 ) - $table_before
+	);
 
 	return $result;
 }
@@ -1633,9 +1677,10 @@ function tsootc_codescan_build_table_prefix_index( array &$index ) {
 /**
  * Build table suffix index from plugin + theme PHP sources.
  *
+ * @param bool $deep Scan recursive plugin source directories.
  * @return array{sig:string,exact:array<string,array>,prefix:array<string,array>}
  */
-function tsootc_codescan_build_table_index() {
+function tsootc_codescan_build_table_index( $deep = false ) {
 	$index = array(
 		'sig'    => tsootc_codescan_build_inventory_sig(),
 		'exact'  => array(),
@@ -1652,7 +1697,8 @@ function tsootc_codescan_build_table_index() {
 			continue;
 		}
 		$label = ! empty( $data['Name'] ) ? (string) $data['Name'] : $folder;
-		foreach ( tsootc_codescan_plugin_files_to_read( $plugin_file ) as $path ) {
+		$files_fn = $deep ? 'tsootc_codescan_plugin_files_to_read_deep' : 'tsootc_codescan_plugin_files_to_read';
+		foreach ( call_user_func( $files_fn, $plugin_file ) as $path ) {
 			tsootc_codescan_index_file_table_literals( $index, $path, $plugin_file, $label );
 		}
 	}
@@ -1717,7 +1763,7 @@ function tsootc_codescan_get_table_index( $force_rebuild = false ) {
 		return $runtime;
 	}
 
-	$runtime = tsootc_codescan_build_table_index();
+	$runtime = tsootc_codescan_build_table_index( (bool) $force_rebuild );
 	tsootc_codescan_save_index_file( tsootc_codescan_table_index_file_path(), $runtime );
 	tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_CODESCAN_TABLE_INDEX_SIG, $sig, DAY_IN_SECONDS );
 	tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_CODESCAN_TABLE_INDEX );

@@ -306,6 +306,18 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'     => 'codescan_prioritizes_migration_sources',
+			'type'   => 'codescan_path_priority',
+			'paths'  => array(
+				'/plugin/includes/helpers.php',
+				'/plugin/src/database/migrations/class-upgrade.php',
+				'/plugin/admin/settings.php',
+			),
+			'assert' => array(
+				'first_contains' => '/database/migrations/',
+			),
+		),
+		array(
 			'id'     => 'reserved_unconfirmed_label',
 			'type'   => 'reserved_label',
 			'label'  => 'Sense confirmar',
@@ -983,6 +995,19 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => true,
 			'message' => 'ok',
+		);
+	}
+
+	if ( 'codescan_path_priority' === $type ) {
+		$paths   = isset( $fixture['paths'] ) && is_array( $fixture['paths'] ) ? $fixture['paths'] : array();
+		$ordered = tsootc_codescan_prioritize_scan_paths( $paths );
+		$needle  = (string) ( $assert['first_contains'] ?? '' );
+		$first   = isset( $ordered[0] ) ? (string) $ordered[0] : '';
+		$pass    = '' !== $needle && false !== strpos( $first, $needle );
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'migration/schema path was not prioritized',
 		);
 	}
 

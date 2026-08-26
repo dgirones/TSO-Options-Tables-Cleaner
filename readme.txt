@@ -99,11 +99,12 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * SweepPress d4p_* and Jetpack subscription/stats/sharing keys resolve to installed plugins
 * Widgets without an identified plugin are ordered directly above WordPress Core
 * Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
-* Detection regression expanded to 64 fixtures
+* Detection regression expanded to 65 fixtures
 * Storage: duplicate transient invalidations are collapsed within each request
 * Extra tables: candidates are merged by plugin before margin checks; codescan recognizes prefix aliases and sprintf table names
 * Extra tables: confirmed sibling families can identify related tables; combined evidence is shown in the UI
 * Extra tables: ownership maps now survive plugin deletion while leftover tables still exist
+* Extra tables: deep scans include database, schema, migration, installer and upgrade source trees
 * wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
 * Options tab groups by owner token (folder/theme) instead of display label only; mixed/outlier badges
 * Audit panel: Evidence column; filter for uncertain rows
