@@ -701,3 +701,169 @@ function tsootc_detection_group_has_uncertain_items( array $group_data ) {
 	}
 	return false;
 }
+
+/**
+ * Whether a group key is an owner-token bucket (internal grouping, not display label).
+ *
+ * @param string $group_key Group key.
+ * @return bool
+ */
+function tsootc_detection_is_owner_token_group_key( $group_key ) {
+	return 0 === strpos( (string) $group_key, 'owner:' );
+}
+
+/**
+ * Build internal group key from an owner token.
+ *
+ * @param string $owner_token Stable owner token.
+ * @return string
+ */
+function tsootc_detection_owner_token_group_key( $owner_token ) {
+	$token = (string) $owner_token;
+	if ( '' === $token ) {
+		return '';
+	}
+	return 'owner:' . $token;
+}
+
+/**
+ * Resolve a human display label from an owner token.
+ *
+ * @param string     $owner_token Owner token.
+ * @param array|null $detected    Optional detection row fallback.
+ * @param array      $plugins     Inventory.
+ * @param string     $fallback    Fallback label.
+ * @return string
+ */
+function tsootc_detection_resolve_owner_display_label( $owner_token, $detected, array $plugins = array(), $fallback = '' ) {
+	$token = (string) $owner_token;
+	if ( '' === $token ) {
+		return (string) $fallback;
+	}
+
+	if ( 0 === strpos( $token, 'theme:' ) ) {
+		$slug = substr( $token, 6 );
+		if ( function_exists( 'tsootc_format_theme_group_label' ) ) {
+			return tsootc_format_theme_group_label( $slug, $fallback );
+		}
+	}
+
+	if ( '__freemius__' === $token && function_exists( 'tsootc_get_freemius_group_label' ) ) {
+		return tsootc_get_freemius_group_label();
+	}
+
+	if ( is_array( $detected ) && ! empty( $detected['name'] ) ) {
+		$folder = (string) ( $detected['folder'] ?? '' );
+		if ( in_array( $folder, array( '__hosting__', '__wp_toolkit__', '__wordpress_core__' ), true ) ) {
+			return (string) $detected['name'];
+		}
+	}
+
+	if ( 0 === strpos( $token, 'name:' ) ) {
+		return substr( $token, 5 );
+	}
+
+	if ( function_exists( 'tsootc_resolve_plugin_label_for_folder' ) ) {
+		$label = tsootc_resolve_plugin_label_for_folder( $token, $plugins, $fallback );
+		if ( '' !== $label ) {
+			return $label;
+		}
+	}
+
+	if ( is_array( $detected ) && ! empty( $detected['name'] ) ) {
+		return (string) $detected['name'];
+	}
+
+	return '' !== $fallback ? $fallback : $token;
+}
+
+/**
+ * Resolve options-tab group bucket (internal key + display label) from detection.
+ *
+ * @param string     $option_name Option key.
+ * @param array|null $detected    Detection row.
+ * @param string     $safety      Safety bucket.
+ * @param array      $plugins     Inventory.
+ * @param string     $lang        UI language.
+ * @return array{group_key:string,display_label:string,owner_token:string}
+ */
+function tsootc_detection_resolve_option_group_bucket( $option_name, $detected, $safety, array $plugins = array(), $lang = 'ca' ) {
+	$plugin_name = is_array( $detected ) ? (string) ( $detected['name'] ?? '' ) : '';
+	$owner_token = '';
+	if ( is_array( $detected ) && function_exists( 'tsootc_audit_detection_owner_token' ) ) {
+		$owner_token = tsootc_audit_detection_owner_token( $detected );
+	}
+
+	$unconfirmed_label = function_exists( 'tsootc_msg' )
+		? '❓ ' . tsootc_msg( 'Sense confirmar', 'Sin confirmar', 'Unconfirmed' )
+		: '❓ Unconfirmed';
+
+	if ( is_array( $detected ) && 'unconfirmed' === (string) ( $detected['source'] ?? '' ) ) {
+		return array(
+			'group_key'     => $unconfirmed_label,
+			'display_label' => $unconfirmed_label,
+			'owner_token'   => '',
+		);
+	}
+
+	if ( 'unknown' === $safety && $plugin_name && is_array( $detected ) && empty( $detected['file'] ) && empty( $detected['folder'] ) ) {
+		$key = '❓ ' . $plugin_name;
+		return array(
+			'group_key'     => $key,
+			'display_label' => $plugin_name,
+			'owner_token'   => $owner_token,
+		);
+	}
+
+	if ( '' !== $owner_token && $plugin_name ) {
+		$group_key = tsootc_detection_owner_token_group_key( $owner_token );
+		return array(
+			'group_key'     => $group_key,
+			'display_label' => tsootc_detection_resolve_owner_display_label( $owner_token, $detected, $plugins, $plugin_name ),
+			'owner_token'   => $owner_token,
+		);
+	}
+
+	if ( $plugin_name ) {
+		return array(
+			'group_key'     => $plugin_name,
+			'display_label' => $plugin_name,
+			'owner_token'   => $owner_token,
+		);
+	}
+
+	$parts            = preg_split( '/[-_]/', strtolower( (string) $option_name ) );
+	$generic_prefixes = array( 'wp', 'the', 'my', 'get', 'set', 'is', 'has', 'use' );
+	$root             = $parts[0] ?? '';
+	$theme_slug       = '';
+	if ( function_exists( 'tsootc_resolve_theme_slug_from_option_token' ) && strlen( $root ) >= 3 ) {
+		$theme_slug = tsootc_resolve_theme_slug_from_option_token( $root, $plugins );
+	}
+	if ( '' === $theme_slug && function_exists( 'tsootc_find_history_theme_slug_for_option' ) ) {
+		$theme_slug = tsootc_find_history_theme_slug_for_option( $option_name, $plugins );
+	}
+	if ( '' !== $theme_slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
+		$label = tsootc_format_theme_group_label( $theme_slug );
+		return array(
+			'group_key'     => $label,
+			'display_label' => $label,
+			'owner_token'   => 'theme:' . $theme_slug,
+		);
+	}
+	if ( strlen( $root ) >= 4 && ! in_array( $root, $generic_prefixes, true ) ) {
+		$key = '❓ ' . $root . '_*';
+		return array(
+			'group_key'     => $key,
+			'display_label' => $key,
+			'owner_token'   => '',
+		);
+	}
+
+	return array(
+		'group_key'     => '__unknown__',
+		'display_label' => function_exists( 'tsootc_ui_triple_text' )
+			? tsootc_ui_triple_text( $lang, 'Sense plugin detectat', 'Sin plugin detectado', 'No plugin detected' )
+			: 'Unknown',
+		'owner_token'   => '',
+	);
+}

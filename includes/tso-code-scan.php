@@ -313,6 +313,48 @@ function tsootc_codescan_extract_option_literals( $source ) {
 }
 
 /**
+ * Extract option keys referenced by option API calls (update_option, get_option, etc.).
+ *
+ * Used to distinguish high-confidence codescan hits from generic string literals.
+ *
+ * @param string $source PHP file contents.
+ * @return string[] Unique option names.
+ */
+function tsootc_codescan_extract_update_option_literals( $source ) {
+	$source = (string) $source;
+	if ( '' === $source ) {
+		return array();
+	}
+
+	$pattern = '/(?:get_option|update_option|add_option|delete_option|get_blog_option|update_blog_option|add_blog_option|delete_blog_option|bp_get_option|bp_add_option|bp_update_option|bp_delete_option)\s*\(\s*[\'"]([a-zA-Z0-9_\-]+)[\'"]/i';
+	$found   = array();
+	if ( preg_match_all( $pattern, $source, $matches, PREG_SET_ORDER ) ) {
+		foreach ( $matches as $match ) {
+			if ( ! empty( $match[1] ) ) {
+				$found[ strtolower( $match[1] ) ] = true;
+			}
+		}
+	}
+
+	return array_keys( $found );
+}
+
+/**
+ * Whether the codescan index has an update_option-style hit for a key.
+ *
+ * @param string $option_name Option key.
+ * @return bool
+ */
+function tsootc_codescan_option_has_update_option_call( $option_name ) {
+	$index = tsootc_codescan_load_cached_option_index();
+	if ( ! is_array( $index ) || empty( $index['exact'] ) ) {
+		return false;
+	}
+	$mapping = tsootc_codescan_find_mapping( $option_name, $index );
+	return is_array( $mapping ) && ! empty( $mapping['update_option_call'] );
+}
+
+/**
  * Check whether a key starts with a known option/table prefix using sane boundaries.
  *
  * @param string $key    Candidate key.
@@ -1086,6 +1128,7 @@ function tsootc_codescan_index_file_literals( array &$index, $file_path, $plugin
 
 	$type = ( 0 === strpos( $plugin_file, 'theme:' ) ) ? 'theme' : 'plugin';
 	$keys = tsootc_codescan_extract_option_literals( $contents );
+	$update_option_keys = array_fill_keys( tsootc_codescan_extract_update_option_literals( $contents ), true );
 	$exact_only = array();
 	if ( 'theme' === $type ) {
 		$theme_slug = substr( (string) $plugin_file, 6 );
@@ -1120,6 +1163,9 @@ function tsootc_codescan_index_file_literals( array &$index, $file_path, $plugin
 			);
 			if ( isset( $exact_only[ $key ] ) ) {
 				$index['exact'][ $key ]['exact_only'] = true;
+			}
+			if ( isset( $update_option_keys[ $key ] ) ) {
+				$index['exact'][ $key ]['update_option_call'] = true;
 			}
 		}
 	}

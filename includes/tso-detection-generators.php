@@ -656,10 +656,15 @@ function tsootc_detection_gen_codescan_cache( $option_name, array $installed_plu
 		return array();
 	}
 	$row['source'] = 'codescan';
+	$evidence      = 'codescan_string';
+	if ( function_exists( 'tsootc_codescan_option_has_update_option_call' )
+		&& tsootc_codescan_option_has_update_option_call( $option_name ) ) {
+		$evidence = 'codescan_update_option';
+	}
 	return array(
 		tsootc_detection_make_candidate(
 			$row,
-			'codescan_update_option',
+			$evidence,
 			'tsootc_detection_gen_codescan_cache',
 			'codescan index cache'
 		),
@@ -691,10 +696,15 @@ function tsootc_detection_gen_codescan_live( $option_name, array $installed_plug
 		return array();
 	}
 	$row['source'] = 'codescan';
+	$evidence      = 'codescan_string';
+	if ( function_exists( 'tsootc_codescan_option_has_update_option_call' )
+		&& tsootc_codescan_option_has_update_option_call( $option_name ) ) {
+		$evidence = 'codescan_update_option';
+	}
 	return array(
 		tsootc_detection_make_candidate(
 			$row,
-			'codescan_update_option',
+			$evidence,
 			'tsootc_detection_gen_codescan_live',
 			'codescan live grep'
 		),

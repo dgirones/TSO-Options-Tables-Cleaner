@@ -4826,14 +4826,15 @@ function tsootc_normalize_custom_map_group_label( $group_label, $option_name = '
     return $group_label;
 }
 
-function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args = array() ) {
-    if ( empty( $args['force_cascade'] )
-        && function_exists( 'tsootc_detection_engine_v2_enabled' )
-        && tsootc_detection_engine_v2_enabled()
-        && function_exists( 'tsootc_detection_resolve_option_v2' ) ) {
-        return tsootc_detection_resolve_option_v2( $option_name, $installed_plugins, $args );
-    }
-
+/**
+ * Legacy cascade detector (first-match). Kept for force_cascade / debug diff only.
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Plugin inventory.
+ * @param array  $args              Detection args.
+ * @return array|null
+ */
+function tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins = array(), $args = array() ) {
     $fast = ! empty( $args['fast'] );
     $option_name = (string) $option_name;
     $lower = strtolower( $option_name );
@@ -5131,7 +5132,7 @@ function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args
         $inner_clean = (string) preg_replace( '/[_][0-9]+$/', '', $inner );
         $inner_clean = (string) preg_replace( '/^widget_/', '', $inner_clean ); // doble widget_
         if ( strlen( $inner_clean ) >= 3 ) {
-            $sub = tsootc_detect_plugin( $inner_clean, $installed_plugins, $args );
+            $sub = tsootc_detect_plugin_cascade_legacy( $inner_clean, $installed_plugins, $args );
             if ( $sub ) {
                 return $sub;
             }
@@ -5140,7 +5141,7 @@ function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args
         $parts = preg_split( '/[-_]/', $inner_clean );
         $first_word = $parts[0] ?? '';
         if ( strlen( $first_word ) >= 4 ) {
-            $sub = tsootc_detect_plugin( $first_word, $installed_plugins, $args );
+            $sub = tsootc_detect_plugin_cascade_legacy( $first_word, $installed_plugins, $args );
             if ( $sub ) {
                 return $sub;
             }
@@ -5402,6 +5403,28 @@ function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args
 }
 
 /**
+ * Detect plugin owner for an option key (public shim → unified engine V2).
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Plugin inventory.
+ * @param array  $args              Detection args (force_cascade bypasses V2).
+ * @return array|null
+ */
+function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args = array() ) {
+    if ( ! empty( $args['force_cascade'] ) ) {
+        return tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins, $args );
+    }
+
+    if ( function_exists( 'tsootc_detection_engine_v2_enabled' )
+        && tsootc_detection_engine_v2_enabled()
+        && function_exists( 'tsootc_detection_resolve_option_v2_with_postprocess' ) ) {
+        return tsootc_detection_resolve_option_v2_with_postprocess( $option_name, $installed_plugins, $args );
+    }
+
+    return tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins, $args );
+}
+
+/**
  * Detect plugin for an option key and normalize the label from plugin history.
  *
  * @param string $option_name       Option key in wp_options.
@@ -5432,7 +5455,7 @@ function tsootc_detect_plugin_with_history( $option_name, $installed_plugins = a
         }
     }
 
-    $detected = tsootc_detect_plugin( $option_name, $installed_plugins, $args );
+    $detected = tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins, $args );
 
     if ( function_exists( 'tsootc_reconcile_detection_row_label_with_inventory' ) ) {
         $detected = tsootc_reconcile_detection_row_label_with_inventory( $detected, $installed_plugins, $option_name );
@@ -9627,6 +9650,10 @@ function tsootc_group_merge_items( array &$into, array $from, $lang = 'ca' ) {
  */
 function tsootc_resolve_group_merge_key( $group_key, array $group_data, array $plugins, $lang = 'ca' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $lang reserved
 	$key = (string) $group_key;
+	if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
+		&& tsootc_detection_is_owner_token_group_key( $key ) ) {
+		return $key;
+	}
 	$reserved = array( '__core__', '__unknown__', '__widgets__' );
 	if ( in_array( $key, $reserved, true ) ) {
 		return $key;
@@ -12397,6 +12424,8 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
         $widget_plugin_group = function_exists( 'tsootc_widget_uses_plugin_group' )
             && tsootc_widget_uses_plugin_group( $name, $detected );
 
+        $group_display_label = '';
+
         if ( $is_widget_option( $name ) && ! $widget_plugin_group ) {
             $group_key = $widgets_group_key;
             if ( function_exists( 'tsootc_is_wp_core_widget_option' ) && tsootc_is_wp_core_widget_option( $name ) ) {
@@ -12408,10 +12437,26 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
             }
         } elseif ( 'core' === $safety ) {
             $group_key = '__core__';
+            $group_display_label = '';
+        } elseif ( function_exists( 'tsootc_detection_engine_v2_enabled' )
+            && tsootc_detection_engine_v2_enabled()
+            && function_exists( 'tsootc_detection_resolve_option_group_bucket' ) ) {
+            $group_bucket = tsootc_detection_resolve_option_group_bucket( $name, $detected, $safety, $plugins, $lang );
+            $group_key           = (string) $group_bucket['group_key'];
+            $group_display_label = (string) $group_bucket['display_label'];
+            if ( is_array( $detected ) && 'unconfirmed' === (string) ( $detected['source'] ?? '' ) ) {
+                $st = array(
+                    'status'      => tsootc_ui_triple_text( $lang, '❓ Sense confirmar', '❓ Sin confirmar', '❓ Unconfirmed' ),
+                    'color'       => '#c00',
+                    'inactive'    => false,
+                    'uninstalled' => false,
+                );
+            }
         } elseif ( is_array( $detected ) && 'unconfirmed' === (string) ( $detected['source'] ?? '' ) ) {
             $group_key = function_exists( 'tsootc_msg' )
                 ? '❓ ' . tsootc_msg( 'Sense confirmar', 'Sin confirmar', 'Unconfirmed' )
                 : '❓ Unconfirmed';
+            $group_display_label = '';
             $st = array(
                 'status'      => tsootc_ui_triple_text( $lang, '❓ Sense confirmar', '❓ Sin confirmar', '❓ Unconfirmed' ),
                 'color'       => '#c00',
@@ -12420,9 +12465,12 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
             );
         } elseif ( 'unknown' === $safety && $plugin_name && empty( $detected['file'] ) && empty( $detected['folder'] ) ) {
             $group_key = '❓ ' . $plugin_name;
+            $group_display_label = '';
         } elseif ( $plugin_name ) {
             $group_key = $plugin_name;
+            $group_display_label = '';
         } else {
+            $group_display_label = '';
             $parts       = preg_split( '/[-_]/', strtolower( $name ) );
             $generic_prefixes = array( 'wp', 'the', 'my', 'get', 'set', 'is', 'has', 'use' );
             $root        = $parts[0] ?? '';
@@ -12451,6 +12499,9 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
                 'safety'         => $safety,
                 'items'          => array(),
             );
+            if ( '' !== $group_display_label ) {
+                $grouped[ $group_key ]['display_label'] = $group_display_label;
+            }
             if ( $detected && function_exists( 'tsootc_group_meta_from_detected' ) ) {
                 $grouped[ $group_key ] = array_merge( $grouped[ $group_key ], tsootc_group_meta_from_detected( $detected ) );
             }

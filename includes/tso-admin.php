@@ -962,12 +962,16 @@ function tsootc_page() {
 
         // ---- Auditoria de detecció (opcional) ----
         if ( $audit_mode && function_exists( 'tsootc_render_options_audit_panel' ) ) {
-            $audit_normalize = static function( $group_key ) use ( $normalize_option_group_name, $lang ) {
+            $audit_normalize = static function( $group_key ) use ( $normalize_option_group_name, $lang, $grouped_ordered ) {
                 if ( '__unknown__' === $group_key ) {
                     return tsootc_ui_triple_text( $lang, 'Sense plugin detectat', 'Sin plugin detectado', 'No plugin detected' );
                 }
                 if ( '__core__' === $group_key ) {
                     return 'Core WordPress';
+                }
+                if ( isset( $grouped_ordered[ $group_key ]['display_label'] )
+                    && '' !== (string) $grouped_ordered[ $group_key ]['display_label'] ) {
+                    return $normalize_option_group_name( (string) $grouped_ordered[ $group_key ]['display_label'] );
                 }
                 return $normalize_option_group_name( $group_key );
             };
@@ -1000,6 +1004,8 @@ function tsootc_page() {
                 $display_name = tsootc_ui_triple_text( $lang, 'Sense plugin detectat', 'Sin plugin detectado', 'No plugin detected' );
             } elseif ( $group_name === '__core__' ) {
                 $display_name = '🔒 Core WordPress';
+            } elseif ( ! empty( $group_data['display_label'] ) ) {
+                $display_name = $normalize_option_group_name( (string) $group_data['display_label'] );
             } elseif ( ! empty( $group_data['detected_name'] ) && strpos( $group_name, '❓ ' ) === 0 ) {
                 $display_name = $normalize_option_group_name( (string) $group_data['detected_name'] );
             } else {
