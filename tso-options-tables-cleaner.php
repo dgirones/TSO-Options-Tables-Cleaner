@@ -73,6 +73,14 @@ $tsootc_detection_score_file = TSOOTC_PATH . 'includes/tso-detection-score.php';
 if ( is_readable( $tsootc_detection_score_file ) ) {
 	require_once $tsootc_detection_score_file;
 }
+$tsootc_detection_generators_file = TSOOTC_PATH . 'includes/tso-detection-generators.php';
+if ( is_readable( $tsootc_detection_generators_file ) ) {
+	require_once $tsootc_detection_generators_file;
+}
+$tsootc_detection_engine_file = TSOOTC_PATH . 'includes/tso-detection-engine.php';
+if ( is_readable( $tsootc_detection_engine_file ) ) {
+	require_once $tsootc_detection_engine_file;
+}
 $tsootc_table_detection_file = TSOOTC_PATH . 'includes/tso-table-detection.php';
 if ( is_readable( $tsootc_table_detection_file ) ) {
 	require_once $tsootc_table_detection_file;
