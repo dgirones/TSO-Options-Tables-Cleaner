@@ -201,6 +201,41 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'      => 'assign_groups_hide_owner_tokens',
+			'type'    => 'assign_group_names',
+			'grouped' => array(
+				'owner:litespeed-cache' => array(
+					'display_label' => 'LiteSpeed Cache',
+				),
+				'owner:__freemius__'    => array(
+					'display_label' => 'Freemius (Hosting web - No eliminar)',
+				),
+				'owner:theme:enclosed'  => array(
+					'display_label' => 'Tema: Enclosed',
+				),
+				'__widgets__'           => array(),
+				'Contact Form 7'        => array(),
+			),
+			'inventory' => array(
+				array(
+					'name'   => 'LiteSpeed Cache',
+					'file'   => 'litespeed-cache/litespeed-cache.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+				array(
+					'name'   => 'Contact Form 7',
+					'file'   => 'contact-form-7/wp-contact-form-7.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'has'    => array( 'LiteSpeed Cache', 'Contact Form 7', 'Tema: Enclosed' ),
+				'has_not'=> array( 'owner:litespeed-cache', 'owner:__freemius__', 'owner:theme:enclosed', '__widgets__', 'Freemius (Hosting web - No eliminar)' ),
+			),
+		),
+		array(
 			'id'     => 'freemius_remains_deletable_by_admin',
 			'type'   => 'delete_blocked',
 			'option' => 'fs_accounts',
@@ -1871,6 +1906,37 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $pass,
 			'message' => $pass ? 'ok' : 'table cache flush touched option cache or repeated deletes',
+		);
+	}
+
+	if ( 'assign_group_names' === $type ) {
+		$grouped = isset( $fixture['grouped'] ) && is_array( $fixture['grouped'] ) ? $fixture['grouped'] : array();
+		$names   = tsootc_options_tab_group_names_from_grouped( $grouped, $inventory );
+		$keys    = array_keys( $names );
+		$values  = array_values( $names );
+		$all     = array_values( array_unique( array_merge( $keys, $values ) ) );
+		foreach ( (array) ( $assert['has'] ?? array() ) as $need ) {
+			if ( ! in_array( (string) $need, $all, true ) && ! in_array( (string) $need, $keys, true ) ) {
+				return array(
+					'id'      => $id,
+					'pass'    => false,
+					'message' => 'missing assign label: ' . (string) $need,
+				);
+			}
+		}
+		foreach ( (array) ( $assert['has_not'] ?? array() ) as $forbidden ) {
+			if ( in_array( (string) $forbidden, $all, true ) || isset( $names[ (string) $forbidden ] ) ) {
+				return array(
+					'id'      => $id,
+					'pass'    => false,
+					'message' => 'forbidden assign label leaked: ' . (string) $forbidden,
+				);
+			}
+		}
+		return array(
+			'id'      => $id,
+			'pass'    => true,
+			'message' => 'ok',
 		);
 	}
 

@@ -695,17 +695,87 @@ function tsootc_is_synthetic_options_group_key( $group_key ) {
     return false;
 }
 
+/**
+ * Whether a label may appear in the Assign-to-group dropdown.
+ *
+ * @param string $label Candidate group label or key.
+ * @return bool
+ */
+function tsootc_is_assignable_options_group_label( $label ) {
+    $label = trim( (string) $label );
+    if ( '' === $label ) {
+        return false;
+    }
+    if ( tsootc_is_synthetic_options_group_key( $label ) ) {
+        return false;
+    }
+    if ( 0 === strpos( $label, 'owner:' ) ) {
+        return false;
+    }
+    // Synthetic folder tokens (__freemius__, __hosting__, …).
+    if ( preg_match( '/^__[a-z0-9_]+__$/', $label ) ) {
+        return false;
+    }
+    if ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+        && tsootc_is_synthetic_shared_sdk_folder( $label ) ) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Resolve a selectable assign label from an internal group key / owner token.
+ *
+ * @param string               $group_key  Internal group key.
+ * @param array<string,mixed>  $group_data Optional grouped bucket payload.
+ * @param array                $plugins    Inventory.
+ * @return string Empty when not assignable.
+ */
+function tsootc_resolve_assignable_group_display_label( $group_key, $group_data = array(), array $plugins = array() ) {
+    $group_key = (string) $group_key;
+    if ( is_array( $group_data ) && ! empty( $group_data['display_label'] ) ) {
+        $display = trim( (string) $group_data['display_label'] );
+        return tsootc_is_assignable_options_group_label( $display ) ? $display : '';
+    }
+
+    if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
+        && tsootc_detection_is_owner_token_group_key( $group_key ) ) {
+        $token = substr( $group_key, strlen( 'owner:' ) );
+        if ( preg_match( '/^__[a-z0-9_]+__$/', $token )
+            || ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+                && tsootc_is_synthetic_shared_sdk_folder( $token ) ) ) {
+            return '';
+        }
+        $display = function_exists( 'tsootc_detection_resolve_owner_display_label' )
+            ? (string) tsootc_detection_resolve_owner_display_label( $token, null, $plugins, '' )
+            : '';
+        return tsootc_is_assignable_options_group_label( $display ) ? $display : '';
+    }
+
+    if ( tsootc_is_synthetic_options_group_key( $group_key ) ) {
+        return '';
+    }
+
+    $aliases = function_exists( 'tsootc_get_group_aliases' ) ? tsootc_get_group_aliases() : array();
+    $display = isset( $aliases[ $group_key ] ) ? (string) $aliases[ $group_key ] : $group_key;
+    return tsootc_is_assignable_options_group_label( $display ) ? $display : '';
+}
+
 /* Retorna una llista de tots els noms de grups existents (per al selector) */
 function tsootc_get_existing_group_names( $plugins ) {
     $aliases = tsootc_get_group_aliases();
     $groups  = array(); // [ nom_intern => nom_visible ]
 
     $add = function( $raw ) use ( &$groups, $aliases ) {
-        if ( empty( $raw ) || tsootc_is_synthetic_options_group_key( $raw ) ) {
+        if ( empty( $raw ) || ! tsootc_is_assignable_options_group_label( $raw ) ) {
             return;
         }
-        $display          = isset( $aliases[ $raw ] ) ? $aliases[ $raw ] : $raw;
-        $groups[ $raw ]   = $display;
+        $display        = isset( $aliases[ $raw ] ) ? (string) $aliases[ $raw ] : (string) $raw;
+        if ( ! tsootc_is_assignable_options_group_label( $display ) ) {
+            return;
+        }
+        // Prefer human display labels as keys so the selector never posts owner: tokens.
+        $groups[ $display ] = $display;
     };
 
     // Plugins instal·lats
@@ -4808,6 +4878,17 @@ function tsootc_normalize_custom_map_group_label( $group_label, $option_name = '
     $group_label = sanitize_text_field( (string) $group_label );
     if ( '' === $group_label ) {
         return '';
+    }
+
+    // Legacy / mistaken posts of V2 owner tokens → human label first.
+    if ( 0 === strpos( $group_label, 'owner:' ) ) {
+        $token = substr( $group_label, strlen( 'owner:' ) );
+        if ( function_exists( 'tsootc_detection_resolve_owner_display_label' ) ) {
+            $resolved = (string) tsootc_detection_resolve_owner_display_label( $token, null, $installed_plugins, '' );
+            if ( '' !== $resolved ) {
+                $group_label = $resolved;
+            }
+        }
     }
 
     $row = tsootc_resolve_custom_map_detection_row( $option_name, $group_label, $installed_plugins );
@@ -9847,21 +9928,7 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
         ? $inventory
         : ( function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array() );
 
-    if ( function_exists( 'tsootc_get_widget_option_folder_hints' ) ) {
-        $hints = tsootc_get_widget_option_folder_hints();
-        if ( isset( $hints[ $lower ] ) ) {
-            $folder = tsootc_normalize_plugin_folder_slug( (string) $hints[ $lower ] );
-            return tsootc_plugin_folder_has_site_evidence( $folder, $installed );
-        }
-    }
-
-    if ( empty( $detected ) || ! is_array( $detected ) ) {
-        return false;
-    }
-    if ( 'unconfirmed' === (string) ( $detected['source'] ?? '' ) ) {
-        return false;
-    }
-    $source = (string) ( $detected['source'] ?? '' );
+    $source = is_array( $detected ) ? (string) ( $detected['source'] ?? '' ) : '';
 
     // Manual / trusted maps always promote widgets into the assigned plugin group,
     // even when that plugin has no other options yet in the Options tab.
@@ -9875,6 +9942,21 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
             return true;
         }
         return '' !== trim( (string) ( $detected['name'] ?? '' ) );
+    }
+
+    if ( function_exists( 'tsootc_get_widget_option_folder_hints' ) ) {
+        $hints = tsootc_get_widget_option_folder_hints();
+        if ( isset( $hints[ $lower ] ) ) {
+            $folder = tsootc_normalize_plugin_folder_slug( (string) $hints[ $lower ] );
+            return tsootc_plugin_folder_has_site_evidence( $folder, $installed );
+        }
+    }
+
+    if ( empty( $detected ) || ! is_array( $detected ) ) {
+        return false;
+    }
+    if ( 'unconfirmed' === $source ) {
+        return false;
     }
 
     if ( ! in_array( $source, array( 'widget_map', 'legacy_installed' ), true ) ) {
@@ -10705,7 +10787,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 57 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 58 );
 }
 
 /**
@@ -11740,10 +11822,14 @@ function tsootc_get_existing_group_names_light( array $plugins ) {
     $groups  = array();
 
     $add = static function( $raw ) use ( &$groups, $aliases ) {
-        if ( empty( $raw ) || tsootc_is_synthetic_options_group_key( $raw ) ) {
+        if ( empty( $raw ) || ! tsootc_is_assignable_options_group_label( $raw ) ) {
             return;
         }
-        $groups[ $raw ] = isset( $aliases[ $raw ] ) ? (string) $aliases[ $raw ] : (string) $raw;
+        $display = isset( $aliases[ $raw ] ) ? (string) $aliases[ $raw ] : (string) $raw;
+        if ( ! tsootc_is_assignable_options_group_label( $display ) ) {
+            return;
+        }
+        $groups[ $display ] = $display;
     };
 
     foreach ( $plugins as $pl ) {
@@ -12117,14 +12203,31 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
  */
 function tsootc_options_tab_group_names_from_grouped( array $grouped, array $plugins ) {
     $names = tsootc_get_existing_group_names_light( $plugins );
-    $aliases = tsootc_get_group_aliases();
 
-    foreach ( array_keys( $grouped ) as $gk ) {
-        if ( tsootc_is_synthetic_options_group_key( $gk ) ) {
+    foreach ( $grouped as $gk => $group_data ) {
+        $display = tsootc_resolve_assignable_group_display_label(
+            (string) $gk,
+            is_array( $group_data ) ? $group_data : array(),
+            $plugins
+        );
+        if ( '' === $display ) {
             continue;
         }
-        $display = isset( $aliases[ $gk ] ) ? (string) $aliases[ $gk ] : (string) $gk;
-        $names[ $gk ] = $display;
+        $names[ $display ] = $display;
+    }
+
+    // Scrub any leaked owner:/synthetic keys from older caches or custom maps.
+    foreach ( array_keys( $names ) as $key ) {
+        $display = (string) ( $names[ $key ] ?? '' );
+        if ( ! tsootc_is_assignable_options_group_label( (string) $key )
+            || ! tsootc_is_assignable_options_group_label( $display ) ) {
+            unset( $names[ $key ] );
+            continue;
+        }
+        if ( (string) $key !== $display ) {
+            unset( $names[ $key ] );
+            $names[ $display ] = $display;
+        }
     }
 
     uasort(

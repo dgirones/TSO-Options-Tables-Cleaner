@@ -1097,6 +1097,12 @@ function tsootcParseAjaxJson(text) {
         if (key === '__core__' || key === '__unknown__' || key === '__widgets__') {
             return true;
         }
+        if (key.indexOf('owner:') === 0) {
+            return true;
+        }
+        if (/^__[a-z0-9_]+__$/.test(key)) {
+            return true;
+        }
         if (key.indexOf('\u2753 ') === 0) {
             return true;
         }
