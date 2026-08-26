@@ -990,37 +990,90 @@ function tsootc_post_upgrade_map_tables( $upgrader, $options ) {
 }
 add_action( 'upgrader_process_complete', 'tsootc_post_upgrade_map_tables', 26, 2 );
 
+/**
+ * Remove mappings only for tables that disappeared during plugin deletion.
+ *
+ * Mappings for tables left behind are valuable residue evidence and must survive.
+ *
+ * @param array  $table_map      Automatic table => plugin file map.
+ * @param array  $custom_map     Manual table => label map.
+ * @param string $plugin_file    Deleted plugin bootstrap.
+ * @param string $plugin_label   Deleted plugin display name.
+ * @param array  $existing_tables Set of current full table names.
+ * @return array{table_map:array,custom_map:array,removed_auto:int,removed_custom:int,preserved:int}
+ */
+function tsootc_reconcile_table_maps_after_plugin_delete(
+	array $table_map,
+	array $custom_map,
+	$plugin_file,
+	$plugin_label,
+	array $existing_tables
+) {
+	$plugin_file   = (string) $plugin_file;
+	$plugin_label  = strtolower( trim( (string) $plugin_label ) );
+	$removed_auto  = 0;
+	$removed_custom = 0;
+	$preserved     = 0;
+
+	foreach ( $table_map as $table => $file ) {
+		$same_plugin = (string) $file === $plugin_file
+			|| ( '' !== $plugin_file && dirname( (string) $file ) === dirname( $plugin_file ) );
+		if ( ! $same_plugin ) {
+			continue;
+		}
+		if ( isset( $existing_tables[ $table ] ) ) {
+			++$preserved;
+			continue;
+		}
+		unset( $table_map[ $table ] );
+		++$removed_auto;
+	}
+
+	if ( '' !== $plugin_label ) {
+		foreach ( $custom_map as $table => $group_label ) {
+			$group_label = strtolower( (string) $group_label );
+			$same_plugin = $group_label === $plugin_label || false !== strpos( $group_label, $plugin_label );
+			if ( ! $same_plugin ) {
+				continue;
+			}
+			if ( isset( $existing_tables[ $table ] ) ) {
+				++$preserved;
+				continue;
+			}
+			unset( $custom_map[ $table ] );
+			++$removed_custom;
+		}
+	}
+
+	return array(
+		'table_map'      => $table_map,
+		'custom_map'     => $custom_map,
+		'removed_auto'   => $removed_auto,
+		'removed_custom' => $removed_custom,
+		'preserved'      => $preserved,
+	);
+}
+
 function tsootc_on_deleted_plugin_clean_table_map( $plugin_file, $deleted ) {
     if ( ! $deleted ) return;
-    $map     = tsootc_get_table_key_map();
-    $changed = false;
-    foreach ( $map as $table => $file ) {
-        if ( $file === $plugin_file || dirname( $file ) === dirname( $plugin_file ) ) {
-            unset( $map[ $table ] );
-            $changed = true;
-        }
-    }
-    if ( $changed ) {
-        tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $map, false );
+
+    $table_map    = tsootc_get_table_key_map();
+    $custom_map   = function_exists( 'tsootc_get_custom_table_map' ) ? tsootc_get_custom_table_map() : array();
+    $plugin_label = function_exists( 'tsootc_history_get_plugin_name' ) ? tsootc_history_get_plugin_name( $plugin_file ) : '';
+    $result       = tsootc_reconcile_table_maps_after_plugin_delete(
+        $table_map,
+        $custom_map,
+        $plugin_file,
+        $plugin_label,
+        tsootc_snapshot_tables()
+    );
+
+    if ( $result['removed_auto'] > 0 ) {
+        tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $result['table_map'], false );
         tsootc_get_table_key_map( true );
     }
-
-    if ( ! function_exists( 'tsootc_get_custom_table_map' ) ) {
-        return;
-    }
-    $custom_map     = tsootc_get_custom_table_map();
-    $custom_changed = false;
-    $plugin_label   = function_exists( 'tsootc_history_get_plugin_name' ) ? tsootc_history_get_plugin_name( $plugin_file ) : '';
-    $label_l        = strtolower( (string) $plugin_label );
-    foreach ( $custom_map as $table => $group_label ) {
-        $group_l = strtolower( (string) $group_label );
-        if ( $group_l === $label_l || ( '' !== $label_l && false !== strpos( $group_l, $label_l ) ) ) {
-            unset( $custom_map[ $table ] );
-            $custom_changed = true;
-        }
-    }
-    if ( $custom_changed ) {
-        tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_CUSTOM_TABLE_MAP, $custom_map, false );
+    if ( $result['removed_custom'] > 0 && function_exists( 'tsootc_get_custom_table_map' ) ) {
+        tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_CUSTOM_TABLE_MAP, $result['custom_map'], false );
         tsootc_get_custom_table_map( true );
     }
 }

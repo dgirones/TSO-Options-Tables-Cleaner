@@ -586,6 +586,15 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'   => 'table_map_survives_plugin_delete_when_table_remains',
+			'type' => 'table_map_delete_reconcile',
+			'assert' => array(
+				'preserved'      => 2,
+				'removed_auto'   => 1,
+				'removed_custom' => 1,
+			),
+		),
+		array(
 			'id'     => 'table_needs_confirm_trusted_map',
 			'type'   => 'table_needs_confirm',
 			'row'    => array(
@@ -1344,6 +1353,38 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			);
 		}
 		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
+
+	if ( 'table_map_delete_reconcile' === $type ) {
+		$result = tsootc_reconcile_table_maps_after_plugin_delete(
+			array(
+				'wp_acme_logs'   => 'acme-plugin/acme.php',
+				'wp_acme_events' => 'acme-plugin/acme.php',
+				'wp_other_logs'  => 'other-plugin/other.php',
+			),
+			array(
+				'wp_acme_logs'   => 'Acme Plugin',
+				'wp_acme_events' => 'Acme Plugin',
+			),
+			'acme-plugin/acme.php',
+			'Acme Plugin',
+			array(
+				'wp_acme_logs'  => 1,
+				'wp_other_logs' => 1,
+			)
+		);
+		$pass = isset( $result['table_map']['wp_acme_logs'] )
+			&& ! isset( $result['table_map']['wp_acme_events'] )
+			&& isset( $result['custom_map']['wp_acme_logs'] )
+			&& ! isset( $result['custom_map']['wp_acme_events'] )
+			&& (int) $result['preserved'] === (int) ( $assert['preserved'] ?? 0 )
+			&& (int) $result['removed_auto'] === (int) ( $assert['removed_auto'] ?? 0 )
+			&& (int) $result['removed_custom'] === (int) ( $assert['removed_custom'] ?? 0 );
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'table maps were not reconciled safely after plugin deletion',
+		);
 	}
 
 	if ( 'table_score' === $type ) {
