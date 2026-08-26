@@ -598,9 +598,20 @@ function tsootc_set_stored_transient( $legacy_key, $value, $expiration ) {
 	}
 
 	$result = set_transient( $new_key, $value, (int) $expiration );
-	delete_transient( (string) $legacy_key );
+	$deleted_cache = &tsootc_stored_transient_delete_cache();
+	unset( $deleted_cache[ (string) $legacy_key ] );
 
 	return (bool) $result;
+}
+
+/**
+ * Track dual-delete operations already performed during this request.
+ *
+ * @return array<string,bool>
+ */
+function &tsootc_stored_transient_delete_cache() {
+	static $deleted = array();
+	return $deleted;
 }
 
 /**
@@ -611,6 +622,12 @@ function tsootc_set_stored_transient( $legacy_key, $value, $expiration ) {
  */
 function tsootc_delete_stored_transient( $legacy_key ) {
 	$legacy_key = (string) $legacy_key;
+	$cache      = &tsootc_stored_transient_delete_cache();
+	if ( isset( $cache[ $legacy_key ] ) ) {
+		return false;
+	}
+	$cache[ $legacy_key ] = true;
+
 	$new_key    = tsootc_resolve_stored_transient_key( $legacy_key );
 	$deleted    = delete_transient( $legacy_key );
 

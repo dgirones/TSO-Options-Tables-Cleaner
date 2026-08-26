@@ -191,11 +191,19 @@ if ( ! function_exists( 'get_transient' ) ) {
 }
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $transient, $value, $expiration ) {
+		unset( $expiration );
+		$GLOBALS['tsootc_regression_transients'][ (string) $transient ] = $value;
 		return true;
 	}
 }
 if ( ! function_exists( 'delete_transient' ) ) {
 	function delete_transient( $transient ) {
+		$key = (string) $transient;
+		if ( ! isset( $GLOBALS['tsootc_regression_delete_transient_calls'][ $key ] ) ) {
+			$GLOBALS['tsootc_regression_delete_transient_calls'][ $key ] = 0;
+		}
+		++$GLOBALS['tsootc_regression_delete_transient_calls'][ $key ];
+		unset( $GLOBALS['tsootc_regression_transients'][ $key ] );
 		return true;
 	}
 }

@@ -135,6 +135,10 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'   => 'stored_transient_delete_deduplicated',
+			'type' => 'transient_delete_dedupe',
+		),
+		array(
 			'id'        => 'generic_widget_detection_stays_in_widgets',
 			'type'      => 'widget_group',
 			'option'    => 'widget_example_plugin',
@@ -1230,6 +1234,33 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $last_keys === $expected,
 			'message' => $last_keys === $expected ? 'ok' : 'unexpected final group order: ' . implode( ', ', $last_keys ),
+		);
+	}
+
+	if ( 'transient_delete_dedupe' === $type ) {
+		$legacy    = 'tso_opts_tab_inv_sig_regression_dedupe';
+		$canonical = tsootc_resolve_stored_transient_key( $legacy );
+		$GLOBALS['tsootc_regression_delete_transient_calls'][ $legacy ]    = 0;
+		$GLOBALS['tsootc_regression_delete_transient_calls'][ $canonical ] = 0;
+
+		tsootc_delete_stored_transient( $legacy );
+		tsootc_delete_stored_transient( $legacy );
+		$first_pass = 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $legacy ]
+			&& 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $canonical ];
+
+		tsootc_set_stored_transient( $legacy, 'value', 60 );
+		$set_did_not_delete = 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $legacy ]
+			&& 1 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $canonical ];
+
+		tsootc_delete_stored_transient( $legacy );
+		$delete_after_set = 2 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $legacy ]
+			&& 2 === $GLOBALS['tsootc_regression_delete_transient_calls'][ $canonical ];
+
+		$pass = $first_pass && $set_did_not_delete && $delete_after_set;
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'transient dual-delete calls were not deduplicated',
 		);
 	}
 
