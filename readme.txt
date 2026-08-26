@@ -99,7 +99,9 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * SweepPress d4p_* and Jetpack subscription/stats/sharing keys resolve to installed plugins
 * Widgets without an identified plugin are ordered directly above WordPress Core
 * Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
-* Detection regression expanded to 79 fixtures
+* Detection regression expanded to 81 fixtures
+* Fix: assigning a widget to a plugin that has no Options group yet now reloads and creates the group
+* Widgets assigned via manual map always leave the shared Widgets bucket
 * Extra tables: activation snapshots map newly created tables to the activating plugin
 * Extra tables: codescan sibling families and confirmed-sibling propagation reduce unknowns
 * Extra tables: schema signatures for WPForms, Gravity Forms, Rank Math SEO, LearnPress, Fluent Forms, Elementor Pro, Wordfence, MailPoet, GiveWP, BuddyPress and Formidable

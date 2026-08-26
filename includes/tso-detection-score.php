@@ -37,6 +37,7 @@ function tsootc_detection_trusted_sources() {
 function tsootc_detection_source_score_weights() {
 	return array(
 		'codescan'       => 50,
+		'custom_map'     => 48,
 		'option_key_map' => 45,
 		'freemius'       => 48,
 		'widget_map'     => 42,

@@ -166,6 +166,41 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'widget_custom_map_creates_plugin_group',
+			'type'      => 'widget_group',
+			'option'    => 'widget_black-studio-tinymce',
+			'inventory' => array(
+				array(
+					'name'   => 'Black Studio TinyMCE Widget',
+					'file'   => 'black-studio-tinymce-widget/black-studio-tinymce-widget.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'row'       => array(
+				'name'   => 'Black Studio TinyMCE Widget',
+				'file'   => 'black-studio-tinymce-widget/black-studio-tinymce-widget.php',
+				'active' => true,
+				'source' => 'custom_map',
+			),
+			'assert'    => array(
+				'uses_plugin_group' => true,
+			),
+		),
+		array(
+			'id'        => 'widget_custom_map_label_only_still_groups',
+			'type'      => 'widget_group',
+			'option'    => 'widget_black-studio-tinymce',
+			'row'       => array(
+				'name'   => 'Black Studio TinyMCE Widget',
+				'file'   => '',
+				'source' => 'custom_map',
+			),
+			'assert'    => array(
+				'uses_plugin_group' => true,
+			),
+		),
+		array(
 			'id'     => 'freemius_remains_deletable_by_admin',
 			'type'   => 'delete_blocked',
 			'option' => 'fs_accounts',

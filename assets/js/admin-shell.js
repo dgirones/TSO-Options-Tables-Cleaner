@@ -1350,27 +1350,12 @@ function tsootcParseAjaxJson(text) {
                     delete ov.dataset.optionName;
                     delete ov.dataset.tableName;
                 }
-                if (tableName) {
+                // Always reload: new plugin groups are not present in the DOM yet,
+                // and options-tab cache must rebuild from the updated custom map.
+                if (typeof window.tsootcReloadOptionsTab === "function") {
+                    window.tsootcReloadOptionsTab();
+                } else {
                     location.reload();
-                    return;
-                }
-                var assignedPlugin = (data.data && data.data.plugin) ? data.data.plugin : pluginName;
-                var groupKey = (data.data && data.data.group_key) ? data.data.group_key : assignedPlugin;
-                if (useNew && typeof window.tsootcRegisterAssignGroup === "function") {
-                    window.tsootcRegisterAssignGroup(groupKey, assignedPlugin);
-                }
-                if (bulkNames.length) {
-                    var names = (data.data && data.data.names) ? data.data.names : bulkNames;
-                    names.forEach(function (n) {
-                        if (typeof window.tsootcMarkOptionAssigned === "function") {
-                            window.tsootcMarkOptionAssigned(n, assignedPlugin);
-                        }
-                    });
-                    if (typeof window.tsootcClearOptsBulkSelection === "function") {
-                        window.tsootcClearOptsBulkSelection();
-                    }
-                } else if (optionName && typeof window.tsootcMarkOptionAssigned === "function") {
-                    window.tsootcMarkOptionAssigned(optionName, assignedPlugin);
                 }
                 return;
             }

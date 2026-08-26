@@ -5165,6 +5165,7 @@ function tsootc_get_widget_option_folder_hints() {
         'widget_cpotheme-advert'    => 'cpo-widgets',
         'widget_cpotheme-recent-posts' => 'cpo-widgets',
         'widget_subscribe-by-email' => 'subscribe2',
+        'widget_black-studio-tinymce' => 'black-studio-tinymce-widget',
     );
 }
 
@@ -9861,7 +9862,22 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
         return false;
     }
     $source = (string) ( $detected['source'] ?? '' );
-    if ( ! in_array( $source, array( 'custom_map', 'option_key_map', 'widget_map', 'legacy_installed' ), true ) ) {
+
+    // Manual / trusted maps always promote widgets into the assigned plugin group,
+    // even when that plugin has no other options yet in the Options tab.
+    if ( in_array( $source, array( 'custom_map', 'option_key_map' ), true ) ) {
+        if ( ! empty( $detected['file'] ) && false !== strpos( (string) $detected['file'], '/' ) ) {
+            return true;
+        }
+        if ( ! empty( $detected['folder'] )
+            && function_exists( 'tsootc_plugin_folder_has_site_evidence' )
+            && tsootc_plugin_folder_has_site_evidence( (string) $detected['folder'], $installed ) ) {
+            return true;
+        }
+        return '' !== trim( (string) ( $detected['name'] ?? '' ) );
+    }
+
+    if ( ! in_array( $source, array( 'widget_map', 'legacy_installed' ), true ) ) {
         return false;
     }
 
@@ -10804,11 +10820,15 @@ function tsootc_options_tab_invalidation_sig_transient_key() {
 }
 
 /**
- * Bump options-tab invalidation signature after custom-map assign (no disk cache purge).
+ * Invalidate options-tab cache after custom-map assign/unassign.
  *
  * @return void
  */
 function tsootc_custom_map_bump_options_tab_cache() {
+    if ( function_exists( 'tsootc_options_tab_flush_cache' ) ) {
+        tsootc_options_tab_flush_cache();
+        return;
+    }
     $sig = tsootc_get_options_tab_invalidation_sig( true );
     tsootc_set_stored_transient( tsootc_options_tab_invalidation_sig_transient_key(), $sig, WEEK_IN_SECONDS );
 }
