@@ -98,6 +98,7 @@ No external connections: This plugin does not make any HTTP requests to external
 * Extra tables: history reconcile respects test/staging inventory; label token matching improved
 * Legacy cascade moved to includes/tso-detection-cascade-legacy.php (force_cascade / debug only)
 * Detection regression: 47 fixtures (CLI runner: php scripts/run-detection-regression.php)
+* Release tooling: scripts/release-check.sh, build-zip.sh, prepare-svn.sh; GitHub Actions CI on main
 
 = 1.2.7 =
 * Detection audit: theme vs plugin on-disk checks, synthetic hosting/SDK labels, group-flag mismatch detection, mixed-sample normalization
