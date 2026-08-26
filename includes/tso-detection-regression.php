@@ -538,6 +538,54 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'table_family_two_siblings_infer_owner',
+			'type'      => 'table_family',
+			'table'     => 'acme_jobs',
+			'full_table'=> 'wp_acme_jobs',
+			'table_map' => array(
+				'wp_acme_logs'   => 'acme-plugin/acme.php',
+				'wp_acme_events' => 'acme-plugin/acme.php',
+			),
+			'inventory' => array(
+				array(
+					'name'   => 'Acme Plugin',
+					'file'   => 'acme-plugin/acme.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring' => 'acme-plugin',
+				'source'         => 'table_family_map',
+			),
+		),
+		array(
+			'id'        => 'table_family_one_sibling_is_not_enough',
+			'type'      => 'table_family',
+			'table'     => 'acme_jobs',
+			'full_table'=> 'wp_acme_jobs',
+			'table_map' => array(
+				'wp_acme_logs' => 'acme-plugin/acme.php',
+			),
+			'assert'    => array(
+				'is_null' => true,
+			),
+		),
+		array(
+			'id'        => 'table_family_conflicting_owner_is_rejected',
+			'type'      => 'table_family',
+			'table'     => 'acme_jobs',
+			'full_table'=> 'wp_acme_jobs',
+			'table_map' => array(
+				'wp_acme_logs'   => 'acme-plugin/acme.php',
+				'wp_acme_events' => 'acme-plugin/acme.php',
+				'wp_acme_queue'  => 'other-plugin/other.php',
+			),
+			'assert'    => array(
+				'is_null' => true,
+			),
+		),
+		array(
 			'id'     => 'table_needs_confirm_trusted_map',
 			'type'   => 'table_needs_confirm',
 			'row'    => array(
@@ -1281,6 +1329,21 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'pass'    => $pass,
 			'message' => $pass ? 'ok' : 'merged evidence sources mismatch',
 		);
+	}
+
+	if ( 'table_family' === $type ) {
+		$table     = (string) ( $fixture['table'] ?? '' );
+		$full      = (string) ( $fixture['full_table'] ?? '' );
+		$table_map = isset( $fixture['table_map'] ) && is_array( $fixture['table_map'] ) ? $fixture['table_map'] : array();
+		$row       = tsootc_table_detection_resolve_family_candidate( $table, $full, $inventory, $table_map );
+		if ( ! empty( $assert['is_null'] ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => null === $row,
+				'message' => null === $row ? 'ok' : 'expected no family candidate',
+			);
+		}
+		return tsootc_detection_regression_assert_row( $id, $row, $assert );
 	}
 
 	if ( 'table_score' === $type ) {

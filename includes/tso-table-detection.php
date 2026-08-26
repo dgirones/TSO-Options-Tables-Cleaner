@@ -39,6 +39,7 @@ function tsootc_table_detection_source_priority( $source ) {
 		'tso_branded'      => 75,
 		'theme_prefix'     => 70,
 		'history'          => 65,
+		'table_family_map' => 62,
 		'table_slug_hint'  => 60,
 		'table_slug'       => 40,
 		'autodetect'       => 30,
@@ -66,6 +67,7 @@ function tsootc_table_detection_source_score_weights() {
 		'theme_prefix'      => 52,
 		'multisite_core'    => 99,
 		'history'           => 40,
+		'table_family_map'  => 38,
 		'table_slug_hint'   => 42,
 		'table_slug'        => 28,
 		'autodetect'        => 22,
@@ -137,6 +139,108 @@ function tsootc_resolve_detection_row_from_table_key_map( $full_table_name, arra
 		'file'   => $mapped_file,
 		'active' => false,
 		'source' => 'table_key_map',
+	);
+}
+
+/**
+ * Conservative family prefix for related custom tables.
+ *
+ * @param string $table_without_prefix Table suffix.
+ * @return string
+ */
+function tsootc_table_detection_family_prefix( $table_without_prefix ) {
+	$table_without_prefix = strtolower( (string) $table_without_prefix );
+	if ( ! preg_match( '/^([a-z0-9]{4,})_/', $table_without_prefix, $matches ) ) {
+		return '';
+	}
+
+	$prefix  = (string) $matches[1];
+	$generic = array( 'cache', 'custom', 'data', 'event', 'events', 'logs', 'meta', 'plugin', 'queue', 'stats', 'table' );
+	return in_array( $prefix, $generic, true ) ? '' : $prefix . '_';
+}
+
+/**
+ * Infer an owner from two or more mapped sibling tables with the same family.
+ *
+ * @param string     $table_without_prefix Current table suffix.
+ * @param string     $full_table_name      Full current table name.
+ * @param array      $installed_plugins    Inventory.
+ * @param array|null $table_map            Optional map override for tests.
+ * @return array|null
+ */
+function tsootc_table_detection_resolve_family_candidate(
+	$table_without_prefix,
+	$full_table_name,
+	array $installed_plugins = array(),
+	$table_map = null
+) {
+	$family = tsootc_table_detection_family_prefix( $table_without_prefix );
+	if ( '' === $family ) {
+		return null;
+	}
+
+	if ( null === $table_map ) {
+		$table_map = function_exists( 'tsootc_get_table_key_map' ) ? tsootc_get_table_key_map() : array();
+	}
+	if ( ! is_array( $table_map ) || empty( $table_map ) ) {
+		return null;
+	}
+
+	global $wpdb;
+	$db_prefix = is_object( $wpdb ) && isset( $wpdb->prefix ) ? (string) $wpdb->prefix : '';
+	$owners    = array();
+	foreach ( $table_map as $mapped_table => $mapped_file ) {
+		$mapped_table = (string) $mapped_table;
+		$mapped_file  = (string) $mapped_file;
+		if ( '' === $mapped_file || $mapped_table === (string) $full_table_name ) {
+			continue;
+		}
+		$mapped_suffix = ( '' !== $db_prefix && 0 === strpos( $mapped_table, $db_prefix ) )
+			? substr( $mapped_table, strlen( $db_prefix ) )
+			: $mapped_table;
+		if ( 0 !== strpos( strtolower( $mapped_suffix ), $family ) ) {
+			continue;
+		}
+		if ( ! isset( $owners[ $mapped_file ] ) ) {
+			$owners[ $mapped_file ] = 0;
+		}
+		++$owners[ $mapped_file ];
+	}
+
+	$qualified = array_filter(
+		$owners,
+		static function( $count ) {
+			return (int) $count >= 2;
+		}
+	);
+	if ( 1 !== count( $owners ) || 1 !== count( $qualified ) ) {
+		return null;
+	}
+
+	$owner_file = (string) array_key_first( $qualified );
+	foreach ( $installed_plugins as $plugin ) {
+		if ( (string) ( $plugin['file'] ?? '' ) !== $owner_file ) {
+			continue;
+		}
+		return array(
+			'name'      => (string) ( $plugin['name'] ?? '' ),
+			'file'      => $owner_file,
+			'folder'    => strtolower( dirname( $owner_file ) ),
+			'active'    => ! empty( $plugin['active'] ),
+			'installed' => true,
+			'source'    => 'table_family_map',
+			'family'    => $family,
+		);
+	}
+
+	return array(
+		'name'      => ucwords( str_replace( array( '-', '_' ), ' ', pathinfo( $owner_file, PATHINFO_FILENAME ) ) ),
+		'file'      => $owner_file,
+		'folder'    => strtolower( dirname( $owner_file ) ),
+		'active'    => false,
+		'installed' => false,
+		'source'    => 'table_family_map',
+		'family'    => $family,
 	);
 }
 
@@ -427,6 +531,15 @@ function tsootc_table_detection_collect_scored_candidates( $table_without_prefix
 		if ( is_array( $code_row ) && ! empty( $code_row['name'] ) ) {
 			$add( $code_row, (string) ( $code_row['source'] ?? 'codescan_cache' ) );
 		}
+	}
+
+	$family_row = tsootc_table_detection_resolve_family_candidate(
+		$table_without_prefix,
+		$full_table_name,
+		$installed_plugins
+	);
+	if ( is_array( $family_row ) ) {
+		$add( $family_row, 'table_family_map' );
 	}
 
 	if ( function_exists( 'tsootc_detect_plugin_from_table' ) ) {

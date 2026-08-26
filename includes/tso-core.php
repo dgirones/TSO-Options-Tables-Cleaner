@@ -12773,6 +12773,9 @@ function tsootc_get_orphan_tables() {
             'is_orphan_candidate' => 'orphan_candidate' === $status_key,
             'group_key'          => tsootc_get_extra_table_group_key( $detected ),
             'detect_source'      => is_array( $detected ) ? (string) ( $detected['source'] ?? '' ) : '',
+            'detect_evidence_sources' => is_array( $detected ) && ! empty( $detected['evidence_sources'] )
+                ? array_values( array_unique( (array) $detected['evidence_sources'] ) )
+                : array(),
             'confidence_score'   => $detect_score,
             'detect_needs_confirm' => $detect_needs_confirm,
             'detect_hint'        => $detect_hint,

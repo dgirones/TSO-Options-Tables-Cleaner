@@ -1745,6 +1745,16 @@ function tsootc_page() {
                 }
                 $is_custom_table = ! empty( $t['is_custom'] );
                 $detect_source   = isset( $t['detect_source'] ) ? (string) $t['detect_source'] : '';
+                $detect_evidence = isset( $t['detect_evidence_sources'] ) && is_array( $t['detect_evidence_sources'] )
+                    ? $t['detect_evidence_sources']
+                    : array();
+                $evidence_labels = array();
+                foreach ( $detect_evidence as $evidence_source ) {
+                    $evidence_labels[] = function_exists( 'tsootc_detection_format_source_label' )
+                        ? tsootc_detection_format_source_label( (string) $evidence_source, $lang )
+                        : (string) $evidence_source;
+                }
+                $evidence_labels = array_values( array_filter( array_unique( $evidence_labels ) ) );
                 $detect_score    = isset( $t['confidence_score'] ) ? (int) $t['confidence_score'] : 0;
                 $needs_confirm   = ! $is_custom_table && ! empty( $t['detect_needs_confirm'] );
                 $detect_hint     = isset( $t['detect_hint'] ) ? (string) $t['detect_hint'] : '';
@@ -1762,7 +1772,14 @@ function tsootc_page() {
                     echo tsootc_detection_render_row_badge_html( $detect_source, $badge_score, $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper
                 }
                 echo '<span class="tso-table-muted">' . esc_html( $table_sub_line ) . '</span></td>';
-                echo '<td data-label="' . esc_attr( $xt_td_lab_plugin ) . '">' . $plugin_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                echo '<td data-label="' . esc_attr( $xt_td_lab_plugin ) . '">' . $plugin_badge; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                if ( count( $evidence_labels ) > 1 ) {
+                    echo '<span class="tso-table-muted">'
+                        . esc_html( tsootc_ui_triple_text( $lang, 'Evidències: ', 'Evidencias: ', 'Evidence: ' ) )
+                        . esc_html( implode( ', ', $evidence_labels ) )
+                        . '</span>';
+                }
+                echo '</td>';
                 echo '<td data-label="' . esc_attr( $xt_td_lab_status ) . '">' . $status_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 echo '<td style="text-align:right" data-label="' . esc_attr( $xt_td_lab_size ) . '"><span class="tso-size-chip" style="color:' . esc_attr( $color ) . '">' . number_format( $t['kb'] ) . ' KB</span><span class="tso-table-muted">' . esc_html( $xt_td_lab_frag . ': ' . $size_sub ) . '</span></td>';
                 echo '<td data-label="' . esc_attr( $xt_td_lab_usage ) . '">' . $usage_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

@@ -387,6 +387,7 @@ function tsootc_detection_format_source_label( $source, $lang = 'ca' ) {
 		'tsootc_hint'    => array( 'Hint', 'Hint', 'Hint' ),
 		'table_key_map'  => array( 'Mapa taula', 'Mapa tabla', 'Table map' ),
 		'table_prefix_map' => array( 'Prefix taula', 'Prefijo tabla', 'Table prefix' ),
+		'table_family_map' => array( 'Família taules', 'Familia tablas', 'Table family' ),
 		'table_slug'     => array( 'Slug taula', 'Slug tabla', 'Table slug' ),
 	);
 
