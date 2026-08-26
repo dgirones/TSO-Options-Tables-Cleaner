@@ -501,16 +501,16 @@ function tsootc_page() {
                 return $widgets_group_label;
             }
 
-            if ( 0 === strpos( (string) $group_name, 'Freemius SDK' ) ) {
-                return tsootc_ui_triple_text( $lang, 'Freemius SDK (actiu, no eliminar)', 'Freemius SDK (activo, no eliminar)', 'Freemius SDK (active, do not delete)' );
+            if ( 0 === strpos( (string) $group_name, 'Freemius' ) ) {
+                return tsootc_ui_triple_text( $lang, 'Freemius (Hosting web - No eliminar)', 'Freemius (Hosting web - No eliminar)', 'Freemius (Web hosting - Do not delete)' );
             }
 
             if ( 0 === strpos( (string) $group_name, 'WP Toolkit' ) ) {
-                return tsootc_ui_triple_text( $lang, 'WP Toolkit (Plesk / hosting, actiu — no eliminar)', 'WP Toolkit (Plesk / hosting, activo — no eliminar)', 'WP Toolkit (Plesk / hosting, active — do not delete)' );
+                return tsootc_ui_triple_text( $lang, 'WP Toolkit (Hosting web - No eliminar)', 'WP Toolkit (Hosting web - No eliminar)', 'WP Toolkit (Web hosting - Do not delete)' );
             }
 
             if ( 0 === strpos( (string) $group_name, 'Softaculous' ) ) {
-                return tsootc_ui_triple_text( $lang, 'Softaculous / hosting (actiu — no eliminar)', 'Softaculous / hosting (activo — no eliminar)', 'Softaculous / hosting (active — do not delete)' );
+                return tsootc_ui_triple_text( $lang, 'Softaculous (Hosting web - No eliminar)', 'Softaculous (Hosting web - No eliminar)', 'Softaculous (Web hosting - Do not delete)' );
             }
 
             return (string) $group_name;
@@ -1034,11 +1034,19 @@ function tsootc_page() {
             } else {
                 $grp_fmt = $grp_bytes . ' B';
             }
-            $can_delete   = ( $safety !== 'core' && $safety !== 'protected' );
+            if ( '__core__' === $group_name ) {
+                $safety         = 'core';
+                $is_inactive    = false;
+                $is_uninstalled = false;
+            }
+            $can_delete = ( '__core__' !== $group_name && 'core' !== $safety );
 
             $is_unknown_group = ( $group_name === '__unknown__' || ( strpos( $group_name, '❓ ' ) === 0 && ! $is_uninstalled ) );
-            $is_freemius_group = function_exists( 'tsootc_get_freemius_group_label' )
-                && $group_name === tsootc_get_freemius_group_label();
+            $is_freemius_group = '__freemius__' === (string) ( $group_data['plugin_folder'] ?? '' )
+                || (
+                    function_exists( 'tsootc_get_freemius_group_label' )
+                    && $group_name === tsootc_get_freemius_group_label()
+                );
 
             // Color de la bora i comportament per defecte
             if ( $is_uninstalled ) {
@@ -1066,13 +1074,13 @@ function tsootc_page() {
             } elseif ( $is_freemius_group ) {
                 $border_color  = '#b0c8e0';
                 $default_open  = false;
-                $status_label  = '<span style="color:#0075be;font-weight:600">🔒 '
+                $status_label  = '<span style="color:#9a6700;font-weight:600">⚠️ '
                     . esc_html(
                         tsootc_ui_triple_text(
                             $lang,
-                            'SDK compartit (no esborrar)',
-                            'SDK compartido (no borrar)',
-                            'Shared SDK (do not delete)'
+                            'Hosting web — revisar abans d’eliminar',
+                            'Hosting web — revisar antes de eliminar',
+                            'Web hosting — review before deleting'
                         )
                     )
                     . '</span>';
@@ -1206,9 +1214,9 @@ function tsootc_page() {
                     . esc_html(
                         tsootc_ui_triple_text(
                             $lang,
-                            'Claus fs_* del SDK Freemius compartit per diversos plugins. No són residus: no les esborris o pots trencar llicències, actualitzacions o comptes.',
-                            'Claves fs_* del SDK Freemius compartido por varios plugins. No son residuos: no las borres o puedes romper licencias, actualizaciones o cuentas.',
-                            'fs_* keys from the Freemius SDK shared across many plugins. These are not leftovers — do not delete them or you may break licenses, updates, or accounts.'
+                            'Claus fs_* compartides per plugins o serveis de hosting. Es poden eliminar com qualsevol altra clau, però revisa-les abans perquè poden contenir llicències, actualitzacions o comptes.',
+                            'Claves fs_* compartidas por plugins o servicios de hosting. Se pueden eliminar como cualquier otra clave, pero revísalas antes porque pueden contener licencias, actualizaciones o cuentas.',
+                            'fs_* keys shared by plugins or hosting services. They can be deleted like normal options, but review them first because they may contain licenses, updates, or accounts.'
                         )
                     )
                     . '</p>';
@@ -1236,10 +1244,12 @@ function tsootc_page() {
             foreach ( $items_all as $opt ) {
                 $name        = $opt->option_name;
                 $row_safety  = $safety;
-                if ( $group_name === $widgets_group_key && function_exists( 'tsootc_is_wp_core_widget_option' ) ) {
+                if ( function_exists( 'tsootc_is_wp_core_option' ) && tsootc_is_wp_core_option( $name ) ) {
+                    $row_safety = 'core';
+                } elseif ( $group_name === $widgets_group_key && function_exists( 'tsootc_is_wp_core_widget_option' ) ) {
                     $row_safety = tsootc_is_wp_core_widget_option( $name ) ? 'core' : 'unknown';
                 }
-                $row_can_delete = ( 'core' !== $row_safety && 'protected' !== $row_safety );
+                $row_can_delete = ( 'core' !== $row_safety );
                 $is_autoload = ! in_array( $opt->autoload, array( 'no', 'off', '0', '' ), true );
                 $kb          = $opt->mida > 1024 ? number_format( $opt->mida / 1024, 1 ) . ' KB' : $opt->mida . ' B';
                 $mida_color  = $opt->mida > 102400 ? '#dc3232' : ( $opt->mida > 10240 ? '#f56e28' : '#555' );

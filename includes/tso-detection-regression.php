@@ -99,6 +99,128 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'     => 'core_rewrite_rules_protected',
+			'type'   => 'delete_blocked',
+			'option' => 'rewrite_rules',
+			'assert' => array(
+				'blocked' => true,
+			),
+		),
+		array(
+			'id'      => 'core_options_all_protected',
+			'type'    => 'core_options_safe',
+			'options' => array(
+				'rewrite_rules',
+				'wp_user_roles',
+				'cron',
+				'uninstall_plugins',
+				'auto_update_plugins',
+				'active_plugins',
+				'dashboard_widget_options',
+				'sidebars_widgets',
+				'disallowed_keys',
+				'recovery_keys',
+				'auto_core_update_notified',
+				'wp_user_hash_gravatar',
+			),
+			'assert'  => array(
+				'blocked' => true,
+			),
+		),
+		array(
+			'id'     => 'widgets_sort_directly_before_core',
+			'type'   => 'group_order',
+			'assert' => array(
+				'last_keys' => array( '__widgets__', '__core__' ),
+			),
+		),
+		array(
+			'id'     => 'freemius_remains_deletable_by_admin',
+			'type'   => 'delete_blocked',
+			'option' => 'fs_accounts',
+			'assert' => array(
+				'blocked' => false,
+			),
+		),
+		array(
+			'id'     => 'core_active_plugins_v2',
+			'type'   => 'resolve_v2',
+			'option' => 'active_plugins',
+			'assert' => array(
+				'source'            => 'core',
+				'name_substring'    => 'WordPress',
+				'forbidden_sources' => array( 'codescan', 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'sweeppress_d4p_installed_v2',
+			'type'      => 'resolve_v2',
+			'option'    => 'd4p_blog_sweeppress_settings',
+			'inventory' => array(
+				array(
+					'name'   => 'SweepPress',
+					'file'   => 'sweeppress/sweeppress.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring'   => 'sweeppress',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'jetpack_subscription_options_v2',
+			'type'      => 'resolve_v2',
+			'option'    => 'subscription_options',
+			'inventory' => array(
+				array(
+					'name'   => 'Jetpack',
+					'file'   => 'jetpack/jetpack.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring'   => 'jetpack',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'jetpack_stats_options_v2',
+			'type'      => 'resolve_v2',
+			'option'    => 'stats_options',
+			'inventory' => array(
+				array(
+					'name'   => 'Jetpack',
+					'file'   => 'jetpack/jetpack.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring'   => 'jetpack',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'jetpack_sharing_services_v2',
+			'type'      => 'resolve_v2',
+			'option'    => 'sharing-services',
+			'inventory' => array(
+				array(
+					'name'   => 'Jetpack',
+					'file'   => 'jetpack/jetpack.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'assert'    => array(
+				'file_substring'   => 'jetpack',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
 			'id'     => 'widget_mts_not_link_inspector',
 			'option' => 'widget_mts_ad_widget',
 			'assert' => array(
@@ -1052,12 +1174,65 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 		);
 	}
 
+	if ( 'core_options_safe' === $type ) {
+		$options = isset( $fixture['options'] ) && is_array( $fixture['options'] ) ? $fixture['options'] : array();
+		foreach ( $options as $core_option ) {
+			if ( ! tsootc_is_wp_core_option( $core_option ) || ! tsootc_option_delete_is_blocked( $core_option ) ) {
+				return array(
+					'id'      => $id,
+					'pass'    => false,
+					'message' => 'core option is not protected: ' . (string) $core_option,
+				);
+			}
+		}
+		return array(
+			'id'      => $id,
+			'pass'    => true,
+			'message' => 'ok',
+		);
+	}
+
+	if ( 'group_order' === $type ) {
+		$grouped = array(
+			'Active plugin' => array(),
+			'__core__'      => array(),
+			'__widgets__'   => array(),
+			'❓ Unknown'    => array(),
+		);
+		$ordered   = tsootc_order_option_groups( $grouped );
+		$keys      = array_keys( $ordered );
+		$expected  = isset( $assert['last_keys'] ) && is_array( $assert['last_keys'] ) ? $assert['last_keys'] : array();
+		$last_keys = array_slice( $keys, -count( $expected ) );
+		return array(
+			'id'      => $id,
+			'pass'    => $last_keys === $expected,
+			'message' => $last_keys === $expected ? 'ok' : 'unexpected final group order: ' . implode( ', ', $last_keys ),
+		);
+	}
+
 	$option = (string) ( $fixture['option'] ?? '' );
 	if ( '' === $option ) {
 		return array(
 			'id'      => $id,
 			'pass'    => false,
 			'message' => 'empty option key',
+		);
+	}
+
+	if ( 'delete_blocked' === $type ) {
+		if ( ! function_exists( 'tsootc_option_delete_is_blocked' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_option_delete_is_blocked missing',
+			);
+		}
+		$blocked = tsootc_option_delete_is_blocked( $option );
+		$expect  = ! empty( $assert['blocked'] );
+		return array(
+			'id'      => $id,
+			'pass'    => $blocked === $expect,
+			'message' => $blocked === $expect ? 'ok' : 'expected blocked=' . ( $expect ? 'true' : 'false' ),
 		);
 	}
 

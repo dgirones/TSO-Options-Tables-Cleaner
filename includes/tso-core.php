@@ -3214,6 +3214,10 @@ function tsootc_detect_jetpack_option( $option_name, array $installed_plugins = 
         'jetpack_available_modules',
         'jetpack_updates',
         'jetpack_private_options',
+        'subscription_options',
+        'stats_options',
+        'sharing-options',
+        'sharing-services',
         'feedback_unread_count',
         'monitor_receive_notifications',
     );
@@ -3566,19 +3570,7 @@ function tsootc_option_delete_is_blocked( $option_name ) {
 	if ( function_exists( 'tsootc_is_wp_core_option' ) && tsootc_is_wp_core_option( $option_name ) ) {
 		return true;
 	}
-
-	if ( tsootc_option_is_freemius_shared_key( $option_name ) ) {
-		return true;
-	}
-
-	if ( ! function_exists( 'tsootc_detect_plugin_with_history' ) ) {
-		return false;
-	}
-
-	$plugins  = function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array();
-	$detected = tsootc_detect_plugin_with_history( $option_name, $plugins, array( 'fast' => true ) );
-
-	return tsootc_detection_row_is_shared_protected_sdk( $detected );
+	return false;
 }
 
 /**
@@ -9877,10 +9869,6 @@ function tsootc_option_safety( $name, $detected, $plugins, $lang = 'ca' ) {
     if ( tsootc_is_wp_core_option( $name ) ) {
         return 'core';
     }
-    if ( tsootc_option_is_freemius_shared_key( $name )
-        || tsootc_detection_row_is_shared_protected_sdk( $detected ) ) {
-        return 'protected';
-    }
     if ( ! $detected ) {
         return 'unknown';
     }
@@ -10675,7 +10663,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 56 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 57 );
 }
 
 /**
@@ -11739,12 +11727,56 @@ function tsootc_get_existing_group_names_light( array $plugins ) {
 }
 
 /**
+ * Sort option groups by review priority, keeping Widgets directly above Core.
+ *
+ * @param array $grouped Grouped options.
+ * @return array
+ */
+function tsootc_order_option_groups( array $grouped ) {
+    $order_unknown     = array();
+    $order_uninstalled = array();
+    $order_inactive    = array();
+    $order_active      = array();
+    $order_widgets     = array();
+    $order_core        = array();
+
+    foreach ( $grouped as $group_key => $group_data ) {
+        if ( '__unknown__' === $group_key
+            || ( 0 === strpos( (string) $group_key, '❓ ' ) && empty( $group_data['is_uninstalled'] ) ) ) {
+            $order_unknown[ $group_key ] = $group_data;
+        } elseif ( '__core__' === $group_key ) {
+            $order_core[ $group_key ] = $group_data;
+        } elseif ( '__widgets__' === $group_key ) {
+            $order_widgets[ $group_key ] = $group_data;
+        } elseif ( ! empty( $group_data['is_uninstalled'] ) ) {
+            $order_uninstalled[ $group_key ] = $group_data;
+        } elseif ( ! empty( $group_data['is_inactive'] ) ) {
+            $order_inactive[ $group_key ] = $group_data;
+        } else {
+            $order_active[ $group_key ] = $group_data;
+        }
+    }
+
+    ksort( $order_unknown );
+    if ( isset( $order_unknown['__unknown__'] ) ) {
+        $unknown_first = array( '__unknown__' => $order_unknown['__unknown__'] );
+        unset( $order_unknown['__unknown__'] );
+        $order_unknown = $unknown_first + $order_unknown;
+    }
+    ksort( $order_uninstalled );
+    ksort( $order_inactive );
+    ksort( $order_active );
+
+    return $order_unknown + $order_uninstalled + $order_inactive + $order_active + $order_widgets + $order_core;
+}
+
+/**
  * Build grouped wp_options data for the admin tab (with transient cache).
  *
- * @param array  $plugins       Installed plugins inventory.
- * @param string $lang          UI language (ca|es|en).
- * @param bool   $force_refresh      Skip cache.
- * @param bool   $skip_cache_lookup  Caller already tried {@see tsootc_options_tab_get_cached_payload()}.
+ * @param array  $plugins           Installed plugins inventory.
+ * @param string $lang              UI language (ca|es|en).
+ * @param bool   $force_refresh     Skip cache.
+ * @param bool   $skip_cache_lookup Caller already tried {@see tsootc_options_tab_get_cached_payload()}.
  * @return array{
  *   grouped: array,
  *   transients: array,
@@ -11987,34 +12019,7 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
     $n_total    = count( $options ) - count( $transients );
     $n_core     = isset( $grouped['__core__'] ) ? count( $grouped['__core__']['items'] ) : 0;
 
-    $order_unknown     = array();
-    $order_uninstalled = array();
-    $order_inactive    = array();
-    $order_active      = array();
-    $order_core        = array();
-    foreach ( $grouped as $gk => $gd ) {
-        if ( '__unknown__' === $gk || ( 0 === strpos( (string) $gk, '❓ ' ) && empty( $gd['is_uninstalled'] ) ) ) {
-            $order_unknown[ $gk ] = $gd;
-        } elseif ( '__core__' === $gk ) {
-            $order_core[ $gk ] = $gd;
-        } elseif ( ! empty( $gd['is_uninstalled'] ) ) {
-            $order_uninstalled[ $gk ] = $gd;
-        } elseif ( ! empty( $gd['is_inactive'] ) ) {
-            $order_inactive[ $gk ] = $gd;
-        } else {
-            $order_active[ $gk ] = $gd;
-        }
-    }
-    ksort( $order_unknown );
-    if ( isset( $order_unknown['__unknown__'] ) ) {
-        $tmp = array( '__unknown__' => $order_unknown['__unknown__'] );
-        unset( $order_unknown['__unknown__'] );
-        $order_unknown = $tmp + $order_unknown;
-    }
-    ksort( $order_uninstalled );
-    ksort( $order_inactive );
-    ksort( $order_active );
-    $grouped = $order_unknown + $order_uninstalled + $order_inactive + $order_active + $order_core;
+    $grouped = tsootc_order_option_groups( $grouped );
 
     tsootc_options_tab_end_detection_batch();
     tsootc_detection_codescan_grep_allowed( true );
@@ -13564,7 +13569,9 @@ function tsootc_delete_options_by_names( array $names, array $args = array() ) {
     $clean = array();
     foreach ( $names as $name ) {
         $name = sanitize_text_field( (string) $name );
-        if ( '' !== $name ) {
+        if ( '' !== $name
+            && ( ! function_exists( 'tsootc_option_delete_is_blocked' )
+                || ! tsootc_option_delete_is_blocked( $name ) ) ) {
             $clean[ $name ] = $name;
         }
     }
@@ -14740,9 +14747,9 @@ function tsootc_ajax_delete_option() {
         wp_send_json_error(
             array(
                 'msg' => tsootc_msg(
-                    'Aquesta opció pertany a un SDK compartit i no s\'ha d\'eliminar.',
-                    'Esta opción pertenece a un SDK compartido y no debe eliminarse.',
-                    'This option belongs to a shared SDK and must not be deleted.'
+                    'Aquesta és una opció protegida del nucli de WordPress i no es pot eliminar.',
+                    'Esta es una opción protegida del núcleo de WordPress y no se puede eliminar.',
+                    'This is a protected WordPress core option and cannot be deleted.'
                 ),
             )
         );
@@ -14792,9 +14799,9 @@ function tsootc_ajax_delete_options_bulk() {
         wp_send_json_error(
             array(
                 'msg' => tsootc_msg(
-                    'Algunes opcions seleccionades pertanyen a un SDK compartit (Freemius) i no es poden eliminar.',
-                    'Algunas opciones seleccionadas pertenecen a un SDK compartido (Freemius) y no se pueden eliminar.',
-                    'Some selected options belong to a shared SDK (Freemius) and cannot be deleted.'
+                    'Algunes opcions seleccionades són del nucli de WordPress i no es poden eliminar.',
+                    'Algunas opciones seleccionadas son del núcleo de WordPress y no se pueden eliminar.',
+                    'Some selected options belong to WordPress core and cannot be deleted.'
                 ),
             )
         );

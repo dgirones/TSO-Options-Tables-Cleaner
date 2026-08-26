@@ -14,7 +14,7 @@ if ( 'cli' !== php_sapi_name() ) {
 
 define( 'ABSPATH', __DIR__ . '/wp-stubs/' );
 define( 'TSOOTC_FILE', __DIR__ . '/../tso-options-tables-cleaner.php' );
-define( 'TSOOTC_VERSION', '1.2.8' );
+define( 'TSOOTC_VERSION', '1.2.9' );
 define( 'TSOOTC_PATH', __DIR__ . '/../' );
 define( 'TSOOTC_DIR', TSOOTC_PATH );
 define( 'TSOOTC_URL', 'http://example.test/wp-content/plugins/tso-options-tables-cleaner/' );

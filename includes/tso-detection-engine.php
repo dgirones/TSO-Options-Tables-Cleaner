@@ -49,6 +49,7 @@ function tsootc_detection_evidence_base_weights() {
 		'theme_disk'             => 55,
 		'codescan_string'        => 50,
 		'history_index'          => 40,
+		'legacy_installed'       => 60,
 		'slug_prefix_match'      => 35,
 		'prefix_map_label_only'  => 15,
 	);
@@ -132,7 +133,7 @@ function tsootc_detection_apply_v2_history_post_process( $detected, $option_name
 	$fast   = ! empty( $args['fast'] );
 	$source = is_array( $detected ) ? (string) ( $detected['source'] ?? '' ) : '';
 
-	if ( is_array( $detected ) && in_array( $source, array( 'custom_map', 'option_key_map' ), true ) ) {
+	if ( is_array( $detected ) && in_array( $source, array( 'core', 'custom_map', 'option_key_map' ), true ) ) {
 		return $detected;
 	}
 
@@ -191,8 +192,23 @@ function tsootc_detection_apply_v2_history_post_process( $detected, $option_name
  * @return array|null
  */
 function tsootc_detection_resolve_option_v2( $option_name, array $installed_plugins = array(), $args = array() ) {
+	if ( function_exists( 'tsootc_is_wp_core_option' ) && tsootc_is_wp_core_option( $option_name ) ) {
+		return array(
+			'name'             => 'WordPress',
+			'file'             => '',
+			'folder'           => '__wordpress_core__',
+			'active'           => true,
+			'installed'        => true,
+			'type'             => 'core',
+			'source'           => 'core',
+			'confidence_score' => 100,
+			'confidence'       => 'high',
+		);
+	}
+
 	$candidates = tsootc_detection_collect_all_candidates( $option_name, $installed_plugins, $args );
 	$candidates = tsootc_detection_apply_structural_filters( $candidates, $option_name, $installed_plugins );
+	$candidates = tsootc_detection_merge_candidates_by_owner_token( $candidates );
 	$candidates = tsootc_detection_score_candidates( $candidates, $option_name, $installed_plugins );
 
 	$trusted = tsootc_detection_pick_trusted_candidate( $candidates );
@@ -247,6 +263,49 @@ function tsootc_detection_collect_all_candidates( $option_name, array $installed
 }
 
 /**
+ * Merge evidence that points to the same owner before comparing score margins.
+ *
+ * @param array $candidates Candidate list.
+ * @return array<int,array<string,mixed>>
+ */
+function tsootc_detection_merge_candidates_by_owner_token( array $candidates ) {
+	$merged = array();
+	foreach ( $candidates as $index => $candidate ) {
+		if ( ! is_array( $candidate ) || ! is_array( $candidate['row'] ?? null ) ) {
+			continue;
+		}
+
+		$row   = $candidate['row'];
+		$token = function_exists( 'tsootc_detection_row_owner_token' )
+			? tsootc_detection_row_owner_token( $row )
+			: '';
+		$key   = '' !== $token ? $token : '__candidate_' . (string) $index;
+		if ( ! isset( $merged[ $key ] ) ) {
+			$candidate['owner_token'] = $token;
+			$merged[ $key ]           = $candidate;
+			continue;
+		}
+
+		$existing_evidence = isset( $merged[ $key ]['evidence'] ) && is_array( $merged[ $key ]['evidence'] )
+			? $merged[ $key ]['evidence']
+			: array();
+		$new_evidence      = isset( $candidate['evidence'] ) && is_array( $candidate['evidence'] )
+			? $candidate['evidence']
+			: array();
+		$merged[ $key ]['evidence'] = array_merge( $existing_evidence, $new_evidence );
+
+		$current_row = $merged[ $key ]['row'];
+		$current_has_file = ! empty( $current_row['file'] ) && false !== strpos( (string) $current_row['file'], '/' );
+		$new_has_file     = ! empty( $row['file'] ) && false !== strpos( (string) $row['file'], '/' );
+		if ( ! $current_has_file && $new_has_file ) {
+			$merged[ $key ]['row'] = $row;
+		}
+	}
+
+	return array_values( $merged );
+}
+
+/**
  * Apply structural hard-reject / cap rules to candidates.
  *
  * @param array  $candidates        Candidate list.
@@ -289,7 +348,7 @@ function tsootc_detection_apply_structural_filters( array $candidates, $option_n
 			&& ( ! function_exists( 'tsootc_is_synthetic_shared_sdk_folder' ) || ! tsootc_is_synthetic_shared_sdk_folder( $folder ) )
 			&& ! tsootc_option_key_matches_plugin_folder_evidence( $option_name, $folder ) ) {
 			$evidence_types = wp_list_pluck( (array) ( $candidate['evidence'] ?? array() ), 'type' );
-			$trusted_evidence = array( 'custom_map', 'option_key_map', 'theme_mods_exact' );
+			$trusted_evidence = array( 'custom_map', 'option_key_map', 'theme_mods_exact', 'legacy_installed' );
 			if ( empty( array_intersect( $evidence_types, $trusted_evidence ) ) ) {
 				continue;
 			}

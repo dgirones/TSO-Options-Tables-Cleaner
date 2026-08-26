@@ -739,6 +739,62 @@ function tsootc_detection_gen_autodetect_prefix( $option_name, array $installed_
 }
 
 /**
+ * Last-resort compatibility candidate from the legacy cascade.
+ *
+ * Only accepts an owner present in the current inventory. This recovers established
+ * mappings while preventing legacy label-only or uninstalled guesses from winning.
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Inventory.
+ * @param array  $args              Detection args.
+ * @return array<int,array<string,mixed>>
+ */
+function tsootc_detection_gen_legacy_installed_fallback( $option_name, array $installed_plugins = array(), $args = array() ) {
+	if ( empty( $installed_plugins ) || ! function_exists( 'tsootc_detect_plugin_cascade_legacy' ) ) {
+		return array();
+	}
+
+	$legacy_args                  = is_array( $args ) ? $args : array();
+	$legacy_args['force_cascade'] = true;
+	$legacy_args['fast']          = true;
+	$row                          = tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins, $legacy_args );
+	if ( ! is_array( $row ) || empty( $row['file'] ) ) {
+		return array();
+	}
+
+	$file      = strtolower( str_replace( '\\', '/', (string) $row['file'] ) );
+	$installed = false;
+	foreach ( $installed_plugins as $plugin ) {
+		if ( empty( $plugin['file'] ) ) {
+			continue;
+		}
+		$plugin_file = strtolower( str_replace( '\\', '/', (string) $plugin['file'] ) );
+		if ( $file === $plugin_file ) {
+			$installed = true;
+			break;
+		}
+		if ( ! empty( $row['type'] ) && 'theme' === $row['type']
+			&& strtolower( dirname( $plugin_file ) ) === strtolower( dirname( $file ) ) ) {
+			$installed = true;
+			break;
+		}
+	}
+	if ( ! $installed ) {
+		return array();
+	}
+
+	$row['source'] = 'legacy_installed';
+	return array(
+		tsootc_detection_make_candidate(
+			$row,
+			'legacy_installed',
+			'tsootc_detection_gen_legacy_installed_fallback',
+			'legacy mapping confirmed by current inventory'
+		),
+	);
+}
+
+/**
  * Registered generator callbacks for the unified engine.
  *
  * @return array<int,callable>
@@ -759,5 +815,6 @@ function tsootc_detection_get_registered_generators() {
 		'tsootc_detection_gen_codescan_cache',
 		'tsootc_detection_gen_codescan_live',
 		'tsootc_detection_gen_autodetect_prefix',
+		'tsootc_detection_gen_legacy_installed_fallback',
 	);
 }

@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.8
+Stable tag: 1.2.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,15 @@ No external connections: This plugin does not make any HTTP requests to external
 == Changelog ==
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+
+= 1.2.9 =
+* Safety: WordPress core options are always locked in the UI and in every delete handler
+* Detection: merge evidence by owner before applying score margin (prevents false Unconfirmed rows)
+* Detection: installed-only legacy fallback restores established plugin mappings without reviving stale labels
+* SweepPress d4p_* and Jetpack subscription/stats/sharing keys resolve to installed plugins
+* Widgets without an identified plugin are ordered directly above WordPress Core
+* Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
+* Detection regression expanded to 56 fixtures
 
 = 1.2.8 =
 * wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
