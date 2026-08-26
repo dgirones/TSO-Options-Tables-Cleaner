@@ -1,6 +1,6 @@
 <?php
 /**
- * Unified wp_options detection engine (RFC v1 — Phase A infrastructure).
+ * Unified wp_options detection engine (RFC v1 — production default).
  *
  * @package TSO_Options_Tables_Cleaner
  */

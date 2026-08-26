@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.7
+Stable tag: 1.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -90,6 +90,15 @@ No external connections: This plugin does not make any HTTP requests to external
 
 == Changelog ==
 
+= 1.2.8 =
+* wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
+* Options tab groups by owner token (folder/theme) instead of display label only; mixed/outlier badges
+* Audit panel: Evidence column; filter for uncertain rows
+* Codescan: distinguishes update_option API hits from generic string literals (weighted evidence)
+* Extra tables: history reconcile respects test/staging inventory; label token matching improved
+* Legacy cascade moved to includes/tso-detection-cascade-legacy.php (force_cascade / debug only)
+* Detection regression: 47 fixtures (CLI runner: php scripts/run-detection-regression.php)
+
 = 1.2.7 =
 * Detection audit: theme vs plugin on-disk checks, synthetic hosting/SDK labels, group-flag mismatch detection, mixed-sample normalization
 * Detection: theme_mods_* never remapped to plugins via codescan; theme path hints under wp-content/themes
@@ -97,15 +106,13 @@ No external connections: This plugin does not make any HTTP requests to external
 * Extra tables: WordPress core / multisite protected tables excluded; quoted DROP identifiers
 * General cleanup: expired transients savings fix, retention_days partial save, multisite OPTIMIZE scope
 * Backup: reliable delete check, uploads protection files, unique filenames, cache flush after restore
-* Tested up to WordPress 7.1; Plugin Check PHPCS on DROP TABLE queries
-
-= 1.2.6 =
 * Softaculous / hosting options (softaculous_*, ai-install) stay in their own group — never merged into WP plugins
 * Options tab: Active/Inactive group status reconciled from live plugin inventory after merge
 * Options-tab cache: avoid duplicate delete_option calls after flush; fix inv_sig / cache-blob storage keys (schema 7)
 * AJAX/admin: POST reads via storage helpers; retention_days isset preserved after helper migration
+* Tested up to WordPress 7.1; Plugin Check PHPCS on DROP TABLE queries
 
-= 1.2.5 =
+= 1.2.6 =
 * History Details: version, folder, bootstrap path, and automatic "replaces" hint when a recently deleted plugin shares the same option-prefix family
 * History: show mapped_on_delete for theme keys_mapped events; enrich older rows on display
 * Detection: shared prefixes (e.g. tsosk_) resolve to the currently installed plugin folder without manual aliases
