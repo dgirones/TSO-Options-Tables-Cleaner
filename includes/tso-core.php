@@ -4827,6 +4827,13 @@ function tsootc_normalize_custom_map_group_label( $group_label, $option_name = '
 }
 
 function tsootc_detect_plugin( $option_name, $installed_plugins = array(), $args = array() ) {
+    if ( empty( $args['force_cascade'] )
+        && function_exists( 'tsootc_detection_engine_v2_enabled' )
+        && tsootc_detection_engine_v2_enabled()
+        && function_exists( 'tsootc_detection_resolve_option_v2' ) ) {
+        return tsootc_detection_resolve_option_v2( $option_name, $installed_plugins, $args );
+    }
+
     $fast = ! empty( $args['fast'] );
     $option_name = (string) $option_name;
     $lower = strtolower( $option_name );
@@ -5407,6 +5414,15 @@ function tsootc_detect_plugin_with_history( $option_name, $installed_plugins = a
 
     if ( empty( $installed_plugins ) && function_exists( 'tsootc_get_installed_plugins' ) ) {
         $installed_plugins = tsootc_get_installed_plugins();
+    }
+
+    if ( empty( $args['force_cascade'] )
+        && function_exists( 'tsootc_detection_engine_v2_enabled' )
+        && tsootc_detection_engine_v2_enabled()
+        && function_exists( 'tsootc_detection_resolve_option' ) ) {
+        $v2_args = is_array( $args ) ? $args : array();
+        $v2_args['force_v2'] = true;
+        return tsootc_detection_resolve_option( $option_name, $installed_plugins, $v2_args );
     }
 
     if ( ! empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
@@ -12454,6 +12470,10 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
                     $opt->tsootc_detect_score,
                     null !== tsootc_custom_map_get_plugin( $name )
                 );
+            if ( function_exists( 'tsootc_audit_detection_owner_token' ) ) {
+                $opt->tsootc_detect_owner_token = tsootc_audit_detection_owner_token( $detected );
+            }
+            $opt->tsootc_detect_confidence = (string) ( $detected['confidence'] ?? '' );
             if ( $opt->tsootc_detect_needs_confirm
                 && '' === $opt->tsootc_detect_hint
                 && ! empty( $detected['name'] )
@@ -12469,6 +12489,9 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
     }
     if ( function_exists( 'tsootc_group_rekey_and_merge' ) ) {
         $grouped = tsootc_group_rekey_and_merge( $grouped, $lang, $plugins );
+    }
+    if ( function_exists( 'tsootc_detection_reconcile_option_groups' ) ) {
+        $grouped = tsootc_detection_reconcile_option_groups( $grouped, $plugins, $detect_args );
     }
     if ( function_exists( 'tsootc_reconcile_grouped_uninstalled_flags' ) ) {
         $grouped = tsootc_reconcile_grouped_uninstalled_flags( $grouped, $plugins, $lang );

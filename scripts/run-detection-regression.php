@@ -281,6 +281,7 @@ require_once TSOOTC_PATH . 'includes/tso-autodetect.php';
 require_once TSOOTC_PATH . 'includes/tso-tracking.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-score.php';
 require_once TSOOTC_PATH . 'includes/tso-table-detection.php';
+require_once TSOOTC_PATH . 'includes/tso-detection-rules.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-generators.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-engine.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-regression.php';

@@ -29,7 +29,7 @@ function tsootc_detection_engine_v2_enabled() {
 	 *
 	 * @param bool $enabled Default false (Phase A).
 	 */
-	return (bool) apply_filters( 'tsootc_detection_engine_v2', false );
+	return (bool) apply_filters( 'tsootc_detection_engine_v2', true );
 }
 
 /**
@@ -42,7 +42,11 @@ function tsootc_detection_evidence_base_weights() {
 		'custom_map'             => 100,
 		'option_key_map'         => 90,
 		'theme_mods_exact'       => 95,
+		'branded_rule'           => 88,
 		'codescan_update_option' => 85,
+		'widget_map'             => 42,
+		'known_exact_map'        => 80,
+		'theme_disk'             => 55,
 		'codescan_string'        => 50,
 		'history_index'          => 40,
 		'slug_prefix_match'      => 35,
@@ -83,7 +87,99 @@ function tsootc_detection_resolve_option( $option_name, array $installed_plugins
 		return null;
 	}
 
-	return tsootc_detection_resolve_option_v2( $option_name, $installed_plugins, $args );
+	return tsootc_detection_resolve_option_v2_with_postprocess( $option_name, $installed_plugins, $args );
+}
+
+/**
+ * V2 resolver plus history/correction post-process (parity with with_history).
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Inventory.
+ * @param array  $args              Detection args.
+ * @return array|null
+ */
+function tsootc_detection_resolve_option_v2_with_postprocess( $option_name, array $installed_plugins = array(), $args = array() ) {
+	$fast      = ! empty( $args['fast'] );
+	$cache_key = '';
+
+	if ( ! empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+		$cache_key = (string) $option_name . '|v2|' . ( $fast ? 'f' : 's' );
+		if ( isset( $GLOBALS['tsootc_opts_detect_cache'][ $cache_key ] ) ) {
+			return $GLOBALS['tsootc_opts_detect_cache'][ $cache_key ];
+		}
+	}
+
+	$detected = tsootc_detection_resolve_option_v2( $option_name, $installed_plugins, $args );
+	$detected = tsootc_detection_apply_v2_history_post_process( $detected, $option_name, $installed_plugins, $args );
+
+	if ( '' !== $cache_key ) {
+		$GLOBALS['tsootc_opts_detect_cache'][ $cache_key ] = $detected;
+	}
+
+	return $detected;
+}
+
+/**
+ * History, corrections, and confidence post-process for V2 rows.
+ *
+ * @param array|null $detected            Detection row.
+ * @param string     $option_name         Option key.
+ * @param array      $installed_plugins   Inventory.
+ * @param array      $args                Detection args.
+ * @return array|null
+ */
+function tsootc_detection_apply_v2_history_post_process( $detected, $option_name, array $installed_plugins = array(), $args = array() ) {
+	$fast   = ! empty( $args['fast'] );
+	$source = is_array( $detected ) ? (string) ( $detected['source'] ?? '' ) : '';
+
+	if ( is_array( $detected ) && in_array( $source, array( 'custom_map', 'option_key_map' ), true ) ) {
+		return $detected;
+	}
+
+	if ( function_exists( 'tsootc_history_enhance_detection' ) ) {
+		$detected = tsootc_history_enhance_detection( $detected, $option_name, $installed_plugins );
+	}
+
+	if ( function_exists( 'tsootc_apply_history_to_detected' ) ) {
+		$detected = tsootc_apply_history_to_detected( $detected, $installed_plugins, $option_name );
+	}
+
+	if ( function_exists( 'tsootc_correct_theme_false_uninstall' ) ) {
+		$detected = tsootc_correct_theme_false_uninstall( $detected, $option_name, $installed_plugins );
+	}
+	if ( function_exists( 'tsootc_correct_false_plugin_as_theme' ) ) {
+		$detected = tsootc_correct_false_plugin_as_theme( $detected, $option_name, $installed_plugins );
+	}
+	if ( function_exists( 'tsootc_correct_plugin_false_uninstall' ) ) {
+		$detected = tsootc_correct_plugin_false_uninstall( $detected, $option_name, $installed_plugins );
+	}
+	if ( function_exists( 'tsootc_correct_false_cross_plugin_attribution' ) ) {
+		$detected = tsootc_correct_false_cross_plugin_attribution( $detected, $option_name, $installed_plugins );
+	}
+
+	$is_theme_row = is_array( $detected )
+		&& (
+			( ! empty( $detected['type'] ) && 'theme' === $detected['type'] )
+			|| ( ! empty( $detected['folder'] ) && 0 === strpos( (string) $detected['folder'], 'theme:' ) )
+		);
+	if ( $is_theme_row && function_exists( 'tsootc_apply_theme_label_to_detection' ) ) {
+		$detected = tsootc_apply_theme_label_to_detection( $detected, $option_name, $installed_plugins );
+	}
+
+	// Label-only slow rescans (parity with with_history).
+	if ( ! $fast
+		&& function_exists( 'tsootc_codescan_allowed_during_request' )
+		&& tsootc_codescan_allowed_during_request()
+		&& function_exists( 'tsootc_detection_row_is_label_only' )
+		&& tsootc_detection_row_is_label_only( $detected )
+		&& function_exists( 'tsootc_codescan_detect_option' ) ) {
+		$code_row = tsootc_codescan_detect_option( $option_name, $installed_plugins );
+		if ( is_array( $code_row ) && ! empty( $code_row['file'] ) ) {
+			$detected = $code_row;
+		}
+	}
+
+	return $detected;
 }
 
 /**
@@ -136,7 +232,7 @@ function tsootc_detection_collect_all_candidates( $option_name, array $installed
 		if ( ! is_callable( $generator ) ) {
 			continue;
 		}
-		$batch = call_user_func( $generator, $option_name, $installed_plugins );
+		$batch = call_user_func( $generator, $option_name, $installed_plugins, $args );
 		if ( ! is_array( $batch ) || empty( $batch ) ) {
 			continue;
 		}
@@ -268,17 +364,30 @@ function tsootc_detection_score_candidates( array $candidates, $option_name, arr
  * @return array|null Detection row.
  */
 function tsootc_detection_pick_trusted_candidate( array $candidates ) {
+	$trusted_sources = function_exists( 'tsootc_detection_trusted_sources' )
+		? tsootc_detection_trusted_sources()
+		: array( 'custom_map', 'option_key_map' );
+
 	foreach ( $candidates as $candidate ) {
+		$row = $candidate['row'] ?? null;
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+
+		$source = (string) ( $row['source'] ?? '' );
+		if ( in_array( $source, $trusted_sources, true ) ) {
+			$row['confidence_score'] = (int) ( $candidate['score'] ?? 100 );
+			$row['confidence']       = 'high';
+			return $row;
+		}
+
 		$pieces = isset( $candidate['evidence'] ) && is_array( $candidate['evidence'] ) ? $candidate['evidence'] : array();
 		foreach ( $pieces as $piece ) {
 			$type = is_array( $piece ) ? (string) ( $piece['type'] ?? '' ) : '';
-			if ( in_array( $type, array( 'custom_map', 'option_key_map' ), true ) ) {
-				$row = $candidate['row'] ?? null;
-				if ( is_array( $row ) ) {
-					$row['confidence_score'] = (int) ( $candidate['score'] ?? 100 );
-					$row['confidence']       = 'high';
-					return $row;
-				}
+			if ( in_array( $type, array( 'custom_map', 'option_key_map', 'theme_mods_exact' ), true ) ) {
+				$row['confidence_score'] = (int) ( $candidate['score'] ?? 100 );
+				$row['confidence']       = 'high';
+				return $row;
 			}
 		}
 	}
@@ -385,4 +494,210 @@ function tsootc_detection_summarize_candidate_evidence( array $candidate ) {
 	}
 
 	return implode( ', ', array_unique( $parts ) );
+}
+
+/**
+ * Owner token for diff/debug (folder or file slug).
+ *
+ * @param array|null $row Detection row.
+ * @return string
+ */
+function tsootc_detection_row_owner_token( $row ) {
+	if ( ! is_array( $row ) ) {
+		return '';
+	}
+	$folder = (string) ( $row['folder'] ?? '' );
+	if ( '' !== $folder ) {
+		return $folder;
+	}
+	$file = (string) ( $row['file'] ?? '' );
+	if ( '' !== $file && false !== strpos( $file, '/' ) ) {
+		return strtolower( dirname( $file ) );
+	}
+	return strtolower( $file );
+}
+
+/**
+ * Compare cascade vs V2 resolver output (debug / staging).
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Inventory.
+ * @param array  $args              Detection args.
+ * @return array<string,mixed>
+ */
+function tsootc_detection_debug_diff_cascade_vs_v2( $option_name, array $installed_plugins = array(), $args = array() ) {
+	$args = is_array( $args ) ? $args : array();
+
+	$cascade_args = array_merge( $args, array( 'force_cascade' => true ) );
+	$v2_args      = array_merge( $args, array( 'force_v2' => true ) );
+
+	$cascade = null;
+	$v2      = null;
+
+	if ( function_exists( 'tsootc_detect_plugin_with_history' ) ) {
+		$cascade = tsootc_detect_plugin_with_history( $option_name, $installed_plugins, $cascade_args );
+	}
+	if ( function_exists( 'tsootc_detection_resolve_option' ) ) {
+		$v2 = tsootc_detection_resolve_option( $option_name, $installed_plugins, $v2_args );
+	}
+
+	$token_a = tsootc_detection_row_owner_token( $cascade );
+	$token_b = tsootc_detection_row_owner_token( $v2 );
+	$match   = ( $token_a === $token_b );
+
+	$result = array(
+		'option'        => (string) $option_name,
+		'match'         => $match,
+		'cascade_token' => $token_a,
+		'v2_token'      => $token_b,
+		'cascade'       => $cascade,
+		'v2'            => $v2,
+	);
+
+	if ( ! $match && ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+		/**
+		 * Log cascade vs V2 detection mismatch.
+		 *
+		 * @param array<string,mixed> $result Diff payload.
+		 */
+		do_action( 'tsootc_detection_resolver_diff', $result );
+	}
+
+	return $result;
+}
+
+/**
+ * Reconcile option groups for owner-token coherence (outliers / mixed groups).
+ *
+ * @param array $grouped             Grouped options payload.
+ * @param array $installed_plugins   Inventory.
+ * @param array $args                Detection args (fast batch).
+ * @return array<string,array<string,mixed>>
+ */
+function tsootc_detection_reconcile_option_groups( array $grouped, array $installed_plugins = array(), $args = array() ) {
+	unset( $args, $installed_plugins );
+
+	foreach ( $grouped as $group_key => &$group_data ) {
+		if ( ! is_array( $group_data ) || empty( $group_data['items'] ) || ! is_array( $group_data['items'] ) ) {
+			continue;
+		}
+		if ( function_exists( 'tsootc_is_synthetic_options_group_key' )
+			&& tsootc_is_synthetic_options_group_key( (string) $group_key ) ) {
+			continue;
+		}
+
+		$items = $group_data['items'];
+		if ( count( $items ) < 3 ) {
+			continue;
+		}
+
+		$token_counts = array();
+		foreach ( $items as $opt ) {
+			$token = isset( $opt->tsootc_detect_owner_token ) ? (string) $opt->tsootc_detect_owner_token : '';
+			if ( '' === $token && function_exists( 'tsootc_audit_detection_owner_token' ) ) {
+				$token = tsootc_audit_detection_owner_token(
+					array(
+						'folder' => isset( $group_data['plugin_folder'] ) ? (string) $group_data['plugin_folder'] : '',
+						'name'   => isset( $group_data['detected_name'] ) ? (string) $group_data['detected_name'] : '',
+					)
+				);
+			}
+			if ( '' === $token ) {
+				continue;
+			}
+			if ( ! isset( $token_counts[ $token ] ) ) {
+				$token_counts[ $token ] = 0;
+			}
+			++$token_counts[ $token ];
+		}
+
+		if ( empty( $token_counts ) ) {
+			continue;
+		}
+
+		arsort( $token_counts );
+		$dominant_token  = (string) key( $token_counts );
+		$dominant_count  = (int) current( $token_counts );
+		$total           = count( $items );
+		$dominant_ratio  = $dominant_count / $total;
+
+		if ( $dominant_ratio < 0.6 ) {
+			$group_data['is_mixed_group'] = true;
+			continue;
+		}
+
+		$outliers = 0;
+		foreach ( $items as $opt ) {
+			$token = isset( $opt->tsootc_detect_owner_token ) ? (string) $opt->tsootc_detect_owner_token : '';
+			if ( '' === $token || $token === $dominant_token ) {
+				continue;
+			}
+			$opt->tsootc_detect_outlier    = true;
+			$opt->tsootc_detect_confidence = 'low';
+			++$outliers;
+		}
+
+		if ( $outliers > 0 ) {
+			$group_data['has_outliers'] = true;
+		}
+	}
+	unset( $group_data );
+
+	return $grouped;
+}
+
+/**
+ * Human-readable evidence summary for a detection row (audit / tooltips).
+ *
+ * @param array|null $detected Detection row.
+ * @param string     $lang     UI language.
+ * @return string
+ */
+function tsootc_detection_format_row_evidence_summary( $detected, $lang = 'ca' ) {
+	if ( empty( $detected ) || ! is_array( $detected ) ) {
+		return '';
+	}
+
+	$parts  = array();
+	$source = (string) ( $detected['source'] ?? '' );
+	if ( '' !== $source && function_exists( 'tsootc_detection_format_source_label' ) ) {
+		$parts[] = tsootc_detection_format_source_label( $source, $lang );
+	}
+	$confidence = (string) ( $detected['confidence'] ?? '' );
+	if ( '' !== $confidence ) {
+		$parts[] = $confidence;
+	}
+	$score = (int) ( $detected['confidence_score'] ?? 0 );
+	if ( $score > 0 ) {
+		$parts[] = (string) $score;
+	}
+
+	return implode( ' · ', array_filter( $parts ) );
+}
+
+/**
+ * Whether a grouped options payload has uncertain rows (filter helper).
+ *
+ * @param array $group_data Group bucket.
+ * @return bool
+ */
+function tsootc_detection_group_has_uncertain_items( array $group_data ) {
+	if ( empty( $group_data['items'] ) || ! is_array( $group_data['items'] ) ) {
+		return false;
+	}
+	if ( ! empty( $group_data['is_mixed_group'] ) || ! empty( $group_data['has_outliers'] ) ) {
+		return true;
+	}
+	foreach ( $group_data['items'] as $opt ) {
+		if ( ! empty( $opt->tsootc_detect_needs_confirm ) ) {
+			return true;
+		}
+		if ( isset( $opt->tsootc_detect_source ) && 'unconfirmed' === (string) $opt->tsootc_detect_source ) {
+			return true;
+		}
+		if ( ! empty( $opt->tsootc_detect_outlier ) ) {
+			return true;
+		}
+	}
+	return false;
 }

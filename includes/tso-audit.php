@@ -561,6 +561,9 @@ function tsootc_audit_build_group_rows( $grouped_ordered, $installed_plugins, $l
 			'sample'          => $name,
 			'method'          => $method,
 			'method_label'    => tsootc_audit_method_label( $method, $lang ),
+			'evidence'        => function_exists( 'tsootc_detection_format_row_evidence_summary' )
+				? tsootc_detection_format_row_evidence_summary( $detected, $lang )
+				: '',
 			'history_label'   => tsootc_audit_history_label( $detected, $installed_plugins ),
 			'status'          => $status_row['status'],
 			'on_disk'         => $on_disk,
@@ -617,6 +620,7 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 	$txt_status   = tsootc_ui_triple_text( $lang, 'Estat UI', 'Estado UI', 'UI status' );
 	$txt_disk     = tsootc_ui_triple_text( $lang, 'Al disc', 'En disco', 'On disk' );
 	$txt_method   = tsootc_ui_triple_text( $lang, 'Mètode', 'Método', 'Method' );
+	$txt_evidence = tsootc_ui_triple_text( $lang, 'Evidència', 'Evidencia', 'Evidence' );
 	$txt_path     = tsootc_ui_triple_text( $lang, 'Ruta esperada', 'Ruta esperada', 'Expected path' );
 	$txt_sample   = tsootc_ui_triple_text( $lang, 'Opció mostra', 'Opción muestra', 'Sample option' );
 	$txt_mismatch = tsootc_ui_triple_text( $lang, 'Conflicte', 'Conflicto', 'Mismatch' );
@@ -668,13 +672,14 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 	echo '<th>' . esc_html( $txt_status ) . '</th>';
 	echo '<th>' . esc_html( $txt_disk ) . '</th>';
 	echo '<th>' . esc_html( $txt_method ) . '</th>';
+	echo '<th>' . esc_html( $txt_evidence ) . '</th>';
 	echo '<th>' . esc_html( $txt_path ) . '</th>';
 	echo '<th>' . esc_html( $txt_sample ) . '</th>';
 	echo '<th>' . esc_html( $txt_mismatch ) . '</th>';
 	echo '<th>' . esc_html( $txt_actions ) . '</th>';
 	echo '</tr></thead><tbody>';
 	if ( empty( $rows ) ) {
-		echo '<tr><td colspan="9" style="padding:16px;color:#666">' . esc_html( $txt_empty ) . '</td></tr>';
+		echo '<tr><td colspan="10" style="padding:16px;color:#666">' . esc_html( $txt_empty ) . '</td></tr>';
 	}
 	foreach ( $rows as $row ) {
 		$on_disk = $row['on_disk'];
@@ -705,6 +710,7 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 		echo '<td>' . esc_html( (string) $row['status'] ) . '</td>';
 		echo '<td style="' . esc_attr( $disk_style ) . '">' . esc_html( $disk_label ) . '</td>';
 		echo '<td><code style="font-size:11px">' . esc_html( (string) $row['method_label'] ) . '</code></td>';
+		echo '<td style="font-size:11px;color:#444">' . esc_html( (string) ( $row['evidence'] ?? '' ) ) . '</td>';
 		echo '<td style="font-size:11px;word-break:break-word;overflow-wrap:anywhere;max-width:200px">' . esc_html( (string) $row['disk_path'] ) . '</td>';
 		echo '<td><code style="font-size:11px"><a href="' . esc_url( $jump_url ) . '">' . esc_html( $sample ) . '</a></code></td>';
 		echo '<td>';

@@ -490,6 +490,7 @@ function tsootc_page() {
         $filter_safety   = isset( $_GET['safety'] )   ? sanitize_key( (string) ( $_GET['safety'] ?? '' ) )                      : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
         $audit_mode      = isset( $_GET['audit'] ) && '1' === sanitize_key( (string) wp_unslash( $_GET['audit'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display toggle
         $audit_mismatch  = isset( $_GET['audit_mismatch'] ) && '1' === sanitize_key( (string) wp_unslash( $_GET['audit_mismatch'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter
+        $filter_uncertain = isset( $_GET['opts_uncertain'] ) && '1' === sanitize_key( (string) wp_unslash( $_GET['opts_uncertain'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter
         $widgets_group_key = '__widgets__';
         $widgets_group_label = 'Widgets';
         $is_widget_option = static function( $option_name ) {
@@ -913,8 +914,25 @@ function tsootc_page() {
         echo '<option value="active"'   . selected( $filter_safety, 'active',   false ) . '>' . esc_html( __( '⚠️ Active plugin', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="core"'     . selected( $filter_safety, 'core',     false ) . '>' . esc_html( __( '🔒 WP Core', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '</select>';
-        if ( $filter_search || $filter_autoload || $filter_safety ) {
+        if ( $filter_search || $filter_autoload || $filter_safety || $filter_uncertain ) {
             echo '<a href="' . esc_url( $base_url . '&tab=options' ) . '" class="button">' . esc_html( __( '✕ Clear', 'tso-options-tables-cleaner' ) ) . '</a>';
+        }
+        $uncertain_url = add_query_arg(
+            array(
+                'tab'           => 'options',
+                'opts_uncertain' => '1',
+            ),
+            $base_url
+        );
+        $all_groups_url = remove_query_arg( 'opts_uncertain', $base_url . '&tab=options' );
+        if ( $filter_uncertain ) {
+            echo '<a href="' . esc_url( $all_groups_url ) . '" class="button button-secondary">' . esc_html(
+                tsootc_ui_triple_text( $lang, 'Tots els grups', 'Todos los grupos', 'All groups' )
+            ) . '</a>';
+        } else {
+            echo '<a href="' . esc_url( $uncertain_url ) . '" class="button button-secondary">' . esc_html(
+                tsootc_ui_triple_text( $lang, 'Només dubtoses', 'Solo dudosas', 'Uncertain only' )
+            ) . '</a>';
         }
         $audit_url = add_query_arg(
             array(
@@ -971,6 +989,12 @@ function tsootc_page() {
         $tso_td_lab_status = __( 'Status', 'tso-options-tables-cleaner' );
 
         foreach ( $grouped_ordered as $group_name => $group_data ) {
+
+            if ( $filter_uncertain
+                && function_exists( 'tsootc_detection_group_has_uncertain_items' )
+                && ! tsootc_detection_group_has_uncertain_items( $group_data ) ) {
+                continue;
+            }
 
             if ( $group_name === '__unknown__' ) {
                 $display_name = tsootc_ui_triple_text( $lang, 'Sense plugin detectat', 'Sin plugin detectado', 'No plugin detected' );
@@ -1081,6 +1105,33 @@ function tsootc_page() {
                     . ' style="font-size:10px;padding:1px 6px;min-height:20px;line-height:1;margin-left:4px">✏️</button>';
             }
             echo '<span class="grp-status">' . $status_label . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            if ( ! empty( $group_data['is_mixed_group'] ) ) {
+                echo ' <span class="tso-detect-badge tso-detect-badge-weak" title="'
+                    . esc_attr(
+                        tsootc_ui_triple_text(
+                            $lang,
+                            'Grup heterogeni: propietaris diferents',
+                            'Grupo heterogéneo: propietarios distintos',
+                            'Mixed group: different owners'
+                        )
+                    )
+                    . '">'
+                    . esc_html( tsootc_ui_triple_text( $lang, 'Mixt', 'Mixto', 'Mixed' ) )
+                    . '</span>';
+            } elseif ( ! empty( $group_data['has_outliers'] ) ) {
+                echo ' <span class="tso-detect-badge tso-detect-badge-weak" title="'
+                    . esc_attr(
+                        tsootc_ui_triple_text(
+                            $lang,
+                            'Algunes claus no coincideixen amb el propietari dominant',
+                            'Algunas claves no coinciden con el propietario dominante',
+                            'Some keys do not match the dominant owner'
+                        )
+                    )
+                    . '">'
+                    . esc_html( tsootc_ui_triple_text( $lang, 'Outliers', 'Outliers', 'Outliers' ) )
+                    . '</span>';
+            }
             echo '<span class="grp-meta">' . count( $items_all ) . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'entrades', 'entradas', 'entries' ) ) . ' · ' . esc_html( $grp_fmt ) . '</span>';
             if ( $can_delete ) {
                 echo '<button type="button" onclick="event.stopPropagation();tsootcAssignSelected(\'' . esc_js( $bulk_form_id ) . '\')" '
@@ -1216,6 +1267,18 @@ function tsootc_page() {
                     $detect_score  = isset( $opt->tsootc_detect_score ) ? (int) $opt->tsootc_detect_score : 0;
                     if ( '' !== $detect_source && function_exists( 'tsootc_detection_render_row_badge_html' ) ) {
                         echo tsootc_detection_render_row_badge_html( $detect_source, $detect_score, $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper
+                    }
+                    if ( ! empty( $opt->tsootc_detect_outlier ) ) {
+                        echo ' <span class="tso-detect-badge tso-detect-badge-weak" title="'
+                            . esc_attr(
+                                tsootc_ui_triple_text(
+                                    $lang,
+                                    'Propietari diferent del grup',
+                                    'Propietario distinto del grupo',
+                                    'Different owner than group'
+                                )
+                            )
+                            . '">outlier</span>';
                     }
                 }
                 if ( ! $is_custom && $group_name === $widgets_group_key && function_exists( 'tsootc_is_wp_core_widget_option' ) && tsootc_is_wp_core_widget_option( $name ) ) {
