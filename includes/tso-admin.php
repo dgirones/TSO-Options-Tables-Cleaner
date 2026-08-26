@@ -1021,8 +1021,12 @@ function tsootc_page() {
             $is_uninstalled = ! empty( $group_data['is_uninstalled'] );
             $items_all      = $group_data['items'];
 
-            // Ordenar per mida desc dins cada grup
-            usort( $items_all, function( $a, $b ) { return $b->mida - $a->mida; } );
+            // Ordenar: dins Widgets, no-core (no identificats) sempre a dalt; després per mida desc.
+            if ( $group_name === $widgets_group_key && function_exists( 'tsootc_sort_widgets_group_items' ) ) {
+                $items_all = tsootc_sort_widgets_group_items( $items_all );
+            } else {
+                usort( $items_all, function( $a, $b ) { return $b->mida - $a->mida; } );
+            }
 
             $group_id     = 'grpb-' . md5( $group_name );
             $bulk_form_id = 'bulk-' . $group_id;

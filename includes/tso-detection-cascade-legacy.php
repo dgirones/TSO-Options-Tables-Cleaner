@@ -137,12 +137,19 @@ function tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins =
 
     // --- FASE 0a2c1: Widgets (registry + plugin scan) abans de mapes genèrics ---
     if ( 0 === strpos( $lower, 'widget_' )
-        && ( ! function_exists( 'tsootc_is_wp_core_widget_option' ) || ! tsootc_is_wp_core_widget_option( $option_name ) )
-        && function_exists( 'tsootc_autodetect_widget_option' ) ) {
-        $widget_row = tsootc_autodetect_widget_option( $option_name, $installed_plugins );
-        if ( is_array( $widget_row ) && ! empty( $widget_row['file'] ) ) {
-            $widget_row['source'] = 'widget_map';
-            return $widget_row;
+        && ( ! function_exists( 'tsootc_is_wp_core_widget_option' ) || ! tsootc_is_wp_core_widget_option( $option_name ) ) ) {
+        if ( function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
+            $cpo_widget = tsootc_resolve_cpotheme_widget_detection_row( $option_name, $installed_plugins );
+            if ( is_array( $cpo_widget ) ) {
+                return $cpo_widget;
+            }
+        }
+        if ( function_exists( 'tsootc_autodetect_widget_option' ) ) {
+            $widget_row = tsootc_autodetect_widget_option( $option_name, $installed_plugins );
+            if ( is_array( $widget_row ) && ! empty( $widget_row['file'] ) ) {
+                $widget_row['source'] = 'widget_map';
+                return $widget_row;
+            }
         }
     }
 
@@ -250,6 +257,12 @@ function tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins =
                 return $responsive_theme_row;
             }
         }
+        if ( function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
+            $cpo_widget = tsootc_resolve_cpotheme_widget_detection_row( $option_name, $installed_plugins );
+            if ( is_array( $cpo_widget ) ) {
+                return $cpo_widget;
+            }
+        }
         if ( function_exists( 'tsootc_autodetect_widget_option' ) ) {
             $auto_widget = tsootc_autodetect_widget_option( $option_name, $installed_plugins );
             if ( ! empty( $auto_widget ) && is_array( $auto_widget ) ) {
@@ -260,12 +273,16 @@ function tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins =
         // Primer: mapa de widgets coneguts (ja mapejats explícitament)
         $widget_map = tsootc_get_prefix_map();
         $widget_key = 'widget_' . strtolower( $inner );
-        if ( isset( $widget_map[ $widget_key ] ) ) {
-            $detected_widget_name = $widget_map[ $widget_key ];
+        if ( isset( $widget_map[ $widget_key ] ) || ( function_exists( 'tsootc_is_cpotheme_widget_option' ) && tsootc_is_cpotheme_widget_option( $option_name ) && isset( $widget_map['widget_cpotheme-'] ) ) ) {
+            $detected_widget_name = isset( $widget_map[ $widget_key ] )
+                ? $widget_map[ $widget_key ]
+                : $widget_map['widget_cpotheme-'];
             // Intentar trobar el plugin real via slug hints (mateix mapa que FASE 2)
-            $widget_slug_hints = tsootc_get_widget_option_folder_hints();
-            if ( isset( $widget_slug_hints[ $widget_key ] ) && ! empty( $installed_plugins ) ) {
-                $target = tsootc_normalize_plugin_folder_slug( (string) $widget_slug_hints[ $widget_key ] );
+            $hint_folder = function_exists( 'tsootc_get_widget_option_folder_hint' )
+                ? tsootc_get_widget_option_folder_hint( $option_name )
+                : '';
+            if ( '' !== $hint_folder && ! empty( $installed_plugins ) ) {
+                $target = tsootc_normalize_plugin_folder_slug( (string) $hint_folder );
                 foreach ( $installed_plugins as $pl ) {
                     if ( strtolower( dirname( $pl['file'] ) ) === $target ) {
                         return array(

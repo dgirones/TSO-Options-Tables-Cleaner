@@ -199,9 +199,9 @@ function tsootc_get_prefix_map() {
         'mpsum_'                    => 'Easy Updates Manager',
         'entrance_'                 => 'Entrance Theme/Plugin',
         // ---- C (extra) ----
+        'widget_cpotheme-'          => 'CPO Themes / Enclosed widgets',
         'cpo_'                      => 'CPO Themes',
         'cpo_tech_'                 => 'CPO Themes / Banker Theme',
-        'widget_cpotheme-'          => 'CPO Widgets',
         // ---- F ----
         'forminator'                => 'Forminator',
         'frm_'                      => 'Formidable Forms',

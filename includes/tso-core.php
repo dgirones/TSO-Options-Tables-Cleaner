@@ -1924,6 +1924,15 @@ function tsootc_get_known_theme_inventory_slugs() {
         'dt-the7',
         'the7',
         'avada',
+        'enclosed',
+        'enclosed-pro',
+        'allegiant',
+        'affluent',
+        'ascendant',
+        'antreas',
+        'transcend',
+        'intuition',
+        'illustrious',
     );
 
     return array_values( array_unique( array_merge( tsootc_get_mythemeshop_theme_slugs(), $extra ) ) );
@@ -5249,11 +5258,262 @@ function tsootc_get_widget_option_folder_hints() {
         'widget_tso_tab_widget'     => 'tso-tabs-widget',
         'widget_tsotab_widget'      => 'tso-tabs-widget',
         'widget_wpt_widget'         => 'tso-tabs-widget',
-        'widget_cpotheme-advert'    => 'cpo-widgets',
-        'widget_cpotheme-recent-posts' => 'cpo-widgets',
+        'widget_cpotheme-advert'          => 'cpo-widgets',
+        'widget_cpotheme-recent-posts'    => 'cpo-widgets',
+        'widget_cpotheme-twitter-stream'  => 'cpo-widgets',
+        'widget_cpotheme-flickr'          => 'cpo-widgets',
+        'widget_cpotheme-author'          => 'cpo-widgets',
+        'widget_cpotheme-social'          => 'cpo-widgets',
         'widget_subscribe-by-email' => 'subscribe2',
         'widget_black-studio-tinymce' => 'black-studio-tinymce-widget',
     );
+}
+
+/**
+ * Whether an option is a CPOThemes / CPO Widgets classic widget key.
+ *
+ * @param string $option_name Option key.
+ * @return bool
+ */
+function tsootc_is_cpotheme_widget_option( $option_name ) {
+    return 0 === strpos( strtolower( (string) $option_name ), 'widget_cpotheme-' );
+}
+
+/**
+ * Resolve the plugin-folder hint for a widget_* option (exact map + CPO prefix).
+ *
+ * @param string $option_name Option key.
+ * @return string Folder slug or empty.
+ */
+function tsootc_get_widget_option_folder_hint( $option_name ) {
+    $lower = strtolower( (string) $option_name );
+    if ( 0 !== strpos( $lower, 'widget_' ) ) {
+        return '';
+    }
+
+    $hints = tsootc_get_widget_option_folder_hints();
+    if ( isset( $hints[ $lower ] ) ) {
+        return tsootc_normalize_plugin_folder_slug( (string) $hints[ $lower ] );
+    }
+
+    // Standalone CPO Widgets plugin (also bundled with Enclosed and other CPOThemes).
+    if ( tsootc_is_cpotheme_widget_option( $lower ) ) {
+        return 'cpo-widgets';
+    }
+
+    return '';
+}
+
+/**
+ * Known CPOThemes stylesheet slugs (widgets often left behind without cpo-widgets).
+ *
+ * @return string[]
+ */
+function tsootc_get_cpotheme_theme_family_slugs() {
+    return array(
+        'enclosed',
+        'enclosed-pro',
+        'allegiant',
+        'allegiant-pro',
+        'affluent',
+        'affluent-pro',
+        'ascendant',
+        'ascendant-pro',
+        'antreas',
+        'transcend',
+        'transcend-pro',
+        'intuition',
+        'intuition-pro',
+        'illustrious',
+        'brilliance',
+        'panoramica',
+        'panoramica-pro',
+        'pragma',
+        'nook',
+    );
+}
+
+/**
+ * Whether a theme stylesheet slug belongs to the CPOThemes family (incl. child themes).
+ *
+ * @param string $theme_slug Theme stylesheet directory slug.
+ * @return bool
+ */
+function tsootc_theme_slug_is_cpotheme_family( $theme_slug ) {
+    $theme_slug = strtolower( sanitize_title( (string) $theme_slug ) );
+    if ( '' === $theme_slug ) {
+        return false;
+    }
+
+    foreach ( tsootc_get_cpotheme_theme_family_slugs() as $base ) {
+        $base = strtolower( (string) $base );
+        if ( $theme_slug === $base || 0 === strpos( $theme_slug, $base . '-' ) ) {
+            return true;
+        }
+    }
+
+    // Localized / renamed children (e.g. enclosed-hijo).
+    if ( 0 === strpos( $theme_slug, 'enclosed' ) ) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Pick the best installed CPOThemes slug (prefer active Enclosed, then any active CPO theme).
+ *
+ * @param array $installed_plugins Inventory including themes.
+ * @return string Theme stylesheet slug or empty.
+ */
+function tsootc_find_installed_cpotheme_slug( array $installed_plugins = array() ) {
+    // Prefer the live stylesheet / template when it is a CPOThemes family theme.
+    if ( function_exists( 'get_stylesheet' ) ) {
+        $stylesheet = strtolower( sanitize_title( (string) get_stylesheet() ) );
+        if ( '' !== $stylesheet && tsootc_theme_slug_is_cpotheme_family( $stylesheet ) ) {
+            return $stylesheet;
+        }
+    }
+    if ( function_exists( 'get_template' ) ) {
+        $template = strtolower( sanitize_title( (string) get_template() ) );
+        if ( '' !== $template && tsootc_theme_slug_is_cpotheme_family( $template ) ) {
+            return $template;
+        }
+    }
+
+    $candidates = array();
+
+    $push = static function( $slug, $active ) use ( &$candidates ) {
+        $slug = strtolower( sanitize_title( (string) $slug ) );
+        if ( '' === $slug || ! tsootc_theme_slug_is_cpotheme_family( $slug ) ) {
+            return;
+        }
+        $is_enclosed = ( 0 === strpos( $slug, 'enclosed' ) );
+        $score       = ( $active ? 100 : 0 ) + ( $is_enclosed ? 20 : 0 ) + strlen( $slug );
+        if ( ! isset( $candidates[ $slug ] ) || $score > $candidates[ $slug ]['score'] ) {
+            $candidates[ $slug ] = array(
+                'slug'  => $slug,
+                'score' => $score,
+            );
+        }
+    };
+
+    foreach ( $installed_plugins as $pl ) {
+        if ( ( $pl['type'] ?? '' ) !== 'theme' || empty( $pl['file'] ) ) {
+            continue;
+        }
+        $file = (string) $pl['file'];
+        $slug = false !== strpos( $file, '/' ) ? strtolower( dirname( $file ) ) : strtolower( $file );
+        $push( $slug, ! empty( $pl['active'] ) );
+    }
+
+    foreach ( tsootc_get_cpotheme_theme_family_slugs() as $base ) {
+        if ( function_exists( 'tsootc_theme_slug_exists' ) && tsootc_theme_slug_exists( $base ) ) {
+            $push( $base, function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $base ) );
+        }
+    }
+
+    if ( function_exists( 'wp_get_themes' ) ) {
+        try {
+            foreach ( wp_get_themes( array( 'errors' => false ) ) as $theme_slug => $theme ) {
+                unset( $theme );
+                $push( $theme_slug, function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $theme_slug ) );
+            }
+        } catch ( Exception $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+            // Ignore broken theme directories.
+        }
+    }
+
+    if ( empty( $candidates ) ) {
+        return '';
+    }
+
+    uasort(
+        $candidates,
+        static function( $a, $b ) {
+            if ( $a['score'] === $b['score'] ) {
+                return strcmp( (string) $a['slug'], (string) $b['slug'] );
+            }
+            return (int) $b['score'] - (int) $a['score'];
+        }
+    );
+
+    $best = reset( $candidates );
+    return is_array( $best ) ? (string) $best['slug'] : '';
+}
+
+/**
+ * Detect CPOThemes widgets: prefer cpo-widgets plugin, else installed Enclosed / CPO theme.
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Inventory.
+ * @return array|null
+ */
+function tsootc_resolve_cpotheme_widget_detection_row( $option_name, array $installed_plugins = array() ) {
+    if ( ! tsootc_is_cpotheme_widget_option( $option_name ) ) {
+        return null;
+    }
+
+    $label = 'CPO Widgets';
+
+    if ( function_exists( 'tsootc_plugin_folder_has_site_evidence' )
+        && tsootc_plugin_folder_has_site_evidence( 'cpo-widgets', $installed_plugins )
+        && function_exists( 'tsootc_build_plugin_detection_row_from_folder' ) ) {
+        $plugin_row = tsootc_build_plugin_detection_row_from_folder( 'cpo-widgets', $installed_plugins, $label );
+        if ( is_array( $plugin_row ) ) {
+            $plugin_row['source'] = 'widget_map';
+            return $plugin_row;
+        }
+        if ( function_exists( 'tsootc_autodetect_row_from_folder' ) ) {
+            $plugin_row = tsootc_autodetect_row_from_folder( 'cpo-widgets', $installed_plugins );
+            if ( is_array( $plugin_row ) ) {
+                $plugin_row['source'] = 'widget_map';
+                if ( empty( $plugin_row['name'] ) ) {
+                    $plugin_row['name'] = $label;
+                }
+                return $plugin_row;
+            }
+        }
+    }
+
+    $theme_slug = tsootc_find_installed_cpotheme_slug( $installed_plugins );
+    if ( '' === $theme_slug ) {
+        return null;
+    }
+
+    if ( function_exists( 'tsootc_build_theme_detection_row' ) ) {
+        $theme_row = tsootc_build_theme_detection_row( $theme_slug, $installed_plugins, $label );
+        if ( is_array( $theme_row ) ) {
+            return $theme_row;
+        }
+    }
+
+    // Inventory-only fallback (regression stubs / missing style.css).
+    foreach ( $installed_plugins as $pl ) {
+        if ( ( $pl['type'] ?? '' ) !== 'theme' || empty( $pl['file'] ) ) {
+            continue;
+        }
+        $file = (string) $pl['file'];
+        $slug = false !== strpos( $file, '/' ) ? strtolower( dirname( $file ) ) : strtolower( $file );
+        if ( $slug !== $theme_slug ) {
+            continue;
+        }
+        $name = ! empty( $pl['name'] ) ? (string) $pl['name'] : $theme_slug;
+        return array(
+            'name'      => function_exists( 'tsootc_format_theme_group_label' )
+                ? tsootc_format_theme_group_label( $theme_slug, $name )
+                : 'Tema: ' . $name,
+            'file'      => $theme_slug,
+            'folder'    => 'theme:' . $theme_slug,
+            'active'    => ! empty( $pl['active'] ),
+            'installed' => true,
+            'type'      => 'theme',
+            'auto'      => false,
+            'source'    => 'theme_disk',
+        );
+    }
+
+    return null;
 }
 
 /**
@@ -5271,11 +5531,19 @@ function tsootc_infer_plugin_folder_from_option( $option_name, array $installed_
         return '';
     }
 
-    $widget_hints = tsootc_get_widget_option_folder_hints();
-    if ( isset( $widget_hints[ $lower ] ) ) {
-        $folder = tsootc_normalize_plugin_folder_slug( (string) $widget_hints[ $lower ] );
-        if ( tsootc_plugin_folder_has_site_evidence( $folder, $installed_plugins ) ) {
-            return $folder;
+    $widget_hint_folder = function_exists( 'tsootc_get_widget_option_folder_hint' )
+        ? tsootc_get_widget_option_folder_hint( $option_name )
+        : '';
+    if ( '' !== $widget_hint_folder ) {
+        if ( tsootc_plugin_folder_has_site_evidence( $widget_hint_folder, $installed_plugins ) ) {
+            return $widget_hint_folder;
+        }
+        // CPOThemes widgets without cpo-widgets: owned by Enclosed / CPO theme, not a plugin folder.
+        if ( function_exists( 'tsootc_is_cpotheme_widget_option' )
+            && tsootc_is_cpotheme_widget_option( $option_name )
+            && function_exists( 'tsootc_find_installed_cpotheme_slug' )
+            && '' !== tsootc_find_installed_cpotheme_slug( $installed_plugins ) ) {
+            return '';
         }
         return '';
     }
@@ -9917,6 +10185,31 @@ function tsootc_is_wp_core_widget_option( $option_name ) {
 }
 
 /**
+ * Sort Widgets-group rows: unidentified (non-core) first, then Core WP, then by size desc.
+ *
+ * @param array<int,object> $items Option row objects with option_name + mida.
+ * @return array<int,object>
+ */
+function tsootc_sort_widgets_group_items( array $items ) {
+    usort(
+        $items,
+        static function( $a, $b ) {
+            $a_name = isset( $a->option_name ) ? (string) $a->option_name : '';
+            $b_name = isset( $b->option_name ) ? (string) $b->option_name : '';
+            $a_core = ( function_exists( 'tsootc_is_wp_core_widget_option' ) && tsootc_is_wp_core_widget_option( $a_name ) ) ? 1 : 0;
+            $b_core = ( function_exists( 'tsootc_is_wp_core_widget_option' ) && tsootc_is_wp_core_widget_option( $b_name ) ) ? 1 : 0;
+            if ( $a_core !== $b_core ) {
+                return $a_core - $b_core;
+            }
+            $a_size = isset( $a->mida ) ? (int) $a->mida : 0;
+            $b_size = isset( $b->mida ) ? (int) $b->mida : 0;
+            return $b_size - $a_size;
+        }
+    );
+    return $items;
+}
+
+/**
  * Whether a widget_* option should stay in its plugin group (not the shared Widgets bucket).
  *
  * @param string     $option_name Option key.
@@ -9950,12 +10243,30 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
         return '' !== trim( (string) ( $detected['name'] ?? '' ) );
     }
 
-    if ( function_exists( 'tsootc_get_widget_option_folder_hints' ) ) {
-        $hints = tsootc_get_widget_option_folder_hints();
-        if ( isset( $hints[ $lower ] ) ) {
-            $folder = tsootc_normalize_plugin_folder_slug( (string) $hints[ $lower ] );
-            return tsootc_plugin_folder_has_site_evidence( $folder, $installed );
+    // Theme-owned widgets (e.g. CPOThemes → Enclosed) leave the shared Widgets bucket.
+    if ( function_exists( 'tsootc_detection_row_is_theme' ) && tsootc_detection_row_is_theme( $detected ) ) {
+        return true;
+    }
+
+    // CPOThemes classic widgets: cpo-widgets plugin, or Enclosed / CPO theme on disk.
+    if ( function_exists( 'tsootc_is_cpotheme_widget_option' ) && tsootc_is_cpotheme_widget_option( $lower ) ) {
+        if ( function_exists( 'tsootc_plugin_folder_has_site_evidence' )
+            && tsootc_plugin_folder_has_site_evidence( 'cpo-widgets', $installed ) ) {
+            return true;
         }
+        if ( function_exists( 'tsootc_find_installed_cpotheme_slug' )
+            && '' !== tsootc_find_installed_cpotheme_slug( $installed ) ) {
+            return true;
+        }
+    }
+
+    $hint_folder = function_exists( 'tsootc_get_widget_option_folder_hint' )
+        ? tsootc_get_widget_option_folder_hint( $lower )
+        : '';
+    if ( '' !== $hint_folder
+        && function_exists( 'tsootc_plugin_folder_has_site_evidence' )
+        && tsootc_plugin_folder_has_site_evidence( $hint_folder, $installed ) ) {
+        return true;
     }
 
     if ( empty( $detected ) || ! is_array( $detected ) ) {
@@ -9965,7 +10276,7 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
         return false;
     }
 
-    if ( ! in_array( $source, array( 'widget_map', 'legacy_installed' ), true ) ) {
+    if ( ! in_array( $source, array( 'widget_map', 'legacy_installed', 'theme_disk', 'prefix_map_theme' ), true ) ) {
         return false;
     }
 
@@ -10793,7 +11104,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 58 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 59 );
 }
 
 /**

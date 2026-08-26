@@ -187,6 +187,12 @@ function tsootc_detection_collect_scored_candidates( $option_name, array $instal
 	if ( 0 === strpos( $lower, 'widget_' )
 		&& function_exists( 'tsootc_autodetect_widget_option' )
 		&& ( ! function_exists( 'tsootc_is_wp_core_widget_option' ) || ! tsootc_is_wp_core_widget_option( $option_name ) ) ) {
+		if ( function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
+			$cpo_row = tsootc_resolve_cpotheme_widget_detection_row( $option_name, $installed_plugins );
+			if ( is_array( $cpo_row ) ) {
+				$add( $cpo_row, tsootc_detection_compute_row_score( $cpo_row, $option_name, $installed_plugins ) );
+			}
+		}
 		$widget_row = tsootc_autodetect_widget_option( $option_name, $installed_plugins );
 		if ( is_array( $widget_row ) ) {
 			$widget_row['source'] = 'widget_map';

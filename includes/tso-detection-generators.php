@@ -208,6 +208,21 @@ function tsootc_detection_gen_widgets( $option_name, array $installed_plugins = 
 		}
 	}
 
+	if ( function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
+		$cpo_row = tsootc_resolve_cpotheme_widget_detection_row( $option_name, $installed_plugins );
+		if ( is_array( $cpo_row ) ) {
+			$evidence = ( ! empty( $cpo_row['type'] ) && 'theme' === $cpo_row['type'] )
+				? 'theme_disk'
+				: 'widget_map';
+			$candidates[] = tsootc_detection_make_candidate(
+				$cpo_row,
+				$evidence,
+				'tsootc_detection_gen_widgets',
+				'CPOThemes / Enclosed widget'
+			);
+		}
+	}
+
 	if ( function_exists( 'tsootc_autodetect_widget_option' ) ) {
 		$widget_row = tsootc_autodetect_widget_option( $option_name, $installed_plugins );
 		if ( is_array( $widget_row ) && ! empty( $widget_row['file'] ) ) {

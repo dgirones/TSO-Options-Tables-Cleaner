@@ -201,6 +201,96 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'cpotheme_widget_maps_to_enclosed_theme',
+			'option'    => 'widget_cpotheme-advert',
+			'inventory' => array(
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+				tsootc_detection_regression_theme_row( 'Enclosed Hijo', 'enclosed-hijo', false ),
+			),
+			'assert'    => array(
+				'type'              => 'theme',
+				'folder'            => 'theme:enclosed',
+				'name_substring'    => 'Enclosed',
+				'forbidden_sources' => array( 'unconfirmed', 'plugin_disk' ),
+			),
+		),
+		array(
+			'id'        => 'cpotheme_flickr_maps_to_enclosed_theme',
+			'option'    => 'widget_cpotheme-flickr',
+			'inventory' => array(
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+			'assert'    => array(
+				'type'           => 'theme',
+				'folder'         => 'theme:enclosed',
+				'name_substring' => 'Enclosed',
+			),
+		),
+		array(
+			'id'        => 'cpotheme_widget_groups_under_enclosed',
+			'type'      => 'widget_group',
+			'option'    => 'widget_cpotheme-twitter-stream',
+			'inventory' => array(
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+			'row'       => array(
+				'name'      => 'Tema: Enclosed',
+				'file'      => 'enclosed',
+				'folder'    => 'theme:enclosed',
+				'type'      => 'theme',
+				'source'    => 'theme_disk',
+				'installed' => true,
+				'active'    => true,
+			),
+			'assert'    => array(
+				'uses_plugin_group' => true,
+			),
+		),
+		array(
+			'id'        => 'cpotheme_prefers_cpo_widgets_plugin_when_installed',
+			'type'      => 'widget_group',
+			'option'    => 'widget_cpotheme-recent-posts',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'CPO Widgets', 'cpo-widgets/cpo-widgets.php', true ),
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+			'row'       => null,
+			'assert'    => array(
+				'uses_plugin_group' => true,
+			),
+		),
+		array(
+			'id'        => 'cpotheme_resolve_prefers_plugin_folder',
+			'type'      => 'cpotheme_resolve',
+			'option'    => 'widget_cpotheme-twitter-stream',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'CPO Widgets', 'cpo-widgets/cpo-widgets.php', true ),
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+			'assert'    => array(
+				'folder'         => 'cpo-widgets',
+				'file_substring' => 'cpo-widgets',
+			),
+		),
+		array(
+			'id'     => 'widgets_group_sort_unidentified_first',
+			'type'   => 'widgets_sort',
+			'items'  => array(
+				array( 'option_name' => 'widget_text', 'mida' => 100 ),
+				array( 'option_name' => 'widget_cpotheme-advert', 'mida' => 40 ),
+				array( 'option_name' => 'widget_search', 'mida' => 90 ),
+				array( 'option_name' => 'widget_cpotheme-flickr', 'mida' => 30 ),
+			),
+			'assert' => array(
+				'order' => array(
+					'widget_cpotheme-advert',
+					'widget_cpotheme-flickr',
+					'widget_text',
+					'widget_search',
+				),
+			),
+		),
+		array(
 			'id'      => 'assign_groups_hide_owner_tokens',
 			'type'    => 'assign_group_names',
 			'grouped' => array(
@@ -1941,6 +2031,48 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 	}
 
 	$option = (string) ( $fixture['option'] ?? '' );
+	if ( 'widgets_sort' === $type ) {
+		if ( ! function_exists( 'tsootc_sort_widgets_group_items' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_sort_widgets_group_items missing',
+			);
+		}
+		$raw_items = isset( $fixture['items'] ) && is_array( $fixture['items'] ) ? $fixture['items'] : array();
+		$objects   = array();
+		foreach ( $raw_items as $item ) {
+			$objects[] = (object) array(
+				'option_name' => (string) ( $item['option_name'] ?? '' ),
+				'mida'        => (int) ( $item['mida'] ?? 0 ),
+			);
+		}
+		$sorted = tsootc_sort_widgets_group_items( $objects );
+		$got    = array();
+		foreach ( $sorted as $row ) {
+			$got[] = (string) $row->option_name;
+		}
+		$expect = isset( $assert['order'] ) && is_array( $assert['order'] ) ? $assert['order'] : array();
+		$pass   = $got === $expect;
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'got order [' . implode( ', ', $got ) . ']',
+		);
+	}
+
+	if ( 'cpotheme_resolve' === $type ) {
+		if ( ! function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_resolve_cpotheme_widget_detection_row missing',
+			);
+		}
+		$row = tsootc_resolve_cpotheme_widget_detection_row( $option, $inventory );
+		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
+
 	if ( '' === $option ) {
 		return array(
 			'id'      => $id,
