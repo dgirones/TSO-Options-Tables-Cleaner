@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.9
+Stable tag: 1.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -92,7 +92,7 @@ No external connections: This plugin does not make any HTTP requests to external
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
 
-= 1.2.9 =
+= 1.2.8 =
 * Safety: WordPress core options are always locked in the UI and in every delete handler
 * Detection: merge evidence by owner before applying score margin (prevents false Unconfirmed rows)
 * Detection: installed-only legacy fallback restores established plugin mappings without reviving stale labels
@@ -100,15 +100,13 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * Widgets without an identified plugin are ordered directly above WordPress Core
 * Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
 * Detection regression expanded to 57 fixtures
-
-= 1.2.8 =
 * wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
 * Options tab groups by owner token (folder/theme) instead of display label only; mixed/outlier badges
 * Audit panel: Evidence column; filter for uncertain rows
 * Codescan: distinguishes update_option API hits from generic string literals (weighted evidence)
 * Extra tables: history reconcile respects test/staging inventory; label token matching improved
 * Legacy cascade moved to includes/tso-detection-cascade-legacy.php (force_cascade / debug only)
-* Detection regression: 47 fixtures (CLI runner: php scripts/run-detection-regression.php)
+* Detection regression runner: php scripts/run-detection-regression.php
 * Release tooling: scripts/release-check.sh, build-zip.sh, prepare-svn.sh; GitHub Actions CI on main
 
 = 1.2.7 =
