@@ -28,6 +28,23 @@ function tsootc_detection_regression_plugin_row( $name, $file, $active = true ) 
 }
 
 /**
+ * Build a mock theme inventory row for regression tests.
+ *
+ * @param string $name       Theme display name.
+ * @param string $stylesheet Theme stylesheet slug.
+ * @param bool   $active     Active flag.
+ * @return array<string,mixed>
+ */
+function tsootc_detection_regression_theme_row( $name, $stylesheet, $active = true ) {
+	return array(
+		'name'   => (string) $name,
+		'file'   => (string) $stylesheet,
+		'active' => (bool) $active,
+		'type'   => 'theme',
+	);
+}
+
+/**
  * Default synthetic inventory for regression (no disk required).
  *
  * @return array<int,array<string,mixed>>
@@ -164,6 +181,55 @@ function tsootc_detection_regression_fixtures() {
 			'assert' => array(
 				'source'            => 'freemius',
 				'name_substring'    => 'Freemius',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'theme_mods_tso_theme',
+			'option'    => 'theme_mods_tso-theme',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Options & Tables Cleaner', 'tso-options-tables-cleaner/tso-options-tables-cleaner.php' ),
+				tsootc_detection_regression_theme_row( 'TSO Theme', 'tso-theme', true ),
+			),
+			'assert'    => array(
+				'type'                        => 'theme',
+				'folder'                      => 'theme:tso-theme',
+				'forbidden_file_substrings'   => array( 'tso-options-tables-cleaner', 'tso-link-inspector' ),
+				'forbidden_sources'           => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'theme_mods_tso_theme_engine_v2',
+			'type'      => 'resolve_v2',
+			'option'    => 'theme_mods_tso-theme',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Options & Tables Cleaner', 'tso-options-tables-cleaner/tso-options-tables-cleaner.php' ),
+				tsootc_detection_regression_theme_row( 'TSO Theme', 'tso-theme', true ),
+			),
+			'assert'    => array(
+				'type'                        => 'theme',
+				'folder'                      => 'theme:tso-theme',
+				'forbidden_file_substrings'   => array( 'tso-options-tables-cleaner', 'tso-link-inspector' ),
+				'forbidden_sources'           => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'tso_plugin_history_self',
+			'option'    => 'tso_options_tables_cleaner_plugin_history',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Options & Tables Cleaner', 'tso-options-tables-cleaner/tso-options-tables-cleaner.php' ),
+			),
+			'assert'    => array(
+				'file_substring'      => 'tso-options-tables-cleaner',
+				'forbidden_sources'   => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'     => 'softaculous_hosting',
+			'option' => 'softaculous_preferences',
+			'assert' => array(
+				'source'            => 'hosting',
+				'folder'            => '__hosting__',
 				'forbidden_sources' => array( 'unconfirmed' ),
 			),
 		),
@@ -555,6 +621,28 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 	$id     = (string) ( $fixture['id'] ?? 'unknown' );
 	$type   = (string) ( $fixture['type'] ?? 'detect' );
 	$assert = isset( $fixture['assert'] ) && is_array( $fixture['assert'] ) ? $fixture['assert'] : array();
+
+	if ( 'resolve_v2' === $type ) {
+		if ( ! function_exists( 'tsootc_detection_resolve_option' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_detection_resolve_option missing',
+			);
+		}
+		$option = (string) ( $fixture['option'] ?? '' );
+		if ( '' === $option ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'empty option key',
+			);
+		}
+		$args = isset( $fixture['args'] ) && is_array( $fixture['args'] ) ? $fixture['args'] : array( 'fast' => true );
+		$args['force_v2'] = true;
+		$row = tsootc_detection_resolve_option( $option, $inventory, $args );
+		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
 
 	if ( 'map_valid' === $type ) {
 		if ( ! function_exists( 'tsootc_option_key_map_entry_is_valid' ) ) {
