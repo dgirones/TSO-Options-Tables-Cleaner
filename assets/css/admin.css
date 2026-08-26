@@ -40,7 +40,7 @@
 .tso-action-count { font-size:22px; font-weight:700; color:#1d2327; }
 .tso-action-count.zero { color:#999; font-size:18px; }
 .tso-action-desc { color:#666; font-size:12px; line-height:1.5; }
-.tso-action-btn { margin-top:4px; }
+.tso-action-btn { margin-top:auto; padding-top:4px; }
 .tso-action-btn .button { width:100%; text-align:center; }
 .tso-action-btn .button-disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }
 /* ---- Optimize output ---- */
