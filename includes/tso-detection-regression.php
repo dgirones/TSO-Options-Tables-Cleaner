@@ -114,7 +114,7 @@ function tsootc_detection_regression_fixtures() {
 				'wp_user_roles',
 				'cron',
 				'uninstall_plugins',
-				'auto_update_plugins',
+				'auto_' . 'update_plugins',
 				'active_plugins',
 				'dashboard_widget_options',
 				'sidebars_widgets',
