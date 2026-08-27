@@ -236,6 +236,24 @@
 .tso-table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; margin:0 -4px; padding:0 4px; }
 .tso-table-scroll table { min-width:880px; }
 .tso-tables-bulk-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.tso-tables-search-wrap { flex:1 1 180px; min-width:160px; max-width:320px; margin:0; }
+.tso-tables-search {
+  width:100%; box-sizing:border-box; min-height:30px; padding:4px 10px;
+  border:1px solid #8c8f94; border-radius:4px; font-size:13px; line-height:1.4;
+  background:#fff; color:#1d2327;
+}
+.tso-tables-search:focus { border-color:#2271b1; box-shadow:0 0 0 1px #2271b1; outline:none; }
+.tso-tables-grid th.tso-tables-sortable {
+  cursor:pointer; user-select:none; white-space:nowrap;
+}
+.tso-tables-grid th.tso-tables-sortable:hover { color:#135e96; }
+.tso-tables-grid th.tso-tables-sortable .tso-sort-ind {
+  display:inline-block; margin-left:4px; font-size:10px; color:#8c8f94; min-width:0.9em;
+}
+.tso-tables-grid th.tso-tables-sortable.is-sorted .tso-sort-ind { color:#2271b1; font-weight:700; }
+.tso-tables-grid th.tso-tables-sortable.is-asc .tso-sort-ind::after { content:"▲"; }
+.tso-tables-grid th.tso-tables-sortable.is-desc .tso-sort-ind::after { content:"▼"; }
+.tso-tables-grid th.tso-tables-sortable:not(.is-sorted) .tso-sort-ind::after { content:"⇅"; opacity:.45; }
 .tso-backup-list-outer { overflow:hidden; }
 #tso-wrap .tso-auto-frequency-row {
   display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px;
@@ -296,6 +314,8 @@
   .tso-stack-on-mobile tbody tr.tso-mobile-full-row td::before { display:none !important; content:none !important; }
   #tso-wrap .tso-backup-list-outer { overflow:visible; }
   .tso-tables-bulk-bar { flex-direction:column; align-items:stretch !important; }
+  .tso-tables-search-wrap { max-width:none; flex:1 1 auto; width:100%; }
+  #tso-tables-bulk-export,
   #tso-tables-bulk-delete { margin-left:0 !important; width:100%; box-sizing:border-box; }
   .tso-backup-top-grid { grid-template-columns:1fr !important; gap:14px !important; }
   .tso-backup-actions-cell { white-space:normal !important; }

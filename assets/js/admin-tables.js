@@ -57,9 +57,13 @@
     var bulkBtn    = document.getElementById("tso-tables-bulk-delete");
     var exportBtn  = document.getElementById("tso-tables-bulk-export");
     var countSpan  = document.getElementById("tso-tables-selected-count");
-    if (!selectAll || !bulkBtn || !exportBtn || !countSpan) return;
+    var searchInput = document.getElementById("tso-tables-search");
+    var filterEmpty = document.getElementById("tso-tables-filter-empty");
+    var tbodyEl = document.getElementById("tso-tables-tbody");
+    if (!selectAll || !bulkBtn || !exportBtn || !countSpan || !tbodyEl) return;
 
     var deleteUnlocked = cfg.extraTablesDeleteEnabled === true;
+    var sortState = { key: "size", dir: "desc" };
 
     function downloadSqlFile(filename, sql) {
         var blob = new Blob([sql], {type: "application/sql;charset=utf-8"});
@@ -73,6 +77,18 @@
             URL.revokeObjectURL(url);
             a.remove();
         }, 0);
+    }
+
+    function getVisibleRows() {
+        return Array.prototype.filter.call(tbodyEl.querySelectorAll("tr"), function(row) {
+            return row.style.display !== "none";
+        });
+    }
+
+    function getVisibleChecks() {
+        return getVisibleRows().map(function(row) {
+            return row.querySelector(".tso-table-chk");
+        }).filter(Boolean);
     }
 
     function updateBulkBar() {
@@ -91,24 +107,134 @@
             ? tsoSafeReplace((tsootcCommonJs && tsootcCommonJs.deleteBlocked) || '', /\n$/, '')
             : (unsafe ? tsoSafeReplace((tsootcCommonJs && tsootcCommonJs.deleteSelectionBlocked) || '', /\n$/, '') : '');
         exportBtn.disabled = (n === 0);
+
+        var visibleChecks = getVisibleChecks();
+        var visibleChecked = visibleChecks.filter(function(c) { return c.checked; });
+        selectAll.indeterminate = (visibleChecked.length > 0 && visibleChecked.length < visibleChecks.length);
+        selectAll.checked = (visibleChecks.length > 0 && visibleChecked.length === visibleChecks.length);
     }
 
+    function applyTableFilter() {
+        var q = searchInput ? String(searchInput.value || "").trim().toLowerCase() : "";
+        var rows = tbodyEl.querySelectorAll("tr");
+        var visible = 0;
+        Array.prototype.forEach.call(rows, function(row) {
+            var hay = row.getAttribute("data-search") || "";
+            var show = !q || hay.indexOf(q) !== -1;
+            row.style.display = show ? "" : "none";
+            if (show) {
+                visible++;
+            }
+        });
+        if (filterEmpty) {
+            if (q && visible === 0) {
+                filterEmpty.style.display = "";
+                filterEmpty.removeAttribute("hidden");
+            } else {
+                filterEmpty.style.display = "none";
+                filterEmpty.setAttribute("hidden", "hidden");
+            }
+        }
+        updateBulkBar();
+    }
+
+    function rowSortValue(row, key) {
+        if (key === "size") {
+            return parseInt(row.getAttribute("data-kb") || "0", 10) || 0;
+        }
+        if (key === "status") {
+            return parseInt(row.getAttribute("data-sort-status") || "0", 10) || 0;
+        }
+        if (key === "plugin") {
+            return row.getAttribute("data-sort-plugin") || "";
+        }
+        return row.getAttribute("data-sort-table") || "";
+    }
+
+    function compareRows(a, b, key, dir) {
+        var av = rowSortValue(a, key);
+        var bv = rowSortValue(b, key);
+        var cmp;
+        if (typeof av === "number" && typeof bv === "number") {
+            cmp = av - bv;
+        } else {
+            cmp = String(av).localeCompare(String(bv), undefined, { sensitivity: "base" });
+        }
+        if (0 === cmp && key !== "table") {
+            cmp = String(rowSortValue(a, "table")).localeCompare(String(rowSortValue(b, "table")), undefined, { sensitivity: "base" });
+        }
+        return dir === "asc" ? cmp : -cmp;
+    }
+
+    function updateSortHeaders() {
+        document.querySelectorAll(".tso-tables-sortable").forEach(function(th) {
+            var key = th.getAttribute("data-sort-key");
+            var active = key === sortState.key;
+            th.classList.toggle("is-sorted", active);
+            th.classList.toggle("is-asc", active && sortState.dir === "asc");
+            th.classList.toggle("is-desc", active && sortState.dir === "desc");
+            th.setAttribute("aria-sort", active ? (sortState.dir === "asc" ? "ascending" : "descending") : "none");
+        });
+    }
+
+    function applyTableSort() {
+        var rows = Array.prototype.slice.call(tbodyEl.querySelectorAll("tr"));
+        rows.sort(function(a, b) {
+            return compareRows(a, b, sortState.key, sortState.dir);
+        });
+        rows.forEach(function(row) {
+            tbodyEl.appendChild(row);
+        });
+        updateSortHeaders();
+    }
+
+    function setSort(key) {
+        if (sortState.key === key) {
+            sortState.dir = sortState.dir === "desc" ? "asc" : "desc";
+        } else {
+            sortState.key = key;
+            // Size defaults to largest first; text columns start A→Z.
+            sortState.dir = (key === "size" || key === "status") ? "desc" : "asc";
+        }
+        applyTableSort();
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener("input", applyTableFilter);
+        searchInput.addEventListener("search", applyTableFilter);
+    }
+
+    document.querySelectorAll(".tso-tables-sortable").forEach(function(th) {
+        th.addEventListener("click", function() {
+            var key = th.getAttribute("data-sort-key");
+            if (key) {
+                setSort(key);
+            }
+        });
+        th.addEventListener("keydown", function(e) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                var key = th.getAttribute("data-sort-key");
+                if (key) {
+                    setSort(key);
+                }
+            }
+        });
+    });
+
+    updateSortHeaders();
+
     selectAll.addEventListener("change", function() {
-        document.querySelectorAll(".tso-table-chk").forEach(function(c){ c.checked = selectAll.checked; });
+        getVisibleChecks().forEach(function(c){ c.checked = selectAll.checked; });
         updateBulkBar();
     });
 
     document.querySelectorAll(".tso-table-chk").forEach(function(c){
         c.addEventListener("change", function(){
-            var all  = document.querySelectorAll(".tso-table-chk");
-            var chk  = document.querySelectorAll(".tso-table-chk:checked");
-            selectAll.indeterminate = (chk.length > 0 && chk.length < all.length);
-            selectAll.checked = (chk.length === all.length && all.length > 0);
             updateBulkBar();
         });
     });
 
-    var tbodyEl = document.getElementById("tso-tables-tbody");
     if (tbodyEl) {
         tbodyEl.addEventListener("click", function(e){
             var actBtn = e.target.closest("[data-tso-act]");
