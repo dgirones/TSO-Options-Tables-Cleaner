@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,17 @@ No external connections: This plugin does not make any HTTP requests to external
 == Changelog ==
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+
+= 1.3.1 =
+* Options tab cache: no longer rebuilds on every visit when the automatic key map grows; language-aware payloads; cheaper inventory fingerprint (count + max id)
+* Auto-clean: owned daily/weekly/monthly schedules (weekly = 7 days); far-overdue runs catch up instead of only postponing
+* Extra tables list: live search, sortable columns (default size), bulk actions only on visible filtered rows
+* After plugin delete, leftover options keep ownership in the key map (same idea as leftover tables)
+* Backup restore confirmation accepts RESTORE / RESTAURAR by UI language
+* DROP TABLE reports success only after verifying the table is gone
+* Cron “Run now” consumes one-shot events and reschedules recurring ones
+* Admin JS strings follow the plugin UI language (CA / ES / EN)
+* Widgets: CPOThemes/Enclosed identification; unidentified widgets sorted first
 
 = 1.3.0 =
 * Safety: WordPress core options are locked in the UI and every delete handler
