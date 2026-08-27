@@ -11727,15 +11727,24 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 61 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 62 );
 }
 
 /**
  * Installed plugin folder slugs for cache invalidation.
  *
+ * @param bool $fresh Force recomputation within the same request.
  * @return string[]
  */
-function tsootc_options_tab_get_installed_plugin_slugs() {
+function tsootc_options_tab_get_installed_plugin_slugs( $fresh = false ) {
+    static $cached = null;
+    if ( $fresh ) {
+        $cached = null;
+    }
+    if ( null !== $cached ) {
+        return $cached;
+    }
+
     if ( ! function_exists( 'get_plugins' ) ) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
@@ -11748,19 +11757,30 @@ function tsootc_options_tab_get_installed_plugin_slugs() {
             : strtolower( $dir );
     }
     sort( $installed_slugs );
+    $cached = $installed_slugs;
 
-    return $installed_slugs;
+    return $cached;
 }
 
 /**
  * Installed theme stylesheet slugs on disk (active and inactive).
  *
+ * @param bool $fresh Force recomputation within the same request.
  * @return string[]
  */
-function tsootc_options_tab_get_installed_theme_slugs() {
+function tsootc_options_tab_get_installed_theme_slugs( $fresh = false ) {
+    static $cached = null;
+    if ( $fresh ) {
+        $cached = null;
+    }
+    if ( null !== $cached ) {
+        return $cached;
+    }
+
     $slugs = array();
     if ( ! function_exists( 'wp_get_themes' ) ) {
-        return $slugs;
+        $cached = $slugs;
+        return $cached;
     }
 
     try {
@@ -11770,19 +11790,22 @@ function tsootc_options_tab_get_installed_theme_slugs() {
             }
         }
     } catch ( Exception $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
-        return $slugs;
+        $cached = $slugs;
+        return $cached;
     }
 
     sort( $slugs );
-    return $slugs;
+    $cached = $slugs;
+    return $cached;
 }
 
 /**
  * Stable cache invalidation signature for the wp_options tab.
  *
- * Only changes when plugins are installed/removed from disk or the active theme changes.
- * Does not use wp_options row counts (transients change on every admin request and would
- * invalidate the cache constantly). Manual detection map tweaks use "Refresh detection".
+ * Changes when plugins/themes on disk change, the active theme changes, or the
+ * admin custom map / group aliases change. Does NOT include the automatic
+ * option_key_map (that grows during normal detection and would force a full
+ * rescan on almost every visit). Manual map tweaks use "Refresh detection".
  *
  * @param bool $fresh Force recomputation within the same request.
  * @return string
@@ -11798,24 +11821,21 @@ function tsootc_get_options_tab_invalidation_sig( $fresh = false ) {
 
     $custom_map = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_CUSTOM_OPTION_MAP, array() );
     $aliases    = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_GROUP_ALIASES, array() );
-    $key_map    = function_exists( 'tsootc_get_option_key_map' ) ? tsootc_get_option_key_map() : array();
 
     $cached = md5(
         (string) TSOOTC_OPTIONS_TAB_CACHE_VERSION
         . '|'
-        . wp_json_encode( tsootc_options_tab_get_installed_plugin_slugs() )
+        . wp_json_encode( tsootc_options_tab_get_installed_plugin_slugs( $fresh ) )
         . '|'
-        . wp_json_encode( tsootc_options_tab_get_installed_theme_slugs() )
+        . wp_json_encode( tsootc_options_tab_get_installed_theme_slugs( $fresh ) )
         . '|'
         . (string) get_option( 'stylesheet', '' )
         . '|'
         . (string) get_option( 'template', '' )
         . '|'
-        . wp_json_encode( is_array( $custom_map ) ? $custom_map : array() )
+        . md5( (string) wp_json_encode( is_array( $custom_map ) ? $custom_map : array() ) )
         . '|'
-        . wp_json_encode( is_array( $aliases ) ? $aliases : array() )
-        . '|'
-        . wp_json_encode( is_array( $key_map ) ? array_keys( $key_map ) : array() )
+        . md5( (string) wp_json_encode( is_array( $aliases ) ? $aliases : array() ) )
     );
 
     return $cached;
@@ -12666,6 +12686,9 @@ function tsootc_prune_stale_options_tab_cache_files() {
  * @return void
  */
 function tsootc_options_tab_flush_cache() {
+    unset( $GLOBALS['tsootc_opts_tab_payload_memo'] );
+    unset( $GLOBALS['tsootc_opts_tab_payload_memo_ready'] );
+
     tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
     tsootc_delete_stored_transient( tsootc_options_tab_invalidation_sig_transient_key() );
     tsootc_delete_stored_option( tsootc_options_tab_cache_option_key() );
@@ -12731,14 +12754,24 @@ function tsootc_options_tab_end_detection_batch() {
 function tsootc_options_tab_get_cached_payload() {
     unset( $GLOBALS['tsootc_opts_cache_miss_reason'] );
 
+    if ( ! empty( $GLOBALS['tsootc_opts_tab_payload_memo_ready'] )
+        && empty( $GLOBALS['tsootc_opts_tab_cache_flushed'] ) ) {
+        $memo = isset( $GLOBALS['tsootc_opts_tab_payload_memo'] ) ? $GLOBALS['tsootc_opts_tab_payload_memo'] : null;
+        return is_array( $memo ) ? $memo : null;
+    }
+
     $cached = tsootc_options_tab_load_cache_file();
     if ( ! is_array( $cached ) ) {
-        $GLOBALS['tsootc_opts_cache_miss_reason'] = 'missing';
+        $GLOBALS['tsootc_opts_cache_miss_reason']       = 'missing';
+        $GLOBALS['tsootc_opts_tab_payload_memo']        = null;
+        $GLOBALS['tsootc_opts_tab_payload_memo_ready']  = true;
         return null;
     }
 
     if ( ! tsootc_options_tab_payload_is_valid( $cached ) ) {
-        $GLOBALS['tsootc_opts_cache_miss_reason'] = 'invalid';
+        $GLOBALS['tsootc_opts_cache_miss_reason']       = 'invalid';
+        $GLOBALS['tsootc_opts_tab_payload_memo']        = null;
+        $GLOBALS['tsootc_opts_tab_payload_memo_ready']  = true;
         return null;
     }
 
@@ -12747,6 +12780,9 @@ function tsootc_options_tab_get_cached_payload() {
         $plugins = function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array();
         $cached['group_names'] = tsootc_options_tab_group_names_from_grouped( $cached['grouped'], $plugins );
     }
+
+    $GLOBALS['tsootc_opts_tab_payload_memo']       = $cached;
+    $GLOBALS['tsootc_opts_tab_payload_memo_ready'] = true;
 
     return $cached;
 }
@@ -12893,9 +12929,8 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
 
     tsootc_detection_codescan_grep_allowed( false );
 
-    if ( function_exists( 'tsootc_sanitize_option_key_map' ) ) {
-        tsootc_sanitize_option_key_map();
-    }
+    // Sanitize only on forced refresh — running it on every rebuild mutates key_map
+    // and used to thrash the options-tab cache via the invalidation signature.
 
     if ( function_exists( 'tsootc_autodetect_get_widget_map' ) ) {
         tsootc_autodetect_get_widget_map();
@@ -13107,7 +13142,8 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
 
     $group_names = tsootc_options_tab_group_names_from_grouped( $grouped, $plugins );
 
-    $invalidation_sig = tsootc_get_options_tab_invalidation_sig();
+    // Recompute after the scan so the stored signature matches the post-build inventory.
+    $invalidation_sig = tsootc_get_options_tab_invalidation_sig( true );
     $age_days         = tsootc_get_age_cleanup_days( tsootc_auto_clean_get_settings() );
     $summary_stats    = tsootc_get_stats( $age_days );
     $autoload_panel   = tsootc_build_options_tab_autoload_panel(

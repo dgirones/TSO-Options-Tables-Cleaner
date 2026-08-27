@@ -77,9 +77,10 @@ function tsootc_page() {
     $tso_assign_group_names = function_exists( 'tsootc_get_existing_group_names_light' )
         ? tsootc_get_existing_group_names_light( $plugins )
         : tsootc_get_existing_group_names( $plugins );
+    $force_opts_refresh = false;
     if ( 'options' === $tab && function_exists( 'tsootc_options_tab_get_cached_payload' ) ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only cache bust flag
-        $refresh_val      = tsootc_get_admin_query_arg( TSOOTC_ADMIN_QUERY_REFRESH, TSOOTC_ADMIN_QUERY_REFRESH_LEGACY );
+        $refresh_val        = tsootc_get_admin_query_arg( TSOOTC_ADMIN_QUERY_REFRESH, TSOOTC_ADMIN_QUERY_REFRESH_LEGACY );
         $force_opts_refresh = ( '1' === sanitize_key( $refresh_val ) );
         if ( $force_opts_refresh && function_exists( 'tsootc_options_tab_invalidate_cache' ) ) {
             tsootc_options_tab_invalidate_cache();
@@ -453,7 +454,8 @@ function tsootc_page() {
         }
 
         if ( null === $tso_opts_payload && function_exists( 'tsootc_build_options_tab_payload' ) ) {
-            $tso_opts_payload = tsootc_build_options_tab_payload( $plugins, $lang, false, false );
+            // Cache lookup already ran above — skip a second disk/option unpack.
+            $tso_opts_payload = tsootc_build_options_tab_payload( $plugins, $lang, ! empty( $force_opts_refresh ), true );
             if ( ! empty( $tso_opts_payload['group_names'] ) && is_array( $tso_opts_payload['group_names'] ) ) {
                 $tso_assign_group_names = $tso_opts_payload['group_names'];
             }
