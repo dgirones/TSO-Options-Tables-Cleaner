@@ -13229,8 +13229,8 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
 
     $group_names = tsootc_options_tab_group_names_from_grouped( $grouped, $plugins );
 
-    // Recompute after the scan so the stored signature matches the post-build inventory.
-    $invalidation_sig = tsootc_get_options_tab_invalidation_sig( true );
+    // Reuse the request-memoized signature from admin_init sync (avoid a second inventory SQL).
+    $invalidation_sig = tsootc_get_options_tab_invalidation_sig();
     $age_days         = tsootc_get_age_cleanup_days( tsootc_auto_clean_get_settings() );
     $summary_stats    = tsootc_get_stats( $age_days );
     $autoload_panel   = tsootc_build_options_tab_autoload_panel(
