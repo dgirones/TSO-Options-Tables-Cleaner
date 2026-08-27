@@ -1746,12 +1746,31 @@ function tsootc_page() {
 
             echo '<p class="description" style="max-width:960px;margin:0 0 16px;line-height:1.45">' . esc_html( $txt_extra_tables_legend ) . '</p>';
 
+            $txt_tables_search_ph = tsootc_ui_triple_text(
+                $lang,
+                'Cercar taula, plugin o estat…',
+                'Buscar tabla, plugin o estado…',
+                'Search table, plugin or status…'
+            );
+            $txt_tables_search_lab = tsootc_ui_triple_text( $lang, 'Cercar', 'Buscar', 'Search' );
+            $txt_tables_no_match   = tsootc_ui_triple_text(
+                $lang,
+                'Cap taula coincideix amb la cerca.',
+                'Ninguna tabla coincide con la búsqueda.',
+                'No tables match this search.'
+            );
+            $txt_sort_by = tsootc_ui_triple_text( $lang, 'Ordenar per ', 'Ordenar por ', 'Sort by ' );
+
             // Barra de selecció / accions bulk
             echo '<div id="tso-tables-bulk-bar" class="tso-tables-bulk-bar" style="margin-bottom:12px;padding:10px 14px;background:#fff;border:1px solid #ddd;border-radius:6px">';
             echo '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">';
             echo '<input type="checkbox" id="tso-tables-select-all"> <strong>' . esc_html( __( 'Select all', 'tso-options-tables-cleaner' ) ) . '</strong>';
             echo '</label>';
             echo '<span id="tso-tables-selected-count" style="color:#666;font-size:12px">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
+            echo '<label class="tso-tables-search-wrap" for="tso-tables-search">';
+            echo '<span class="screen-reader-text">' . esc_html( $txt_tables_search_lab ) . '</span>';
+            echo '<input type="search" id="tso-tables-search" class="tso-tables-search" placeholder="' . esc_attr( $txt_tables_search_ph ) . '" autocomplete="off">';
+            echo '</label>';
             echo '<button id="tso-tables-bulk-export" class="button" style="margin-left:auto;border-color:#007cba;color:#007cba;background:#fff" disabled>';
             echo esc_html( __( '🧾 Export DROP SQL', 'tso-options-tables-cleaner' ) ) . '</button>';
             echo '<button id="tso-tables-bulk-delete" class="button" style="color:#dc3232;border-color:#dc3232;background:#fff"' . ( $allow_extra_table_delete ? '' : ' disabled' ) . '>';
@@ -1776,16 +1795,18 @@ function tsootc_page() {
             $xt_td_lab_action = __( 'Action', 'tso-options-tables-cleaner' );
             $xt_td_lab_frag   = tsootc_ui_triple_text( $lang, 'Fragmentació', 'Fragmentación', 'Fragmentation' );
 
+            echo '<p id="tso-tables-filter-empty" class="description" style="display:none;margin:0 0 12px" hidden>' . esc_html( $txt_tables_no_match ) . '</p>';
+
             echo '<div class="tso-table-scroll">';
-            echo '<table class="tso-tables-grid" style="width:100%">';
+            echo '<table class="tso-tables-grid" id="tso-tables-grid" style="width:100%">';
             echo '<thead><tr>';
             echo '<th style="width:32px;text-align:center"></th>';
-            echo '<th>' . esc_html( __( 'Table', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th>' . esc_html( __( 'Detected plugin', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th title="' . esc_attr( $th_title_status ) . '">' . esc_html( __( 'Status', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="text-align:right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-tables-sortable" data-sort-key="table" scope="col" role="columnheader" tabindex="0" aria-sort="none" title="' . esc_attr( $txt_sort_by . $xt_td_lab_tbl ) . '">' . esc_html( $xt_td_lab_tbl ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
+            echo '<th class="tso-tables-sortable" data-sort-key="plugin" scope="col" role="columnheader" tabindex="0" aria-sort="none" title="' . esc_attr( $txt_sort_by . $xt_td_lab_plugin ) . '">' . esc_html( $xt_td_lab_plugin ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
+            echo '<th class="tso-tables-sortable" data-sort-key="status" scope="col" role="columnheader" tabindex="0" aria-sort="none" title="' . esc_attr( $th_title_status ) . '">' . esc_html( $xt_td_lab_status ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
+            echo '<th class="tso-tables-sortable is-sorted is-desc" data-sort-key="size" scope="col" role="columnheader" tabindex="0" aria-sort="descending" style="text-align:right" title="' . esc_attr( $txt_sort_by . $xt_td_lab_size ) . '">' . esc_html( $xt_td_lab_size ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
             echo '<th title="' . esc_attr( $th_title_usage ) . '">' . esc_html( $xt_td_lab_usage ) . '</th>';
-            echo '<th style="text-align:right">' . esc_html( __( 'Action', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th style="text-align:right">' . esc_html( $xt_td_lab_action ) . '</th>';
             echo '</tr></thead><tbody id="tso-tables-tbody">';
 
             foreach ( $tables as $t ) {
@@ -1824,7 +1845,17 @@ function tsootc_page() {
                     $badge_score = $detect_score;
                 }
 
-                echo '<tr id="' . esc_attr( $row_id ) . '" data-table="' . esc_attr( $t['name'] ) . '" data-kb="' . esc_attr( $t['kb'] ) . '" data-deletable="' . esc_attr( $can_delete_table ? '1' : '0' ) . '" data-delete-reason="' . esc_attr( $delete_block_reason ) . '">';
+                $plugin_name_plain = ! empty( $t['plugin_name'] ) ? (string) $t['plugin_name'] : __( 'No plugin detected', 'tso-options-tables-cleaner' );
+                $status_key_plain  = isset( $t['status_key'] ) && isset( $status_labels[ $t['status_key'] ] ) ? (string) $t['status_key'] : 'unknown';
+                $status_label_plain = $status_labels[ $status_key_plain ];
+                $status_rank_plain  = isset( $status_priority[ $status_key_plain ] ) ? (int) $status_priority[ $status_key_plain ] : 0;
+                $search_haystack    = strtolower(
+                    (string) $t['name'] . ' ' . $plugin_name_plain . ' ' . $status_label_plain . ' ' . $status_key_plain
+                    . ( '' !== $detect_hint ? ' ' . $detect_hint : '' )
+                    . ( $is_custom_table ? ' manual' : '' )
+                );
+
+                echo '<tr id="' . esc_attr( $row_id ) . '" data-table="' . esc_attr( $t['name'] ) . '" data-kb="' . esc_attr( (string) (int) $t['kb'] ) . '" data-sort-table="' . esc_attr( strtolower( (string) $t['name'] ) ) . '" data-sort-plugin="' . esc_attr( strtolower( $plugin_name_plain ) ) . '" data-sort-status="' . esc_attr( (string) $status_rank_plain ) . '" data-sort-status-label="' . esc_attr( strtolower( $status_label_plain ) ) . '" data-search="' . esc_attr( $search_haystack ) . '" data-deletable="' . esc_attr( $can_delete_table ? '1' : '0' ) . '" data-delete-reason="' . esc_attr( $delete_block_reason ) . '">';
                 echo '<td class="tso-stack-td-chk" style="text-align:center"><input type="checkbox" class="tso-table-chk" value="' . esc_attr( $t['name'] ) . '"></td>';
                 echo '<td style="font-family:monospace;font-size:12px" data-label="' . esc_attr( $xt_td_lab_tbl ) . '"><strong>' . esc_html( $t['name'] ) . '</strong>';
                 if ( $is_custom_table ) {
