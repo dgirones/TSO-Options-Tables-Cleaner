@@ -11727,7 +11727,74 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 62 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 63 );
+}
+
+/**
+ * UI language token used in the options-tab cache filename (ca|es|en).
+ *
+ * @param string|null $lang Optional UI lang; defaults to current user UI lang.
+ * @return string
+ */
+function tsootc_options_tab_cache_lang( $lang = null ) {
+	if ( null === $lang || '' === (string) $lang ) {
+		$lang = function_exists( 'tsootc_get_ui_lang' ) ? tsootc_get_ui_lang() : 'ca';
+	}
+	$lang = sanitize_key( (string) $lang );
+	return in_array( $lang, array( 'ca', 'es', 'en' ), true ) ? $lang : 'ca';
+}
+
+/**
+ * Filename for the options-tab payload cache (version + blog + UI lang).
+ *
+ * @param string|null $lang Optional UI lang.
+ * @return string
+ */
+function tsootc_options_tab_cache_filename( $lang = null ) {
+	return 'payload-v'
+		. (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION
+		. '-blog-' . (int) get_current_blog_id()
+		. '-' . tsootc_options_tab_cache_lang( $lang )
+		. '.dat';
+}
+
+/**
+ * Cheap fingerprint of non-transient wp_options inventory (count / ids / sizes).
+ *
+ * Used so the options tab cache refreshes when options are added, removed, or
+ * change size — without depending on the automatic option_key_map.
+ *
+ * @param bool $fresh Force recomputation within the same request.
+ * @return string
+ */
+function tsootc_get_options_tab_options_inventory_fingerprint( $fresh = false ) {
+	static $cached = null;
+	if ( $fresh ) {
+		$cached = null;
+	}
+	if ( null !== $cached ) {
+		return $cached;
+	}
+
+	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- cheap aggregate for cache invalidation only.
+	$row = $wpdb->get_row(
+		"SELECT COUNT(*) AS c,
+			COALESCE(MAX(option_id), 0) AS m,
+			COALESCE(SUM(LENGTH(option_name) + LENGTH(option_value)), 0) AS b
+		FROM {$wpdb->options}
+		WHERE option_name NOT LIKE '\\_transient\\_%'
+			AND option_name NOT LIKE '\\_site\\_transient\\_%'",
+		ARRAY_A
+	);
+
+	if ( ! is_array( $row ) ) {
+		$cached = '0|0|0';
+		return $cached;
+	}
+
+	$cached = (string) (int) $row['c'] . '|' . (string) (int) $row['m'] . '|' . (string) $row['b'];
+	return $cached;
 }
 
 /**
@@ -11802,10 +11869,11 @@ function tsootc_options_tab_get_installed_theme_slugs( $fresh = false ) {
 /**
  * Stable cache invalidation signature for the wp_options tab.
  *
- * Changes when plugins/themes on disk change, the active theme changes, or the
- * admin custom map / group aliases change. Does NOT include the automatic
- * option_key_map (that grows during normal detection and would force a full
- * rescan on almost every visit). Manual map tweaks use "Refresh detection".
+ * Changes when plugins/themes on disk change, the active theme changes, the
+ * wp_options inventory fingerprint changes, or the admin custom map / group
+ * aliases change. Does NOT include the automatic option_key_map (that grows
+ * during normal detection). UI language is stored in the cache filename /
+ * payload, not in this shared signature. Manual map tweaks use "Refresh detection".
  *
  * @param bool $fresh Force recomputation within the same request.
  * @return string
@@ -11832,6 +11900,8 @@ function tsootc_get_options_tab_invalidation_sig( $fresh = false ) {
         . (string) get_option( 'stylesheet', '' )
         . '|'
         . (string) get_option( 'template', '' )
+        . '|'
+        . tsootc_get_options_tab_options_inventory_fingerprint( $fresh )
         . '|'
         . md5( (string) wp_json_encode( is_array( $custom_map ) ? $custom_map : array() ) )
         . '|'
@@ -12278,23 +12348,18 @@ function tsootc_options_tab_get_last_write_result() {
  *
  * @return string
  */
-function tsootc_options_tab_cache_file_path() {
-    return tsootc_options_tab_cache_dir() . '/payload-v'
-        . (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION
-        . '-blog-' . (int) get_current_blog_id()
-        . '.dat';
+function tsootc_options_tab_cache_file_path( $lang = null ) {
+    return tsootc_options_tab_cache_dir() . '/' . tsootc_options_tab_cache_filename( $lang );
 }
 
 /**
  * Absolute paths to the current wp_options tab cache file (canonical + legacy dirs).
  *
+ * @param string|null $lang Optional UI lang.
  * @return string[]
  */
-function tsootc_get_options_tab_cache_file_search_paths() {
-    $filename = 'payload-v'
-        . (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION
-        . '-blog-' . (int) get_current_blog_id()
-        . '.dat';
+function tsootc_get_options_tab_cache_file_search_paths( $lang = null ) {
+    $filename = tsootc_options_tab_cache_filename( $lang );
     $paths    = array();
 
     foreach ( tsootc_get_options_tab_cache_search_dir_paths() as $dir ) {
@@ -12305,20 +12370,33 @@ function tsootc_get_options_tab_cache_file_search_paths() {
 }
 
 /**
+ * All current-version cache filenames for this blog (every UI lang + legacy no-lang).
+ *
+ * @return string[]
+ */
+function tsootc_options_tab_cache_filenames_for_blog() {
+    $blog = (int) get_current_blog_id();
+    $ver  = (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION;
+    $out  = array( 'payload-v' . $ver . '-blog-' . $blog . '.dat' );
+    foreach ( array( 'ca', 'es', 'en' ) as $lang ) {
+        $out[] = 'payload-v' . $ver . '-blog-' . $blog . '-' . $lang . '.dat';
+    }
+    return array_values( array_unique( $out ) );
+}
+
+/**
  * Legacy cache file path (schema < 4 uploads subdir).
  *
+ * @param string|null $lang Optional UI lang.
  * @return string
  */
-function tsootc_legacy_options_tab_cache_file_path() {
+function tsootc_legacy_options_tab_cache_file_path( $lang = null ) {
     $dir = tsootc_get_legacy_options_tab_cache_dir_path();
     if ( '' === $dir ) {
         return '';
     }
 
-    return $dir . '/payload-v'
-        . (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION
-        . '-blog-' . (int) get_current_blog_id()
-        . '.dat';
+    return $dir . '/' . tsootc_options_tab_cache_filename( $lang );
 }
 
 function tsootc_options_tab_cache_option_key() {
@@ -12395,6 +12473,11 @@ function tsootc_options_tab_payload_is_valid( array $cached ) {
     }
 
     if ( isset( $cached['cache_version'] ) && (int) $cached['cache_version'] !== (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION ) {
+        return false;
+    }
+
+    $payload_lang = isset( $cached['lang'] ) ? tsootc_options_tab_cache_lang( (string) $cached['lang'] ) : '';
+    if ( '' === $payload_lang || $payload_lang !== tsootc_options_tab_cache_lang() ) {
         return false;
     }
 
@@ -12543,10 +12626,7 @@ function tsootc_options_tab_save_cache_file( array $payload ) {
     $result = array(
         'storage'  => 'none',
         'path'     => $path,
-        'rel_path' => 'wp-content/uploads/' . tsootc_get_options_tab_cache_rel_dir() . '/payload-v'
-            . (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION
-            . '-blog-' . (int) get_current_blog_id()
-            . '.dat',
+        'rel_path' => 'wp-content/uploads/' . tsootc_get_options_tab_cache_rel_dir() . '/' . tsootc_options_tab_cache_filename(),
         'bytes'    => strlen( $blob ),
         'ok'       => false,
         'error'    => '',
@@ -12663,7 +12743,7 @@ function tsootc_prune_stale_options_tab_cache_files() {
             continue;
         }
         foreach ( $entries as $entry ) {
-            if ( ! is_string( $entry ) || ! preg_match( '/^payload-v(\d+)-blog-(\d+)\.dat$/', $entry, $matches ) ) {
+            if ( ! is_string( $entry ) || ! preg_match( '/^payload-v(\d+)-blog-(\d+)(?:-[a-z]{2})?\.dat$/', $entry, $matches ) ) {
                 continue;
             }
             if ( (int) $matches[1] === $current_version ) {
@@ -12693,9 +12773,15 @@ function tsootc_options_tab_flush_cache() {
     tsootc_delete_stored_transient( tsootc_options_tab_invalidation_sig_transient_key() );
     tsootc_delete_stored_option( tsootc_options_tab_cache_option_key() );
 
-    foreach ( tsootc_get_options_tab_cache_file_search_paths() as $path ) {
-        if ( '' !== $path && is_file( $path ) ) {
-            wp_delete_file( $path );
+    foreach ( tsootc_get_options_tab_cache_search_dir_paths() as $dir ) {
+        if ( '' === $dir || ! is_dir( $dir ) ) {
+            continue;
+        }
+        foreach ( tsootc_options_tab_cache_filenames_for_blog() as $filename ) {
+            $path = trailingslashit( $dir ) . $filename;
+            if ( is_file( $path ) ) {
+                wp_delete_file( $path );
+            }
         }
     }
     tsootc_prune_stale_options_tab_cache_files();
@@ -13154,6 +13240,7 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
 
     $payload = array(
         'cache_version'    => (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION,
+        'lang'             => tsootc_options_tab_cache_lang( $lang ),
         'invalidation_sig' => $invalidation_sig,
         'fingerprint'      => $invalidation_sig,
         'plugin_slugs'     => tsootc_options_tab_get_installed_plugin_slugs(),
@@ -14087,6 +14174,23 @@ function tsootc_is_valid_database_table( $table ) {
         $existing = is_array( $existing ) ? $existing : array();
     }
     return in_array( $table, $existing, true );
+}
+
+/**
+ * Whether a database table exists right now (bypasses request-static SHOW TABLES cache).
+ *
+ * @param string $table Table name.
+ * @return bool
+ */
+function tsootc_database_table_exists_fresh( $table ) {
+    global $wpdb;
+    $table = preg_replace( '/[^a-zA-Z0-9_]/', '', (string) $table );
+    if ( '' === $table ) {
+        return false;
+    }
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+    return is_string( $found ) && $found === $table;
 }
 
 /**
@@ -16741,7 +16845,19 @@ function tsootc_ajax_drop_table() {
 
     $table = $validated['valid'][0];
     global $wpdb;
+    $wpdb->last_error = '';
     $wpdb->query( 'DROP TABLE IF EXISTS ' . tsootc_quote_table_identifier( $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifier quoted after validate_extra_table_delete_candidates; DROP is intentional admin action, not cacheable
+    if ( $wpdb->last_error || ( function_exists( 'tsootc_database_table_exists_fresh' ) && tsootc_database_table_exists_fresh( $table ) ) ) {
+        $err = $wpdb->last_error
+            ? (string) $wpdb->last_error
+            : tsootc_msg( 'La taula encara existeix després del DROP.', 'La tabla todavía existe después del DROP.', 'The table still exists after DROP.' );
+        wp_send_json_error(
+            array(
+                'msg' => tsootc_msg( 'No s\'ha pogut eliminar la taula: ', 'No se ha podido eliminar la tabla: ', 'Could not delete the table: ' ) . $err,
+            )
+        );
+        return;
+    }
     tsootc_forget_extra_table_maps( $table );
     wp_send_json_success(
         array(
@@ -16826,9 +16942,22 @@ function tsootc_ajax_drop_tables_bulk() {
     $errors    = $validated['errors'];
     global $wpdb;
     foreach ( $validated['valid'] as $table ) {
+        $wpdb->last_error = '';
         $wpdb->query( 'DROP TABLE IF EXISTS ' . tsootc_quote_table_identifier( $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifier quoted after validate_extra_table_delete_candidates; DROP is intentional admin action, not cacheable
+        if ( $wpdb->last_error || ( function_exists( 'tsootc_database_table_exists_fresh' ) && tsootc_database_table_exists_fresh( $table ) ) ) {
+            $err = $wpdb->last_error
+                ? (string) $wpdb->last_error
+                : tsootc_msg( 'La taula encara existeix després del DROP.', 'La tabla todavía existe después del DROP.', 'The table still exists after DROP.' );
+            $errors[] = $table . ': ' . $err;
+            continue;
+        }
         tsootc_forget_extra_table_maps( $table );
         $deleted[] = $table;
+    }
+    if ( empty( $deleted ) ) {
+        $msg = ! empty( $errors[0] ) ? (string) $errors[0] : tsootc_msg( 'No s\'ha pogut eliminar cap taula.', 'No se ha podido eliminar ninguna tabla.', 'Could not delete any table.' );
+        wp_send_json_error( array( 'msg' => $msg, 'errors' => $errors ) );
+        return;
     }
     wp_send_json_success(
         array(
@@ -17104,16 +17233,25 @@ function tsootc_auto_clean_run() {
     // 1. Pendents caducats (>24h) — tso_get_pending_key_map ja ho fa en llegir
     tsootc_get_pending_key_map();
 
-    // 2. Entrades orfes del key_map: plugins que ja no existeixen al disc
+    // 2. Entrades orfes del key_map: només si el plugin ja no existeix I l'opció tampoc
     $installed_files = array_column( tsootc_get_installed_plugins(), 'file' );
     $key_map         = tsootc_get_option_key_map();
     $before_count    = count( $key_map );
+    $existing_opts   = function_exists( 'tsootc_snapshot_option_names_set' )
+        ? tsootc_snapshot_option_names_set()
+        : array();
     foreach ( $key_map as $opt_key => $plugin_file ) {
-        if ( function_exists( 'tsootc_option_key_map_owner_is_valid' )
-            ? ! tsootc_option_key_map_owner_is_valid( $plugin_file, $installed_files )
-            : ! in_array( $plugin_file, $installed_files, true ) ) {
-            unset( $key_map[ $opt_key ] );
+        $owner_ok = function_exists( 'tsootc_option_key_map_owner_is_valid' )
+            ? tsootc_option_key_map_owner_is_valid( $plugin_file, $installed_files )
+            : in_array( $plugin_file, $installed_files, true );
+        if ( $owner_ok ) {
+            continue;
         }
+        // Keep attribution while the leftover option still exists (helps orphan detection).
+        if ( isset( $existing_opts[ (string) $opt_key ] ) ) {
+            continue;
+        }
+        unset( $key_map[ $opt_key ] );
     }
     if ( count( $key_map ) !== $before_count ) {
         tsootc_option_key_map_save( $key_map );
@@ -17383,8 +17521,13 @@ function tsootc_auto_clean_ensure_schedule() {
     if ( $actual !== $expected ) {
         $needs = true;
     } elseif ( $ts > 0 && $ts < ( $now - ( 2 * $seconds ) ) ) {
-        // Far overdue (WP-Cron never spawned): show a sensible next run instead of a stale past stamp.
-        $needs = true;
+        // Far overdue (WP-Cron never spawned): run catch-up once, then the runner reschedules.
+        static $tsootc_auto_clean_catchup_done = false;
+        if ( ! $tsootc_auto_clean_catchup_done && function_exists( 'tsootc_auto_clean_run' ) ) {
+            $tsootc_auto_clean_catchup_done = true;
+            tsootc_auto_clean_run();
+        }
+        return;
     }
 
     if ( $needs ) {
@@ -18448,6 +18591,32 @@ function tsootc_delete_backup_files( array $files ) {
 	return $deleted;
 }
 
+/**
+ * Confirmation word required to restore a backup (depends on UI language).
+ *
+ * @param string|null $lang UI language.
+ * @return string
+ */
+function tsootc_backup_restore_confirm_word( $lang = null ) {
+    if ( null === $lang || '' === (string) $lang ) {
+        $lang = function_exists( 'tsootc_get_ui_lang' ) ? tsootc_get_ui_lang() : 'ca';
+    }
+    return 'en' === $lang ? 'RESTORE' : 'RESTAURAR';
+}
+
+/**
+ * Whether typed restore confirmation matches an accepted word.
+ *
+ * Accepts both RESTAURAR and RESTORE so mixed-language UIs still work.
+ *
+ * @param string $typed Typed confirmation.
+ * @return bool
+ */
+function tsootc_backup_restore_confirm_is_valid( $typed ) {
+    $typed = strtoupper( trim( (string) $typed ) );
+    return in_array( $typed, array( 'RESTAURAR', 'RESTORE' ), true );
+}
+
 function tsootc_backup_handler() {
     if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'tso-options-tables-cleaner' ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check
     if ( ! tsootc_has_admin_post_action() ) return;
@@ -18545,12 +18714,13 @@ function tsootc_backup_handler() {
 
     if ( $action === 'restore_backup' ) {
         $confirm_restore = tsootc_get_admin_post_text( 'confirm_restore' );
-        if ( 'RESTAURAR' !== $confirm_restore ) {
+        $confirm_word    = tsootc_backup_restore_confirm_word( $lang );
+        if ( ! tsootc_backup_restore_confirm_is_valid( $confirm_restore ) ) {
             $msg_text = tsootc_ui_triple_text(
                 $lang,
-                'Cal escriure RESTAURAR per confirmar la restauració.',
-                'Debes escribir RESTAURAR para confirmar la restauración.',
-                'Type RESTAURAR to confirm the restore.'
+                'Cal escriure ' . $confirm_word . ' per confirmar la restauració.',
+                'Debes escribir ' . $confirm_word . ' para confirmar la restauración.',
+                'Type ' . $confirm_word . ' to confirm the restore.'
             );
             tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => 'warning', 'msg' => $msg_text ), 30 );
             wp_safe_redirect( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup' ) );

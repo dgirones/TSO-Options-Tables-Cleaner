@@ -152,7 +152,7 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 		wp_localize_script(
 			'tso-options-tables-cleaner-admin-history',
 			'tsootcHistoryConfig',
-			tsootc_admin_get_history_script_config()
+			tsootc_admin_get_history_script_config( function_exists( 'tsootc_get_ui_lang' ) ? tsootc_get_ui_lang() : 'ca' )
 		);
 	}
 	if ( 'cron' === $tab ) {
@@ -329,14 +329,29 @@ function tsootc_admin_get_script_config( $lang ) {
 		'nonce'     => wp_create_nonce( TSOOTC_NONCE_AJAX ),
 		'formNonce' => wp_create_nonce( TSOOTC_NONCE_FORM ),
 		'lang'      => array(
-			'confirmDelete'       => __( 'DELETE: ', 'tso-options-tables-cleaner' ),
-			'confirmDeleteActive' => __( '⚠️ WARNING: the plugin is ACTIVE.\nDeleting this option may affect the plugin.\n\nDelete: ', 'tso-options-tables-cleaner' ),
-			'confirmTable'        => __( '⛔ DELETE TABLE ', 'tso-options-tables-cleaner' ),
-			'confirmIrreversible' => __( '\nTHIS ACTION IS IRREVERSIBLE.', 'tso-options-tables-cleaner' ),
-			'confirmBulkPre'      => __( '⛔ DELETE ', 'tso-options-tables-cleaner' ),
-			'confirmBulkPost'     => __( ' table(s)?\n\nTHIS ACTION IS IRREVERSIBLE.', 'tso-options-tables-cleaner' ),
-			'tablesSelected'      => __( ' selected', 'tso-options-tables-cleaner' ),
-			'tablesSelectedPl'    => __( ' selected', 'tso-options-tables-cleaner' ),
+			'confirmDelete'       => tsootc_ui_triple_text( $lang, 'ELIMINAR: ', 'ELIMINAR: ', 'DELETE: ' ),
+			'confirmDeleteActive' => tsootc_ui_triple_text(
+				$lang,
+				"⚠️ AVÍS: el plugin està ACTIU.\nEliminar aquesta opció pot afectar el plugin.\n\nEliminar: ",
+				"⚠️ AVISO: el plugin está ACTIVO.\nEliminar esta opción puede afectar al plugin.\n\nEliminar: ",
+				"⚠️ WARNING: the plugin is ACTIVE.\nDeleting this option may affect the plugin.\n\nDelete: "
+			),
+			'confirmTable'        => tsootc_ui_triple_text( $lang, '⛔ ELIMINAR TAULA ', '⛔ ELIMINAR TABLA ', '⛔ DELETE TABLE ' ),
+			'confirmIrreversible' => tsootc_ui_triple_text(
+				$lang,
+				"\nAQUESTA ACCIÓ ÉS IRREVERSIBLE.",
+				"\nESTA ACCIÓN ES IRREVERSIBLE.",
+				"\nTHIS ACTION IS IRREVERSIBLE."
+			),
+			'confirmBulkPre'      => tsootc_ui_triple_text( $lang, '⛔ ELIMINAR ', '⛔ ELIMINAR ', '⛔ DELETE ' ),
+			'confirmBulkPost'     => tsootc_ui_triple_text(
+				$lang,
+				" taula(es)?\n\nAQUESTA ACCIÓ ÉS IRREVERSIBLE.",
+				" tabla(s)?\n\nESTA ACCIÓN ES IRREVERSIBLE.",
+				" table(s)?\n\nTHIS ACTION IS IRREVERSIBLE."
+			),
+			'tablesSelected'      => tsootc_ui_triple_text( $lang, ' seleccionada', ' seleccionada', ' selected' ),
+			'tablesSelectedPl'    => tsootc_ui_triple_text( $lang, ' seleccionades', ' seleccionadas', ' selected' ),
 		),
 		'optimize'  => array(
 			'confirm'           => tsootc_ui_triple_text(
@@ -346,7 +361,7 @@ function tsootc_admin_get_script_config( $lang ) {
 				"Optimize all fragmented database tables?\nThis may take several seconds on large databases."
 			),
 			'btnBusy'           => tsootc_ui_triple_text( $lang, '⏳ Optimitzant...', '⏳ Optimizando...', '⏳ Optimizing...' ),
-			'btnLabel'          => __( '🔧 Optimize fragmented tables', 'tso-options-tables-cleaner' ),
+			'btnLabel'          => tsootc_ui_triple_text( $lang, '🔧 Optimitzar taules fragmentades', '🔧 Optimizar tablas fragmentadas', '🔧 Optimize fragmented tables' ),
 			'headerSep'         => tsootc_ui_triple_text( $lang, '🔧 Resultat de l\'optimització — ', '🔧 Resultado de la optimización — ', '🔧 Optimization result — ' ),
 			'tablesProcessed'   => tsootc_ui_triple_text( $lang, 'taules processades', 'tablas procesadas', 'tables processed' ),
 			'completedNoErrors' => tsootc_ui_triple_text( $lang, '✅ Completat sense errors', '✅ Completado sin errores', '✅ Completed without errors' ),
@@ -392,8 +407,8 @@ function tsootc_admin_get_script_config( $lang ) {
 			'deleteCompleted'         => tsootc_ui_triple_text( $lang, 'Taula eliminada.', 'Tabla eliminada.', 'Table deleted.' ),
 			'bulkDeleteCompleted'     => tsootc_ui_triple_text( $lang, 'Taules eliminades.', 'Tablas eliminadas.', 'Tables deleted.' ),
 			'deleteBusy'              => tsootc_ui_triple_text( $lang, 'Eliminant...', 'Eliminando...', 'Deleting...' ),
-			'bulkDeleteBtn'           => __( '🗑️ Delete selected', 'tso-options-tables-cleaner' ),
-			'bulkExportBtn'           => __( '🧾 Export DROP SQL', 'tso-options-tables-cleaner' ),
+			'bulkDeleteBtn'           => tsootc_ui_triple_text( $lang, '🗑️ Eliminar seleccionades', '🗑️ Eliminar seleccionadas', '🗑️ Delete selected' ),
+			'bulkExportBtn'           => tsootc_ui_triple_text( $lang, '🧾 Exportar DROP SQL', '🧾 Exportar DROP SQL', '🧾 Export DROP SQL' ),
 			'exportBusy'              => tsootc_ui_triple_text( $lang, 'Exportant SQL...', 'Exportando SQL...', 'Exporting SQL...' ),
 			'exportPartial'           => tsootc_ui_triple_text( $lang, 'Algunes taules s\'han omès de l\'export: ', 'Algunas tablas se omitieron del export: ', 'Some tables were skipped from the export: ' ),
 			'parseErrorPrefix'        => tsootc_ui_triple_text( $lang, 'Error: ', 'Error: ', 'Error: ' ),
@@ -406,16 +421,16 @@ function tsootc_admin_get_script_config( $lang ) {
 			'originalPrefix' => tsootc_ui_triple_text( $lang, 'Nom original (intern):', 'Nombre original (interno):', 'Original name (internal):' ),
 		),
 		'autoClean' => array(
-			'savedOk'       => __( 'Saved. Next: ', 'tso-options-tables-cleaner' ),
-			'savedOff'      => __( 'Saved (disabled)', 'tso-options-tables-cleaner' ),
-			'nextLabel'     => __( 'Next', 'tso-options-tables-cleaner' ),
-			'notScheduled'  => __( 'Not scheduled', 'tso-options-tables-cleaner' ),
+			'savedOk'       => tsootc_ui_triple_text( $lang, 'Desat. Següent: ', 'Guardado. Siguiente: ', 'Saved. Next: ' ),
+			'savedOff'      => tsootc_ui_triple_text( $lang, 'Desat (desactivat)', 'Guardado (desactivado)', 'Saved (disabled)' ),
+			'nextLabel'     => tsootc_ui_triple_text( $lang, 'Següent', 'Siguiente', 'Next' ),
+			'notScheduled'  => tsootc_ui_triple_text( $lang, 'No programat', 'No programado', 'Not scheduled' ),
 		),
 		'cleanup'   => array(
 			'busy'        => tsootc_ui_triple_text( $lang, '⏳ Netejant...', '⏳ Limpiando...', '⏳ Cleaning...' ),
-			'entries'     => __( ' entries', 'tso-options-tables-cleaner' ),
-			'alreadyClean'=> __( ' — already clean', 'tso-options-tables-cleaner' ),
-			'nothingClean'=> __( '✅ Nothing to clean', 'tso-options-tables-cleaner' ),
+			'entries'     => tsootc_ui_triple_text( $lang, ' entrades', ' entradas', ' entries' ),
+			'alreadyClean'=> tsootc_ui_triple_text( $lang, ' — ja net', ' — ya limpio', ' — already clean' ),
+			'nothingClean'=> tsootc_ui_triple_text( $lang, '✅ Res a netejar', '✅ Nada que limpiar', '✅ Nothing to clean' ),
 		),
 		'modalCopy' => array(
 			'copied' => tsootc_ui_triple_text( $lang, 'Contingut copiat al porta-retalls.', 'Contenido copiado al portapapeles.', 'Content copied to clipboard.' ),
@@ -517,9 +532,9 @@ function tsootc_admin_get_options_script_config( $lang ) {
 		'selectAtLeast'             => tsootc_ui_triple_text( $lang, 'Selecciona almenys una opció.', 'Selecciona al menos una opción.', 'Select at least one option.' ),
 		'disableAutoloadPrefix'     => tsootc_ui_triple_text( $lang, 'Desactivar autoload de: ', 'Desactivar autoload de: ', 'Disable autoload for: ' ),
 		'enableAutoloadPrefix'      => tsootc_ui_triple_text( $lang, 'Activar autoload de: ', 'Activar autoload de: ', 'Enable autoload for: ' ),
-		'assignSelectPlaceholder'   => __( '-- Select a group --', 'tso-options-tables-cleaner' ),
-		'assignBtnExisting'         => __( 'Assign to group', 'tso-options-tables-cleaner' ),
-		'assignBtnNew'              => __( 'Create and assign', 'tso-options-tables-cleaner' ),
+		'assignSelectPlaceholder'   => tsootc_ui_triple_text( $lang, '-- Selecciona un grup --', '-- Selecciona un grupo --', '-- Select a group --' ),
+		'assignBtnExisting'         => tsootc_ui_triple_text( $lang, 'Assignar al grup', 'Asignar al grupo', 'Assign to group' ),
+		'assignBtnNew'              => tsootc_ui_triple_text( $lang, 'Crear i assignar', 'Crear y asignar', 'Create and assign' ),
 		'assignBtnSaving'           => tsootc_ui_triple_text( $lang, 'Desant...', 'Guardando...', 'Saving...' ),
 		'assignBulkSummaryTpl'      => tsootc_ui_triple_text( $lang, '%d opcions seleccionades', '%d opciones seleccionadas', '%d options selected' ),
 		'confirmDetectionPrompt'    => tsootc_ui_triple_text( $lang, 'Confirmar assignació automàtica per a:', 'Confirmar asignación automática para:', 'Confirm automatic assignment for:' ),
@@ -531,13 +546,19 @@ function tsootc_admin_get_options_script_config( $lang ) {
 /**
  * History tab localized strings.
  *
+ * @param string $lang UI language.
  * @return array<string,string>
  */
-function tsootc_admin_get_history_script_config() {
+function tsootc_admin_get_history_script_config( $lang = 'ca' ) {
 	return array(
-		'clearConfirm' => __( 'Clear all history? This action cannot be undone.', 'tso-options-tables-cleaner' ),
-		'clearedMsg'   => __( 'History cleared.', 'tso-options-tables-cleaner' ),
-		'histBtnLabel' => __( '🗑️ Clear history', 'tso-options-tables-cleaner' ),
+		'clearConfirm' => tsootc_ui_triple_text(
+			$lang,
+			'Vols esborrar tot l\'historial? Aquesta acció no es pot desfer.',
+			'¿Borrar todo el historial? Esta acción no se puede deshacer.',
+			'Clear all history? This action cannot be undone.'
+		),
+		'clearedMsg'   => tsootc_ui_triple_text( $lang, 'Historial esborrat.', 'Historial borrado.', 'History cleared.' ),
+		'histBtnLabel' => tsootc_ui_triple_text( $lang, '🗑️ Esborrar historial', '🗑️ Borrar historial', '🗑️ Clear history' ),
 	);
 }
 

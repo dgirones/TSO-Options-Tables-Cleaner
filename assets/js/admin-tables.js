@@ -92,9 +92,9 @@
     }
 
     function updateBulkBar() {
-        var checked = document.querySelectorAll(".tso-table-chk:checked");
+        var checked = getVisibleChecks().filter(function(c) { return c.checked; });
         var n = checked.length;
-        var unsafe = Array.from(checked).some(function(el){
+        var unsafe = checked.some(function(el){
             var row = el.closest("tr");
             return row && row.getAttribute("data-deletable") !== "1";
         });
@@ -122,7 +122,12 @@
             var hay = row.getAttribute("data-search") || "";
             var show = !q || hay.indexOf(q) !== -1;
             row.style.display = show ? "" : "none";
-            if (show) {
+            if (!show) {
+                var chk = row.querySelector(".tso-table-chk");
+                if (chk) {
+                    chk.checked = false;
+                }
+            } else {
                 visible++;
             }
         });
@@ -353,9 +358,9 @@
 
     // ---- Eliminar seleccionades (bulk) ----
     bulkBtn.addEventListener("click", function(){
-        var checked = document.querySelectorAll(".tso-table-chk:checked");
+        var checked = getVisibleChecks().filter(function(c){ return c.checked; });
         if (checked.length === 0) return;
-        var unsafeRows = Array.from(checked).map(function(c){
+        var unsafeRows = checked.map(function(c){
             var row = c.closest("tr");
             if (!row || row.getAttribute("data-deletable") === "1") return null;
             return (row.getAttribute("data-table") || "") + " — " + (row.getAttribute("data-delete-reason") || "");
@@ -364,7 +369,7 @@
             alert((typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.deleteSelectionBlocked : '') + unsafeRows.join("\n"));
             return;
         }
-        var names = Array.from(checked).map(function(c){ return c.value; });
+        var names = checked.map(function(c){ return c.value; });
         if (!confirm((typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.deleteCreatesSnapshot + "\n\n" + tsootcCommonJs.deleteTablesBulkLabel + "\n\n" : "") + names.join("\n"))) return;
         var confirmPhrase = window.prompt(typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.deleteTypeBulkPrompt : "Type DELETE to confirm bulk deletion:", "");
         if (confirmPhrase === null || confirmPhrase.trim().toUpperCase() !== "DELETE") {
@@ -401,9 +406,9 @@
     });
 
     exportBtn.addEventListener("click", function(){
-        var checked = document.querySelectorAll(".tso-table-chk:checked");
+        var checked = getVisibleChecks().filter(function(c){ return c.checked; });
         if (checked.length === 0) return;
-        var names = Array.from(checked).map(function(c){ return c.value; });
+        var names = checked.map(function(c){ return c.value; });
         exportBtn.disabled = true;
         exportBtn.textContent = (typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.exportBusy : 'Exporting SQL...');
         tsootcPost("tsootc_export_drop_sql", {table_names: names.join(",")}, function(data){
