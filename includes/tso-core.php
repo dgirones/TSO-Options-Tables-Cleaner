@@ -11727,7 +11727,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 63 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 64 );
 }
 
 /**
@@ -11759,10 +11759,11 @@ function tsootc_options_tab_cache_filename( $lang = null ) {
 }
 
 /**
- * Cheap fingerprint of non-transient wp_options inventory (count / ids / sizes).
+ * Cheap fingerprint of non-transient wp_options inventory (count + max id).
  *
- * Used so the options tab cache refreshes when options are added, removed, or
- * change size — without depending on the automatic option_key_map.
+ * Detects added/removed options without scanning option_value lengths (that SUM
+ * forced a heavy table read and also flipped when option_key_map grew).
+ * Request-memoized: callers should not pass $fresh on every sig rebuild.
  *
  * @param bool $fresh Force recomputation within the same request.
  * @return string
@@ -11777,11 +11778,9 @@ function tsootc_get_options_tab_options_inventory_fingerprint( $fresh = false ) 
 	}
 
 	global $wpdb;
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- cheap aggregate for cache invalidation only.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- index-friendly aggregates for cache invalidation only.
 	$row = $wpdb->get_row(
-		"SELECT COUNT(*) AS c,
-			COALESCE(MAX(option_id), 0) AS m,
-			COALESCE(SUM(LENGTH(option_name) + LENGTH(option_value)), 0) AS b
+		"SELECT COUNT(*) AS c, COALESCE(MAX(option_id), 0) AS m
 		FROM {$wpdb->options}
 		WHERE option_name NOT LIKE '\\_transient\\_%'
 			AND option_name NOT LIKE '\\_site\\_transient\\_%'",
@@ -11789,11 +11788,11 @@ function tsootc_get_options_tab_options_inventory_fingerprint( $fresh = false ) 
 	);
 
 	if ( ! is_array( $row ) ) {
-		$cached = '0|0|0';
+		$cached = '0|0';
 		return $cached;
 	}
 
-	$cached = (string) (int) $row['c'] . '|' . (string) (int) $row['m'] . '|' . (string) $row['b'];
+	$cached = (string) (int) $row['c'] . '|' . (string) (int) $row['m'];
 	return $cached;
 }
 
@@ -11900,8 +11899,10 @@ function tsootc_get_options_tab_invalidation_sig( $fresh = false ) {
         . (string) get_option( 'stylesheet', '' )
         . '|'
         . (string) get_option( 'template', '' )
+        // Inventory fingerprint is request-memoized separately — do not pass $fresh or a
+        // second sig rebuild (e.g. after payload build) re-runs the SQL in the same request.
         . '|'
-        . tsootc_get_options_tab_options_inventory_fingerprint( $fresh )
+        . tsootc_get_options_tab_options_inventory_fingerprint()
         . '|'
         . md5( (string) wp_json_encode( is_array( $custom_map ) ? $custom_map : array() ) )
         . '|'
