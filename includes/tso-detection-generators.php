@@ -1,6 +1,6 @@
 <?php
 /**
- * Detection engine candidate generators (G0–G11, Phase A: G0, G2, G3).
+ * Detection engine candidate generators (G0–G12 + legacy installed fallback).
  *
  * @package TSO_Options_Tables_Cleaner
  */
@@ -634,7 +634,7 @@ function tsootc_detection_gen_history( $option_name, array $installed_plugins = 
 		return array();
 	}
 	$row = tsootc_history_detect_option( $option_name, $installed_plugins );
-	if ( ! is_array( $row ) || empty( $row['file'] ) && empty( $row['folder'] ) ) {
+	if ( ! is_array( $row ) || ( empty( $row['file'] ) && empty( $row['folder'] ) ) ) {
 		return array();
 	}
 	if ( empty( $row['source'] ) ) {

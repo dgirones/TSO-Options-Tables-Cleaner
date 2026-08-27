@@ -201,6 +201,140 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'widget_custom_map_saved_overrides_weak_detected',
+			'type'      => 'widget_group',
+			'option'    => 'widget_tso_clasificacion',
+			'custom_map'=> 'Lliga Futbol TSO',
+			'row'       => array(
+				'name'   => 'Hint',
+				'file'   => '',
+				'source' => 'unconfirmed',
+			),
+			'assert'    => array(
+				'uses_plugin_group' => true,
+			),
+		),
+		array(
+			'id'        => 'widget_plugin_disk_leaves_widgets_bucket',
+			'type'      => 'widget_group',
+			'option'    => 'widget_jetpack_my_community',
+			'inventory' => array(
+				array(
+					'name'   => 'Jetpack',
+					'file'   => 'jetpack/jetpack.php',
+					'active' => true,
+					'type'   => 'plugin',
+				),
+			),
+			'row'       => array(
+				'name'      => 'Jetpack',
+				'file'      => 'jetpack/jetpack.php',
+				'folder'    => 'jetpack',
+				'active'    => true,
+				'source'    => 'plugin_disk',
+				'installed' => true,
+			),
+			'assert'    => array(
+				'uses_plugin_group' => true,
+			),
+		),
+		array(
+			'id'        => 'theme_groups_merge_owner_and_label',
+			'type'      => 'group_merge_keys',
+			'assert'    => array(
+				'same_key' => true,
+			),
+			'cases'     => array(
+				array(
+					'group_key'  => 'owner:theme:enclosed',
+					'group_data' => array( 'plugin_folder' => 'theme:enclosed', 'display_label' => 'Tema: Enclosed' ),
+				),
+				array(
+					'group_key'  => 'Tema: Enclosed',
+					'group_data' => array( 'plugin_folder' => 'theme:enclosed', 'detected_name' => 'Tema: Enclosed' ),
+				),
+			),
+			'inventory' => array(
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+		),
+		array(
+			'id'        => 'cpotheme_settings_maps_to_enclosed',
+			'option'    => 'cpotheme_settings',
+			'inventory' => array(
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+			'assert'    => array(
+				'type'                      => 'theme',
+				'folder'                    => 'theme:enclosed',
+				'forbidden_file_substrings' => array( 'plugins/', 'tema-enclosed', 'cpo-widgets' ),
+				'forbidden_sources'         => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'custom_map_tema_enclosed_resolves_theme_path',
+			'type'      => 'custom_map_resolve',
+			'option'    => 'widget_cpotheme-advert',
+			'label'     => 'Tema: Enclosed',
+			'inventory' => array(
+				tsootc_detection_regression_theme_row( 'Enclosed', 'enclosed', true ),
+			),
+			'assert'    => array(
+				'type'                      => 'theme',
+				'folder'                    => 'theme:enclosed',
+				'installed'                 => true,
+				'forbidden_file_substrings' => array( 'tema-enclosed' ),
+			),
+		),
+		array(
+			'id'     => 'path_hint_theme_token_uses_themes_dir',
+			'type'   => 'path_hint',
+			'token'  => 'theme:enclosed',
+			'assert' => array(
+				'contains'    => 'themes/enclosed',
+				'forbidden'   => array( 'plugins/', 'tema-enclosed' ),
+			),
+		),
+		array(
+			'id'     => 'path_hint_plugin_slug_uses_plugins_dir',
+			'type'   => 'path_hint',
+			'token'  => 'contact-form-7',
+			'assert' => array(
+				'contains'  => 'plugins/contact-form-7',
+				'forbidden' => array( 'themes/' ),
+			),
+		),
+		array(
+			'id'       => 'group_meta_plugin_folder_not_remapped_to_theme',
+			'type'     => 'group_meta_folder',
+			'detected' => array(
+				'name'   => 'Contact Form 7',
+				'file'   => 'contact-form-7/wp-contact-form-7.php',
+				'folder' => 'contact-form-7',
+				'type'   => 'plugin',
+				'source' => 'plugin_disk',
+			),
+			'assert'   => array(
+				'folder'    => 'contact-form-7',
+				'forbidden' => array( 'theme:' ),
+			),
+		),
+		array(
+			'id'       => 'group_meta_theme_row_keeps_theme_token',
+			'type'     => 'group_meta_folder',
+			'detected' => array(
+				'name'   => 'Tema: Enclosed',
+				'file'   => 'enclosed',
+				'folder' => 'theme:enclosed',
+				'type'   => 'theme',
+				'source' => 'theme_disk',
+			),
+			'assert'   => array(
+				'folder'    => 'theme:enclosed',
+				'forbidden' => array( 'plugins/' ),
+			),
+		),
+		array(
 			'id'        => 'cpotheme_widget_maps_to_enclosed_theme',
 			'option'    => 'widget_cpotheme-advert',
 			'inventory' => array(
@@ -2061,6 +2195,111 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 		);
 	}
 
+	if ( 'path_hint' === $type ) {
+		if ( ! function_exists( 'tsootc_format_removed_component_path' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_format_removed_component_path missing',
+			);
+		}
+		$path = (string) tsootc_format_removed_component_path( (string) ( $fixture['token'] ?? '' ) );
+		$path_l = strtolower( str_replace( '\\', '/', $path ) );
+		$pass   = true;
+		$msg    = 'ok';
+		if ( ! empty( $assert['contains'] ) && false === strpos( $path_l, strtolower( (string) $assert['contains'] ) ) ) {
+			$pass = false;
+			$msg  = 'missing ' . (string) $assert['contains'] . ' in ' . $path;
+		}
+		if ( $pass && ! empty( $assert['forbidden'] ) && is_array( $assert['forbidden'] ) ) {
+			foreach ( $assert['forbidden'] as $bad ) {
+				if ( false !== strpos( $path_l, strtolower( (string) $bad ) ) ) {
+					$pass = false;
+					$msg  = 'forbidden ' . (string) $bad . ' in ' . $path;
+					break;
+				}
+			}
+		}
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $msg,
+		);
+	}
+
+	if ( 'group_meta_folder' === $type ) {
+		if ( ! function_exists( 'tsootc_group_meta_from_detected' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_group_meta_from_detected missing',
+			);
+		}
+		$detected = isset( $fixture['detected'] ) && is_array( $fixture['detected'] ) ? $fixture['detected'] : array();
+		$meta     = tsootc_group_meta_from_detected( $detected );
+		$folder   = isset( $meta['plugin_folder'] ) ? (string) $meta['plugin_folder'] : '';
+		$pass     = true;
+		$msg      = 'ok';
+		if ( ! empty( $assert['folder'] ) && $folder !== (string) $assert['folder'] ) {
+			$pass = false;
+			$msg  = 'got folder=' . $folder;
+		}
+		if ( $pass && ! empty( $assert['forbidden'] ) && is_array( $assert['forbidden'] ) ) {
+			foreach ( $assert['forbidden'] as $bad ) {
+				if ( false !== strpos( $folder, (string) $bad ) ) {
+					$pass = false;
+					$msg  = 'forbidden ' . (string) $bad . ' in ' . $folder;
+					break;
+				}
+			}
+		}
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $msg,
+		);
+	}
+
+	if ( 'custom_map_resolve' === $type ) {
+		if ( ! function_exists( 'tsootc_resolve_custom_map_detection_row' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_resolve_custom_map_detection_row missing',
+			);
+		}
+		$label = (string) ( $fixture['label'] ?? '' );
+		$row   = tsootc_resolve_custom_map_detection_row( $option, $label, $inventory );
+		return tsootc_detection_regression_assert_row( $id, $row, $assert );
+	}
+
+	if ( 'group_merge_keys' === $type ) {
+		if ( ! function_exists( 'tsootc_resolve_group_merge_key' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_resolve_group_merge_key missing',
+			);
+		}
+		$cases = isset( $fixture['cases'] ) && is_array( $fixture['cases'] ) ? $fixture['cases'] : array();
+		$keys  = array();
+		foreach ( $cases as $case ) {
+			$keys[] = tsootc_resolve_group_merge_key(
+				(string) ( $case['group_key'] ?? '' ),
+				isset( $case['group_data'] ) && is_array( $case['group_data'] ) ? $case['group_data'] : array(),
+				$inventory,
+				'ca'
+			);
+		}
+		$unique = array_values( array_unique( $keys ) );
+		$pass   = ! empty( $assert['same_key'] ) ? ( 1 === count( $unique ) && '' !== (string) ( $unique[0] ?? '' ) ) : false;
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'keys=' . implode( '|', $keys ),
+		);
+	}
+
 	if ( 'cpotheme_resolve' === $type ) {
 		if ( ! function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
 			return array(
@@ -2100,7 +2339,13 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 
 	if ( 'widget_group' === $type ) {
 		$row    = isset( $fixture['row'] ) && is_array( $fixture['row'] ) ? $fixture['row'] : null;
-		$uses   = tsootc_widget_uses_plugin_group( $option, $row, $inventory );
+		if ( ! empty( $fixture['custom_map'] ) && function_exists( 'tsootc_custom_map_set' ) && function_exists( 'tsootc_custom_map_delete' ) ) {
+			tsootc_custom_map_set( $option, (string) $fixture['custom_map'] );
+			$uses = tsootc_widget_uses_plugin_group( $option, $row, $inventory );
+			tsootc_custom_map_delete( $option );
+		} else {
+			$uses = tsootc_widget_uses_plugin_group( $option, $row, $inventory );
+		}
 		$expect = ! empty( $assert['uses_plugin_group'] );
 		return array(
 			'id'      => $id,

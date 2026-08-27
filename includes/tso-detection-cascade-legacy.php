@@ -72,6 +72,14 @@ function tsootc_detect_plugin_cascade_legacy( $option_name, $installed_plugins =
         }
     }
 
+    // --- FASE 0a2b2: CPOThemes / Enclosed (cpotheme_* → themes/, not plugins/) ---
+    if ( function_exists( 'tsootc_detect_cpotheme_option' ) ) {
+        $cpo_row = tsootc_detect_cpotheme_option( $option_name, $installed_plugins );
+        if ( is_array( $cpo_row ) ) {
+            return $cpo_row;
+        }
+    }
+
     // --- FASE 0a2c: Frameworks compartits / claus ambigües (Freemius, Action Scheduler, hosting) ---
     if ( function_exists( 'tsootc_detect_freemius_shared_option' ) ) {
         $freemius_row = tsootc_detect_freemius_shared_option( $option_name, $installed_plugins );

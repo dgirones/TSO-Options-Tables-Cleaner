@@ -468,12 +468,23 @@ function tsootc_autodetect_widget_option( $option_name, array $installed_plugins
 		return tsootc_autodetect_row_from_folder( $map['by_option'][ $lower ], $installed_plugins );
 	}
 
-	$id_base = substr( $option_name, 7 );
-	if ( isset( $map['by_id_base'][ $id_base ] ) ) {
-		return tsootc_autodetect_row_from_folder( $map['by_id_base'][ $id_base ], $installed_plugins );
+	$id_bases = function_exists( 'tsootc_get_widget_id_base_variants' )
+		? tsootc_get_widget_id_base_variants( $option_name )
+		: array( substr( $option_name, 7 ) );
+	foreach ( $id_bases as $id_base ) {
+		if ( isset( $map['by_id_base'][ $id_base ] ) ) {
+			return tsootc_autodetect_row_from_folder( $map['by_id_base'][ $id_base ], $installed_plugins );
+		}
 	}
 
-	return tsootc_autodetect_guess_widget_id_base( $id_base, $installed_plugins );
+	foreach ( $id_bases as $id_base ) {
+		$row = tsootc_autodetect_guess_widget_id_base( $id_base, $installed_plugins );
+		if ( is_array( $row ) ) {
+			return $row;
+		}
+	}
+
+	return null;
 }
 
 /**

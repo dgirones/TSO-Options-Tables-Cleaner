@@ -72,6 +72,12 @@ function tsootc_detection_get_branded_rules() {
 			'detail'   => 'Theme My Login plugin',
 		),
 		array(
+			'id'       => 'cpotheme_enclosed',
+			'callable' => 'tsootc_detect_cpotheme_option',
+			'evidence' => 'branded_rule',
+			'detail'   => 'CPOThemes / Enclosed theme options',
+		),
+		array(
 			'id'       => 'tml_underscore_prefix',
 			'callable' => 'tsootc_detection_detect_tml_prefix_option',
 			'evidence' => 'branded_rule',
@@ -132,6 +138,7 @@ function tsootc_detection_run_branded_rules( $option_name, array $installed_plug
 			continue;
 		}
 
+		// Always pass inventory (even unused) so PHP 8+ does not ArgumentCountError on 1-arg probes.
 		$row = call_user_func( $rule['callable'], $option_name, $installed_plugins );
 		if ( ! is_array( $row ) ) {
 			continue;

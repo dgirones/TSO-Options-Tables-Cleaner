@@ -145,7 +145,11 @@ function tsootc_get_plugin_file_path( $plugin_file ) {
  * @return string
  */
 function tsootc_get_plugin_folder_path( $folder_slug ) {
-	$folder_slug = strtolower( sanitize_file_name( (string) $folder_slug ) );
+	$folder_slug = (string) $folder_slug;
+	if ( 0 === strpos( $folder_slug, 'theme:' ) ) {
+		return '';
+	}
+	$folder_slug = strtolower( sanitize_file_name( $folder_slug ) );
 	if ( '' === $folder_slug ) {
 		return '';
 	}
@@ -786,11 +790,31 @@ function tsootc_get_existing_group_names( $plugins ) {
 
     // Plugins instal·lats
     foreach ( $plugins as $pl ) {
-        if ( ! empty( $pl['name'] ) ) $add( $pl['name'] );
+        if ( empty( $pl['name'] ) ) {
+            continue;
+        }
+        if ( 'theme' === ( $pl['type'] ?? 'plugin' ) ) {
+            $file = (string) ( $pl['file'] ?? '' );
+            $slug = false !== strpos( $file, '/' ) ? strtolower( dirname( $file ) ) : strtolower( $file );
+            if ( '' !== $slug && '.' !== $slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
+                $add( tsootc_format_theme_group_label( $slug, (string) $pl['name'] ) );
+                continue;
+            }
+        }
+        $add( $pl['name'] );
     }
 
     // Mapa personalitzat
     foreach ( tsootc_get_custom_map() as $plugin_name ) {
+        if ( function_exists( 'tsootc_label_looks_like_theme_group' )
+            && tsootc_label_looks_like_theme_group( (string) $plugin_name )
+            && function_exists( 'tsootc_resolve_theme_slug_from_group_label' ) ) {
+            $slug = tsootc_resolve_theme_slug_from_group_label( (string) $plugin_name, $plugins );
+            if ( '' !== $slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
+                $add( tsootc_format_theme_group_label( $slug, (string) $plugin_name ) );
+                continue;
+            }
+        }
         $add( $plugin_name );
     }
 
@@ -1860,6 +1884,10 @@ function tsootc_resolve_installed_theme_slug_from_token( $token, array $installe
  */
 function tsootc_get_theme_option_token_aliases() {
     return array(
+        'enclosed'    => 'enclosed',
+        'enclosed-pro'=> 'enclosed-pro',
+        'cpotheme'    => 'enclosed',
+        'cpothemes'   => 'enclosed',
         'evl'         => 'evolve',
         'sv'          => 'sociallyviral',
         'mts'         => 'themename',
@@ -3924,10 +3952,12 @@ function tsootc_option_is_hosting_softaculous_key( $option_name ) {
 /**
  * Hosting / installer residue (Softaculous ai-install, softaculous_*, etc.).
  *
- * @param string $option_name Option key.
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Unused; kept for branded-rule probe signature.
  * @return array|null
  */
-function tsootc_detect_hosting_installer_option( $option_name ) {
+function tsootc_detect_hosting_installer_option( $option_name, array $installed_plugins = array() ) {
+	unset( $installed_plugins ); // Signature matches branded-rule probes (option + inventory).
 	if ( ! tsootc_option_is_hosting_softaculous_key( $option_name ) ) {
 		return null;
 	}
@@ -4743,6 +4773,87 @@ function tsootc_get_plugin_slug_match_index( array $installed_plugins ) {
  * @param array  $installed_plugins Inventory.
  * @return array|null
  */
+/**
+ * Strip "Tema:" / "Theme:" group-label prefix for comparisons.
+ *
+ * @param string $label Group or detection label.
+ * @return string
+ */
+function tsootc_strip_theme_group_label_prefix( $label ) {
+	$label = trim( (string) $label );
+	$label = preg_replace( '/^(tema|theme):\s*/iu', '', $label );
+	return is_string( $label ) ? trim( $label ) : '';
+}
+
+/**
+ * Whether a label is a theme group label (Tema: / Theme:).
+ *
+ * @param string $label Label.
+ * @return bool
+ */
+function tsootc_label_looks_like_theme_group( $label ) {
+	return (bool) preg_match( '/^(tema|theme):\s*/iu', trim( (string) $label ) );
+}
+
+/**
+ * Resolve a theme stylesheet slug from a UI / custom-map label.
+ *
+ * Handles "Tema: Enclosed", "Enclosed", and slugified mistakes like "tema-enclosed".
+ *
+ * @param string $label             Label or folder guess.
+ * @param array  $installed_plugins Inventory.
+ * @return string Theme slug or empty.
+ */
+function tsootc_resolve_theme_slug_from_group_label( $label, array $installed_plugins = array() ) {
+	$raw = trim( (string) $label );
+	if ( '' === $raw ) {
+		return '';
+	}
+
+	$bare = tsootc_strip_theme_group_label_prefix( $raw );
+	$bare_l = strtolower( $bare );
+
+	// Direct inventory name match (Enclosed, not "Tema: Enclosed").
+	foreach ( $installed_plugins as $pl ) {
+		if ( ( $pl['type'] ?? '' ) !== 'theme' || empty( $pl['name'] ) || empty( $pl['file'] ) ) {
+			continue;
+		}
+		$pl_name = strtolower( tsootc_strip_theme_group_label_prefix( (string) $pl['name'] ) );
+		if ( $pl_name !== $bare_l ) {
+			continue;
+		}
+		$file = (string) $pl['file'];
+		$slug = false !== strpos( $file, '/' ) ? strtolower( dirname( $file ) ) : strtolower( $file );
+		if ( '' !== $slug && '.' !== $slug ) {
+			return $slug;
+		}
+	}
+
+	$hint = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+		? tsootc_normalize_plugin_folder_slug( $bare )
+		: strtolower( sanitize_file_name( $bare ) );
+	// "Tema: Enclosed" wrongly slugified to tema-enclosed → strip leading tema-.
+	if ( 0 === strpos( $hint, 'tema-' ) ) {
+		$hint = substr( $hint, 5 );
+	}
+	if ( 0 === strpos( $hint, 'theme-' ) ) {
+		$hint = substr( $hint, 6 );
+	}
+
+	if ( '' !== $hint && function_exists( 'tsootc_find_theme_stylesheet_by_folder_hint' ) ) {
+		$slug = tsootc_find_theme_stylesheet_by_folder_hint( $hint, $installed_plugins );
+		if ( '' !== $slug ) {
+			return $slug;
+		}
+	}
+
+	if ( '' !== $hint && function_exists( 'tsootc_theme_slug_exists' ) && tsootc_theme_slug_exists( $hint ) ) {
+		return $hint;
+	}
+
+	return '';
+}
+
 function tsootc_resolve_custom_map_detection_row( $option_name, $group_label, array $installed_plugins = array() ) {
     $group_label = sanitize_text_field( (string) $group_label );
     if ( '' === $group_label ) {
@@ -4750,18 +4861,59 @@ function tsootc_resolve_custom_map_detection_row( $option_name, $group_label, ar
     }
 
     $label_l = strtolower( $group_label );
+    $label_theme_bare_l = strtolower( tsootc_strip_theme_group_label_prefix( $group_label ) );
+
+    // Theme labels first: "Tema: Enclosed" must resolve to wp-content/themes/, never plugins/tema-enclosed/.
+    if ( tsootc_label_looks_like_theme_group( $group_label )
+        || '' !== tsootc_resolve_theme_slug_from_group_label( $group_label, $installed_plugins ) ) {
+        $theme_slug = tsootc_resolve_theme_slug_from_group_label( $group_label, $installed_plugins );
+        if ( '' !== $theme_slug && function_exists( 'tsootc_build_theme_detection_row' ) ) {
+            $row = tsootc_build_theme_detection_row( $theme_slug, $installed_plugins, $group_label );
+            if ( is_array( $row ) ) {
+                $row['auto']   = false;
+                $row['source'] = 'custom_map';
+                return $row;
+            }
+        }
+        // Theme label but not on disk: still mark as theme (themes path), not a fake plugin folder.
+        if ( tsootc_label_looks_like_theme_group( $group_label ) ) {
+            $guess = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+                ? tsootc_normalize_plugin_folder_slug( tsootc_strip_theme_group_label_prefix( $group_label ) )
+                : strtolower( sanitize_file_name( tsootc_strip_theme_group_label_prefix( $group_label ) ) );
+            if ( 0 === strpos( $guess, 'tema-' ) ) {
+                $guess = substr( $guess, 5 );
+            }
+            if ( '' === $guess ) {
+                $guess = 'unknown';
+            }
+            return array(
+                'name'      => function_exists( 'tsootc_format_theme_group_label' )
+                    ? tsootc_format_theme_group_label( $guess, $group_label )
+                    : $group_label,
+                'file'      => $guess,
+                'folder'    => 'theme:' . $guess,
+                'active'    => null,
+                'installed' => false,
+                'type'      => 'theme',
+                'auto'      => false,
+                'source'    => 'custom_map',
+            );
+        }
+    }
 
     foreach ( $installed_plugins as $pl ) {
         if ( empty( $pl['name'] ) ) {
             continue;
         }
         $pl_name_l = strtolower( (string) $pl['name'] );
-        if ( $pl_name_l !== $label_l ) {
+        $pl_bare_l = strtolower( tsootc_strip_theme_group_label_prefix( (string) $pl['name'] ) );
+        if ( $pl_name_l !== $label_l && $pl_bare_l !== $label_theme_bare_l ) {
             continue;
         }
         if ( 'theme' === ( $pl['type'] ?? 'plugin' ) ) {
-            $theme_slug = strtolower( dirname( (string) ( $pl['file'] ?? '' ) ) );
-            if ( '' !== $theme_slug && function_exists( 'tsootc_build_theme_detection_row' ) ) {
+            $file = (string) ( $pl['file'] ?? '' );
+            $theme_slug = false !== strpos( $file, '/' ) ? strtolower( dirname( $file ) ) : strtolower( $file );
+            if ( '' !== $theme_slug && '.' !== $theme_slug && function_exists( 'tsootc_build_theme_detection_row' ) ) {
                 $row = tsootc_build_theme_detection_row( $theme_slug, $installed_plugins, (string) $pl['name'] );
                 if ( is_array( $row ) ) {
                     $row['auto']   = false;
@@ -4794,9 +4946,14 @@ function tsootc_resolve_custom_map_detection_row( $option_name, $group_label, ar
     }
 
     $slug_guess = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-        ? tsootc_normalize_plugin_folder_slug( $group_label )
-        : strtolower( sanitize_file_name( $group_label ) );
-    $slug_guess = preg_replace( '/^tema:\s*/iu', '', (string) $slug_guess );
+        ? tsootc_normalize_plugin_folder_slug( tsootc_strip_theme_group_label_prefix( $group_label ) )
+        : strtolower( sanitize_file_name( tsootc_strip_theme_group_label_prefix( $group_label ) ) );
+    if ( 0 === strpos( (string) $slug_guess, 'tema-' ) ) {
+        $slug_guess = substr( (string) $slug_guess, 5 );
+    }
+    if ( 0 === strpos( (string) $slug_guess, 'theme-' ) ) {
+        $slug_guess = substr( (string) $slug_guess, 6 );
+    }
 
     if ( function_exists( 'tsootc_option_key_expected_plugin_folders' ) ) {
         $expected = tsootc_option_key_expected_plugin_folders( $option_name );
@@ -4861,8 +5018,9 @@ function tsootc_resolve_custom_map_detection_row( $option_name, $group_label, ar
         }
     }
     if ( function_exists( 'tsootc_format_theme_group_label' )
-        && preg_match( '/^tema:\s*/iu', $group_label ) ) {
+        && tsootc_label_looks_like_theme_group( $group_label ) ) {
         $display_label = (string) $group_label;
+        $folder_hint   = 'theme:' . $slug_guess;
     } elseif ( $display_label === $group_label && function_exists( 'tsootc_resolve_plugin_label_for_folder' ) ) {
         $resolved = tsootc_resolve_plugin_label_for_folder( $slug_guess, $installed_plugins, $group_label );
         if ( '' !== $resolved ) {
@@ -4878,6 +5036,7 @@ function tsootc_resolve_custom_map_detection_row( $option_name, $group_label, ar
         'installed' => false,
         'auto'      => false,
         'source'    => 'custom_map',
+        'type'      => ( 0 === strpos( (string) $folder_hint, 'theme:' ) ) ? 'theme' : 'plugin',
     );
 }
 
@@ -5254,10 +5413,21 @@ function tsootc_get_widget_option_folder_hints() {
         'widget_twrn_widget'        => 'tso-widget-rss-noticias',
         'widget_brw_widget'         => 'tso-widget-rss-noticias',
         'widget_better_rss_widget'  => 'tso-widget-rss-noticias',
+        'widget_tso_clasificacion'  => 'tso-tabla-liga',
         'widget_tso_clasificacion_widget' => 'tso-tabla-liga',
         'widget_tso_tab_widget'     => 'tso-tabs-widget',
         'widget_tsotab_widget'      => 'tso-tabs-widget',
         'widget_wpt_widget'         => 'tso-tabs-widget',
+        'widget_gtranslate'         => 'gtranslate',
+        'widget_post_views_counter_list_widget' => 'post-views-counter',
+        'widget_wp_user_avatar_profile' => 'wp-user-avatar',
+        'widget_better_recent_comments' => 'better-recent-comments',
+        'widget_jetpack_my_community'   => 'jetpack',
+        'widget_jetpack_widget_social_icons' => 'jetpack',
+        'widget_jetpack_display_posts_widget' => 'jetpack',
+        'widget_a2a_share_save_widget' => 'add-to-any',
+        'widget_a2a_follow_widget'    => 'add-to-any',
+        'widget_widget_mailchimp_subscriber_popup' => 'mailchimp-for-wp',
         'widget_cpotheme-advert'          => 'cpo-widgets',
         'widget_cpotheme-recent-posts'    => 'cpo-widgets',
         'widget_cpotheme-twitter-stream'  => 'cpo-widgets',
@@ -5285,6 +5455,30 @@ function tsootc_is_cpotheme_widget_option( $option_name ) {
  * @param string $option_name Option key.
  * @return string Folder slug or empty.
  */
+/**
+ * id_base variants for widget_* keys (strip widget_ prefix; drop trailing _widget).
+ *
+ * @param string $option_name Full option key.
+ * @return string[]
+ */
+function tsootc_get_widget_id_base_variants( $option_name ) {
+    $lower = strtolower( (string) $option_name );
+    if ( 0 !== strpos( $lower, 'widget_' ) ) {
+        return array();
+    }
+
+    $id_base  = substr( $lower, 7 );
+    $variants = array();
+    if ( '' !== $id_base ) {
+        $variants[] = $id_base;
+    }
+    if ( strlen( $id_base ) > 7 && '_widget' === substr( $id_base, -7 ) ) {
+        $variants[] = substr( $id_base, 0, -7 );
+    }
+
+    return array_values( array_unique( array_filter( $variants ) ) );
+}
+
 function tsootc_get_widget_option_folder_hint( $option_name ) {
     $lower = strtolower( (string) $option_name );
     if ( 0 !== strpos( $lower, 'widget_' ) ) {
@@ -5296,12 +5490,83 @@ function tsootc_get_widget_option_folder_hint( $option_name ) {
         return tsootc_normalize_plugin_folder_slug( (string) $hints[ $lower ] );
     }
 
+    foreach ( tsootc_get_widget_id_base_variants( $option_name ) as $id_base ) {
+        $probe = 'widget_' . $id_base;
+        if ( isset( $hints[ $probe ] ) ) {
+            return tsootc_normalize_plugin_folder_slug( (string) $hints[ $probe ] );
+        }
+    }
+
     // Standalone CPO Widgets plugin (also bundled with Enclosed and other CPOThemes).
     if ( tsootc_is_cpotheme_widget_option( $lower ) ) {
         return 'cpo-widgets';
     }
 
     return '';
+}
+
+/**
+ * Whether a widget_* row has enough plugin evidence to leave the shared Widgets bucket.
+ *
+ * @param string     $option_name Option key.
+ * @param array|null $detected    Detection row.
+ * @param array      $installed   Plugin inventory.
+ * @return bool
+ */
+function tsootc_widget_detection_qualifies_for_plugin_group( $option_name, $detected, array $installed ) {
+    if ( empty( $detected ) || ! is_array( $detected ) ) {
+        return false;
+    }
+
+    $source = (string) ( $detected['source'] ?? '' );
+    if ( 'unconfirmed' === $source ) {
+        return false;
+    }
+
+    $promotable_sources = array(
+        'widget_map',
+        'legacy_installed',
+        'theme_disk',
+        'prefix_map_theme',
+        'plugin_disk',
+        'history',
+        'history_index',
+        'option_key_map',
+        'codescan_cache',
+    );
+    if ( ! in_array( $source, $promotable_sources, true ) ) {
+        return false;
+    }
+
+    if ( ! empty( $detected['folder'] ) ) {
+        $folder = (string) $detected['folder'];
+        if ( 0 === strpos( $folder, 'theme:' ) ) {
+            return true;
+        }
+        if ( function_exists( 'tsootc_plugin_folder_has_site_evidence' )
+            && tsootc_plugin_folder_has_site_evidence( $folder, $installed ) ) {
+            if ( function_exists( 'tsootc_detection_compute_row_score' ) ) {
+                $score = tsootc_detection_compute_row_score( $detected, $option_name, $installed );
+                return $score >= (int) TSOOTC_DETECTION_SCORE_THRESHOLD;
+            }
+            return true;
+        }
+    }
+
+    $file = isset( $detected['file'] ) ? (string) $detected['file'] : '';
+    if ( '' === $file || false === strpos( $file, '/' ) ) {
+        return false;
+    }
+    if ( function_exists( 'tsootc_option_key_map_entry_is_valid' )
+        && ! tsootc_option_key_map_entry_is_valid( $option_name, $file, $installed ) ) {
+        return false;
+    }
+    if ( function_exists( 'tsootc_detection_compute_row_score' ) ) {
+        $score = tsootc_detection_compute_row_score( $detected, $option_name, $installed );
+        return $score >= (int) TSOOTC_DETECTION_SCORE_THRESHOLD;
+    }
+
+    return true;
 }
 
 /**
@@ -5361,6 +5626,39 @@ function tsootc_theme_slug_is_cpotheme_family( $theme_slug ) {
 }
 
 /**
+ * Whether a WP_Theme looks like a CPOThemes product (author / name).
+ *
+ * @param WP_Theme|null $theme Theme object.
+ * @return bool
+ */
+function tsootc_theme_object_is_cpotheme_family( $theme ) {
+    if ( ! ( $theme instanceof WP_Theme ) ) {
+        return false;
+    }
+    $slug = strtolower( sanitize_title( (string) $theme->get_stylesheet() ) );
+    if ( tsootc_theme_slug_is_cpotheme_family( $slug ) ) {
+        return true;
+    }
+    $template = strtolower( sanitize_title( (string) $theme->get_template() ) );
+    if ( '' !== $template && tsootc_theme_slug_is_cpotheme_family( $template ) ) {
+        return true;
+    }
+    $hay = strtolower(
+        (string) $theme->get( 'Name' ) . ' '
+        . (string) $theme->get( 'Author' ) . ' '
+        . (string) $theme->get( 'AuthorURI' ) . ' '
+        . (string) $theme->get( 'ThemeURI' )
+    );
+    if ( false !== strpos( $hay, 'cpotheme' ) || false !== strpos( $hay, 'cpo themes' ) ) {
+        return true;
+    }
+    if ( false !== strpos( $hay, 'enclosed' ) ) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Pick the best installed CPOThemes slug (prefer active Enclosed, then any active CPO theme).
  *
  * @param array $installed_plugins Inventory including themes.
@@ -5372,6 +5670,12 @@ function tsootc_find_installed_cpotheme_slug( array $installed_plugins = array()
         $stylesheet = strtolower( sanitize_title( (string) get_stylesheet() ) );
         if ( '' !== $stylesheet && tsootc_theme_slug_is_cpotheme_family( $stylesheet ) ) {
             return $stylesheet;
+        }
+        if ( '' !== $stylesheet && function_exists( 'wp_get_theme' ) ) {
+            $theme = wp_get_theme( $stylesheet );
+            if ( tsootc_theme_object_is_cpotheme_family( $theme ) ) {
+                return $stylesheet;
+            }
         }
     }
     if ( function_exists( 'get_template' ) ) {
@@ -5385,7 +5689,14 @@ function tsootc_find_installed_cpotheme_slug( array $installed_plugins = array()
 
     $push = static function( $slug, $active ) use ( &$candidates ) {
         $slug = strtolower( sanitize_title( (string) $slug ) );
-        if ( '' === $slug || ! tsootc_theme_slug_is_cpotheme_family( $slug ) ) {
+        if ( '' === $slug ) {
+            return;
+        }
+        $family = tsootc_theme_slug_is_cpotheme_family( $slug );
+        if ( ! $family && function_exists( 'wp_get_theme' ) ) {
+            $family = tsootc_theme_object_is_cpotheme_family( wp_get_theme( $slug ) );
+        }
+        if ( ! $family ) {
             return;
         }
         $is_enclosed = ( 0 === strpos( $slug, 'enclosed' ) );
@@ -5416,8 +5727,11 @@ function tsootc_find_installed_cpotheme_slug( array $installed_plugins = array()
     if ( function_exists( 'wp_get_themes' ) ) {
         try {
             foreach ( wp_get_themes( array( 'errors' => false ) ) as $theme_slug => $theme ) {
-                unset( $theme );
-                $push( $theme_slug, function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $theme_slug ) );
+                if ( tsootc_theme_object_is_cpotheme_family( $theme ) ) {
+                    $push( $theme_slug, function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $theme_slug ) );
+                } else {
+                    $push( $theme_slug, function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $theme_slug ) );
+                }
             }
         } catch ( Exception $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
             // Ignore broken theme directories.
@@ -5440,6 +5754,80 @@ function tsootc_find_installed_cpotheme_slug( array $installed_plugins = array()
 
     $best = reset( $candidates );
     return is_array( $best ) ? (string) $best['slug'] : '';
+}
+
+/**
+ * Whether an option key belongs to CPOThemes (settings, widgets, etc.).
+ *
+ * @param string $option_name Option key.
+ * @return bool
+ */
+function tsootc_is_cpotheme_option_key( $option_name ) {
+    $lower = strtolower( (string) $option_name );
+    if ( function_exists( 'tsootc_is_cpotheme_widget_option' ) && tsootc_is_cpotheme_widget_option( $option_name ) ) {
+        return true;
+    }
+    return ( 0 === strpos( $lower, 'cpotheme_' ) || 0 === strpos( $lower, 'cpothemes_' ) );
+}
+
+/**
+ * Detect CPOThemes options (cpotheme_settings, widgets, …) → Enclosed / CPO theme on disk.
+ *
+ * @param string $option_name       Option key.
+ * @param array  $installed_plugins Inventory.
+ * @return array|null
+ */
+function tsootc_detect_cpotheme_option( $option_name, array $installed_plugins = array() ) {
+    if ( ! tsootc_is_cpotheme_option_key( $option_name ) ) {
+        return null;
+    }
+
+    // Prefer dedicated widget resolver (cpo-widgets plugin when present).
+    if ( function_exists( 'tsootc_is_cpotheme_widget_option' )
+        && tsootc_is_cpotheme_widget_option( $option_name )
+        && function_exists( 'tsootc_resolve_cpotheme_widget_detection_row' ) ) {
+        $widget_row = tsootc_resolve_cpotheme_widget_detection_row( $option_name, $installed_plugins );
+        if ( is_array( $widget_row ) ) {
+            return $widget_row;
+        }
+    }
+
+    $theme_slug = tsootc_find_installed_cpotheme_slug( $installed_plugins );
+    // Shared cpotheme_* settings belong to the parent CPO theme when a child is active.
+    if ( '' !== $theme_slug && function_exists( 'get_template' ) && function_exists( 'get_stylesheet' ) ) {
+        $template   = strtolower( sanitize_title( (string) get_template() ) );
+        $stylesheet = strtolower( sanitize_title( (string) get_stylesheet() ) );
+        if ( '' !== $template && $template !== $stylesheet
+            && tsootc_theme_slug_is_cpotheme_family( $template )
+            && ( $theme_slug === $stylesheet || 0 === strpos( $theme_slug, $template . '-' ) ) ) {
+            $theme_slug = $template;
+        }
+    }
+    if ( '' === $theme_slug ) {
+        // Not installed: still attribute to Enclosed family for orphan cleanup.
+        return array(
+            'name'      => function_exists( 'tsootc_format_theme_group_label' )
+                ? tsootc_format_theme_group_label( 'enclosed', 'Enclosed' )
+                : 'Tema: Enclosed',
+            'file'      => 'enclosed',
+            'folder'    => 'theme:enclosed',
+            'active'    => null,
+            'installed' => false,
+            'type'      => 'theme',
+            'auto'      => false,
+            'source'    => 'theme_disk',
+        );
+    }
+
+    if ( function_exists( 'tsootc_build_theme_detection_row' ) ) {
+        $row = tsootc_build_theme_detection_row( $theme_slug, $installed_plugins, 'Enclosed' );
+        if ( is_array( $row ) ) {
+            $row['source'] = 'theme_disk';
+            return $row;
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -5477,6 +5865,16 @@ function tsootc_resolve_cpotheme_widget_detection_row( $option_name, array $inst
     }
 
     $theme_slug = tsootc_find_installed_cpotheme_slug( $installed_plugins );
+    // Shared cpotheme_* widgets also prefer the parent theme when a child is active.
+    if ( '' !== $theme_slug && function_exists( 'get_template' ) && function_exists( 'get_stylesheet' ) ) {
+        $template   = strtolower( sanitize_title( (string) get_template() ) );
+        $stylesheet = strtolower( sanitize_title( (string) get_stylesheet() ) );
+        if ( '' !== $template && $template !== $stylesheet
+            && tsootc_theme_slug_is_cpotheme_family( $template )
+            && ( $theme_slug === $stylesheet || 0 === strpos( $theme_slug, $template . '-' ) ) ) {
+            $theme_slug = $template;
+        }
+    }
     if ( '' === $theme_slug ) {
         return null;
     }
@@ -7297,6 +7695,12 @@ function tsootc_find_theme_stylesheet_by_folder_hint( $folder_or_hint, array $in
 
     $candidates = array( $hint );
     $aliases    = tsootc_get_theme_option_token_aliases();
+    if ( 0 === strpos( $hint, 'tema-' ) ) {
+        $candidates[] = substr( $hint, 5 );
+    }
+    if ( 0 === strpos( $hint, 'theme-' ) ) {
+        $candidates[] = substr( $hint, 6 );
+    }
     if ( isset( $aliases[ $hint ] ) ) {
         $candidates[] = sanitize_title( (string) $aliases[ $hint ] );
     }
@@ -8953,6 +9357,20 @@ function tsootc_detected_target_is_installed( $detected, $installed_plugins = ar
             }
         }
         $file = isset( $detected['file'] ) ? (string) $detected['file'] : '';
+        $is_theme = ( isset( $detected['type'] ) && 'theme' === $detected['type'] )
+            || ( ! empty( $detected['folder'] ) && 0 === strpos( (string) $detected['folder'], 'theme:' ) )
+            || ( function_exists( 'tsootc_detection_row_is_theme' ) && tsootc_detection_row_is_theme( $detected ) );
+        if ( $is_theme ) {
+            $theme_slug = function_exists( 'tsootc_detection_row_theme_slug' )
+                ? tsootc_detection_row_theme_slug( $detected )
+                : '';
+            if ( '' === $theme_slug && '' !== $file ) {
+                $theme_slug = false !== strpos( $file, '/' )
+                    ? sanitize_title( dirname( $file ) )
+                    : sanitize_title( $file );
+            }
+            return '' !== $theme_slug && tsootc_theme_slug_exists( $theme_slug );
+        }
         if ( '' !== $file && false !== strpos( $file, '/' ) && tsootc_plugin_file_exists( $file ) ) {
             return true;
         }
@@ -8965,7 +9383,10 @@ function tsootc_detected_target_is_installed( $detected, $installed_plugins = ar
     }
 
     if ( isset( $detected['type'] ) && 'theme' === $detected['type'] ) {
-        return tsootc_theme_slug_exists( $file );
+        $theme_slug = function_exists( 'tsootc_detection_row_theme_slug' )
+            ? tsootc_detection_row_theme_slug( $detected )
+            : ( false !== strpos( $file, '/' ) ? sanitize_title( dirname( $file ) ) : sanitize_title( $file ) );
+        return '' !== $theme_slug && tsootc_theme_slug_exists( $theme_slug );
     }
 
     if ( false === strpos( $file, '/' ) ) {
@@ -9135,6 +9556,33 @@ function tsootc_format_removed_component_path( $folder_or_token ) {
     $folder_slug = function_exists( 'tsootc_normalize_plugin_folder_slug' )
         ? tsootc_normalize_plugin_folder_slug( $folder )
         : strtolower( sanitize_file_name( $folder ) );
+
+    // Real plugin folder on disk always wins over a same-named theme slug.
+    if ( '' !== $folder_slug
+        && function_exists( 'tsootc_is_plugin_folder_currently_installed' )
+        && tsootc_is_plugin_folder_currently_installed( $folder_slug, array() ) ) {
+        return tsootc_format_path_hint_under_wp_content( 'plugins/' . $folder_slug . '/' );
+    }
+
+    // Mistaken slug from "Tema: Enclosed" → tema-enclosed (plugins path). Prefer themes/.
+    if ( 0 === strpos( $folder_slug, 'tema-' ) || 0 === strpos( $folder_slug, 'theme-' ) ) {
+        $maybe = 0 === strpos( $folder_slug, 'tema-' ) ? substr( $folder_slug, 5 ) : substr( $folder_slug, 6 );
+        if ( '' !== $maybe && function_exists( 'tsootc_get_theme_relative_path_hint' ) ) {
+            if ( function_exists( 'tsootc_theme_slug_exists' ) && tsootc_theme_slug_exists( $maybe ) ) {
+                return tsootc_get_theme_relative_path_hint( $maybe );
+            }
+            if ( function_exists( 'tsootc_find_theme_stylesheet_by_folder_hint' ) ) {
+                $resolved = tsootc_find_theme_stylesheet_by_folder_hint( $maybe, array() );
+                if ( '' !== $resolved ) {
+                    return tsootc_get_theme_relative_path_hint( $resolved );
+                }
+            }
+            if ( function_exists( 'tsootc_theme_slug_is_cpotheme_family' )
+                && tsootc_theme_slug_is_cpotheme_family( $maybe ) ) {
+                return tsootc_get_theme_relative_path_hint( $maybe );
+            }
+        }
+    }
 
     if ( function_exists( 'tsootc_get_theme_relative_path_hint' )
         && function_exists( 'tsootc_resolve_installed_theme_slug_from_folder_token' ) ) {
@@ -9366,11 +9814,21 @@ function tsootc_group_meta_from_detected( $detected ) {
 		$folder = 'theme:' . sanitize_title( (string) $detected['file'] );
 	}
 	if ( '' !== $folder ) {
-		if ( 0 !== strpos( $folder, 'theme:' )
+		$is_theme_row = ( ! empty( $detected['type'] ) && 'theme' === $detected['type'] )
+			|| 0 === strpos( $folder, 'theme:' )
+			|| ( function_exists( 'tsootc_detection_row_is_theme' ) && tsootc_detection_row_is_theme( $detected ) );
+		// Never remap a live plugin folder to theme: just because a theme shares the slug.
+		$plugin_owns_folder = ( 0 !== strpos( $folder, 'theme:' )
+			&& function_exists( 'tsootc_is_plugin_folder_currently_installed' )
+			&& tsootc_is_plugin_folder_currently_installed( $folder, array() ) );
+		if ( $is_theme_row && ! $plugin_owns_folder
 			&& function_exists( 'tsootc_resolve_installed_theme_slug_from_folder_token' ) ) {
-			$theme_slug = tsootc_resolve_installed_theme_slug_from_folder_token( $folder );
+			$token      = 0 === strpos( $folder, 'theme:' ) ? substr( $folder, 6 ) : $folder;
+			$theme_slug = tsootc_resolve_installed_theme_slug_from_folder_token( $token );
 			if ( '' !== $theme_slug ) {
 				$folder = 'theme:' . $theme_slug;
+			} elseif ( 0 !== strpos( $folder, 'theme:' ) ) {
+				$folder = 'theme:' . sanitize_title( $token );
 			}
 		}
 		$meta['plugin_folder'] = $folder;
@@ -9436,6 +9894,19 @@ function tsootc_group_merge_items( array &$into, array $from, $lang = 'ca' ) {
 			$into[ $meta_key ] = $from[ $meta_key ];
 		}
 	}
+
+	// Prefer Active over Eliminado when merging duplicate theme/plugin buckets.
+	$from_active = empty( $from['is_uninstalled'] ) && empty( $from['is_inactive'] ) && ! empty( $from['status'] );
+	$into_active = empty( $into['is_uninstalled'] ) && empty( $into['is_inactive'] ) && ! empty( $into['status'] );
+	if ( $from_active && ! $into_active ) {
+		unset( $into['is_uninstalled'] );
+		$into['is_inactive']  = false;
+		$into['status']       = $from['status'];
+		$into['status_color'] = isset( $from['status_color'] ) ? $from['status_color'] : '#2a7a2a';
+		$into['safety']       = isset( $from['safety'] ) ? $from['safety'] : 'active';
+	} elseif ( $into_active && ! empty( $into['is_uninstalled'] ) ) {
+		unset( $into['is_uninstalled'] );
+	}
 }
 
 /**
@@ -9449,25 +9920,60 @@ function tsootc_group_merge_items( array &$into, array $from, $lang = 'ca' ) {
  */
 function tsootc_resolve_group_merge_key( $group_key, array $group_data, array $plugins, $lang = 'ca' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $lang reserved
 	$key = (string) $group_key;
-	if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
-		&& tsootc_detection_is_owner_token_group_key( $key ) ) {
-		return $key;
-	}
 	$reserved = array( '__core__', '__unknown__', '__widgets__' );
 	if ( in_array( $key, $reserved, true ) ) {
 		return $key;
 	}
 
+	// Canonical theme merge key: always owner:theme:{slug} (never "Tema: Name" alone).
+	$theme_slug = '';
+	if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
+		&& tsootc_detection_is_owner_token_group_key( $key ) ) {
+		$token = substr( $key, strlen( 'owner:' ) );
+		if ( 0 === strpos( $token, 'theme:' ) ) {
+			$theme_slug = sanitize_title( substr( $token, 6 ) );
+		} elseif ( ! preg_match( '/^__[a-z0-9_]+__$/', $token ) ) {
+			// Non-theme owner tokens stay as-is.
+			return $key;
+		}
+	}
+
 	$folder = isset( $group_data['plugin_folder'] ) ? (string) $group_data['plugin_folder'] : '';
-	if ( 0 === strpos( $folder, 'theme:' ) ) {
+	if ( '' === $theme_slug && 0 === strpos( $folder, 'theme:' ) ) {
 		$theme_slug = sanitize_title( substr( $folder, 6 ) );
+	}
+
+	if ( '' === $theme_slug && function_exists( 'tsootc_label_looks_like_theme_group' )
+		&& ( tsootc_label_looks_like_theme_group( $key )
+			|| ( ! empty( $group_data['display_label'] ) && tsootc_label_looks_like_theme_group( (string) $group_data['display_label'] ) )
+			|| ( ! empty( $group_data['detected_name'] ) && tsootc_label_looks_like_theme_group( (string) $group_data['detected_name'] ) ) )
+		&& function_exists( 'tsootc_resolve_theme_slug_from_group_label' ) ) {
+		$probe = $key;
+		if ( ! empty( $group_data['detected_name'] ) ) {
+			$probe = (string) $group_data['detected_name'];
+		} elseif ( ! empty( $group_data['display_label'] ) ) {
+			$probe = (string) $group_data['display_label'];
+		}
+		$theme_slug = tsootc_resolve_theme_slug_from_group_label( $probe, $plugins );
+	}
+
+	if ( '' !== $theme_slug ) {
 		if ( function_exists( 'tsootc_canonical_theme_stylesheet_slug' ) ) {
 			$theme_slug = tsootc_canonical_theme_stylesheet_slug( $theme_slug );
 		}
-		if ( '' !== $theme_slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
-			return tsootc_format_theme_group_label( $theme_slug, $key );
+		if ( '' !== $theme_slug && function_exists( 'tsootc_detection_owner_token_group_key' ) ) {
+			return tsootc_detection_owner_token_group_key( 'theme:' . $theme_slug );
+		}
+		if ( '' !== $theme_slug ) {
+			return 'owner:theme:' . $theme_slug;
 		}
 	}
+
+	if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
+		&& tsootc_detection_is_owner_token_group_key( $key ) ) {
+		return $key;
+	}
+
 	if ( '' === $folder && ! empty( $group_data['items'] ) && is_array( $group_data['items'] ) ) {
 		$sample = $group_data['items'][0];
 		$oname  = is_object( $sample ) && isset( $sample->option_name ) ? (string) $sample->option_name : '';
@@ -9482,14 +9988,28 @@ function tsootc_resolve_group_merge_key( $group_key, array $group_data, array $p
 			if ( '' === $prefix_slug && function_exists( 'tsootc_legacy_theme_option_root_from_known_prefix' ) ) {
 				$prefix_slug = tsootc_legacy_theme_option_root_from_known_prefix( $oname );
 			}
-			if ( '' !== $prefix_slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
-				return tsootc_format_theme_group_label( $prefix_slug, $key );
+			if ( '' !== $prefix_slug ) {
+				if ( function_exists( 'tsootc_canonical_theme_stylesheet_slug' ) ) {
+					$prefix_slug = tsootc_canonical_theme_stylesheet_slug( $prefix_slug );
+				}
+				if ( '' !== $prefix_slug && function_exists( 'tsootc_detection_owner_token_group_key' ) ) {
+					return tsootc_detection_owner_token_group_key( 'theme:' . $prefix_slug );
+				}
 			}
 		}
 		if ( '' !== $oname && function_exists( 'tsootc_detect_plugin_with_history' ) ) {
 			$det    = tsootc_detect_plugin_with_history( $oname, $plugins );
 			$meta   = tsootc_group_meta_from_detected( $det );
 			$folder = isset( $meta['plugin_folder'] ) ? (string) $meta['plugin_folder'] : '';
+			if ( 0 === strpos( $folder, 'theme:' ) ) {
+				$theme_slug = sanitize_title( substr( $folder, 6 ) );
+				if ( function_exists( 'tsootc_canonical_theme_stylesheet_slug' ) ) {
+					$theme_slug = tsootc_canonical_theme_stylesheet_slug( $theme_slug );
+				}
+				if ( '' !== $theme_slug && function_exists( 'tsootc_detection_owner_token_group_key' ) ) {
+					return tsootc_detection_owner_token_group_key( 'theme:' . $theme_slug );
+				}
+			}
 		}
 	}
 
@@ -9540,18 +10060,34 @@ function tsootc_group_rekey_and_merge( array $grouped, $lang = 'ca', array $plug
 				}
 			}
 			$out[ $key ] = $gd;
-			continue;
+		} else {
+			tsootc_group_merge_items( $out[ $key ], $gd, $lang );
+			if ( empty( $out[ $key ]['plugin_folder'] ) && ! empty( $gd['plugin_folder'] ) ) {
+				$out[ $key ]['plugin_folder'] = $gd['plugin_folder'];
+			}
 		}
-		tsootc_group_merge_items( $out[ $key ], $gd, $lang );
-		if ( empty( $out[ $key ]['plugin_folder'] ) && ! empty( $gd['plugin_folder'] ) ) {
-			$out[ $key ]['plugin_folder'] = $gd['plugin_folder'];
-		}
+
 		if ( ! empty( $out[ $key ]['plugin_folder'] ) && 0 === strpos( (string) $out[ $key ]['plugin_folder'], 'theme:' ) ) {
 			$canonical = function_exists( 'tsootc_canonical_theme_stylesheet_slug' )
 				? tsootc_canonical_theme_stylesheet_slug( substr( (string) $out[ $key ]['plugin_folder'], 6 ) )
 				: substr( (string) $out[ $key ]['plugin_folder'], 6 );
 			if ( '' !== $canonical ) {
 				$out[ $key ]['plugin_folder'] = 'theme:' . $canonical;
+			}
+		}
+
+		// Keep a single human label for owner:theme:* buckets after merge.
+		if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
+			&& tsootc_detection_is_owner_token_group_key( $key )
+			&& 0 === strpos( substr( $key, strlen( 'owner:' ) ), 'theme:' ) ) {
+			$slug = sanitize_title( substr( $key, strlen( 'owner:theme:' ) ) );
+			if ( '' !== $slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
+				$out[ $key ]['display_label'] = tsootc_format_theme_group_label(
+					$slug,
+					isset( $out[ $key ]['detected_name'] ) ? (string) $out[ $key ]['detected_name'] : ''
+				);
+				$out[ $key ]['detected_name'] = $out[ $key ]['display_label'];
+				$out[ $key ]['plugin_folder'] = 'theme:' . $slug;
 			}
 		}
 	}
@@ -9829,11 +10365,52 @@ function tsootc_opts_tab_counts( array $grouped ) {
  * @return string
  */
 function tsootc_group_orphan_folder_hint( array $group_data, $detected = null ) {
+	$folder = '';
 	if ( ! empty( $group_data['plugin_folder'] ) ) {
-		return (string) $group_data['plugin_folder'];
+		$folder = (string) $group_data['plugin_folder'];
+	} else {
+		$meta = tsootc_group_meta_from_detected( $detected );
+		$folder = isset( $meta['plugin_folder'] ) ? (string) $meta['plugin_folder'] : '';
 	}
-	$meta = tsootc_group_meta_from_detected( $detected );
-	return isset( $meta['plugin_folder'] ) ? (string) $meta['plugin_folder'] : '';
+
+	// Repair wrong plugins/tema-* paths when the group is clearly a theme.
+	if ( '' !== $folder && 0 !== strpos( $folder, 'theme:' ) ) {
+		$label = '';
+		if ( ! empty( $group_data['detected_name'] ) ) {
+			$label = (string) $group_data['detected_name'];
+		} elseif ( ! empty( $group_data['display_label'] ) ) {
+			$label = (string) $group_data['display_label'];
+		} elseif ( is_array( $detected ) && ! empty( $detected['name'] ) ) {
+			$label = (string) $detected['name'];
+		}
+		if ( function_exists( 'tsootc_label_looks_like_theme_group' )
+			&& tsootc_label_looks_like_theme_group( $label )
+			&& function_exists( 'tsootc_resolve_theme_slug_from_group_label' ) ) {
+			$slug = tsootc_resolve_theme_slug_from_group_label( $label, array() );
+			if ( '' !== $slug ) {
+				return 'theme:' . $slug;
+			}
+			$bare = function_exists( 'tsootc_strip_theme_group_label_prefix' )
+				? tsootc_strip_theme_group_label_prefix( $label )
+				: $label;
+			$guess = strtolower( sanitize_file_name( $bare ) );
+			if ( 0 === strpos( $guess, 'tema-' ) ) {
+				$guess = substr( $guess, 5 );
+			}
+			if ( '' !== $guess ) {
+				return 'theme:' . $guess;
+			}
+		}
+		if ( 0 === strpos( strtolower( $folder ), 'tema-' )
+			&& function_exists( 'tsootc_find_theme_stylesheet_by_folder_hint' ) ) {
+			$slug = tsootc_find_theme_stylesheet_by_folder_hint( $folder, array() );
+			if ( '' !== $slug ) {
+				return 'theme:' . $slug;
+			}
+		}
+	}
+
+	return $folder;
 }
 
 /* ============================================================
@@ -9842,6 +10419,54 @@ function tsootc_group_orphan_folder_hint( array $group_data, $detected = null ) 
 function tsootc_get_plugin_status( $detected, $installed_plugins, $lang = 'ca' ) {
     if ( ! $detected ) {
         return array( 'status' => '', 'color' => '#999', 'inactive' => false, 'uninstalled' => false );
+    }
+
+    // Theme rows: always evaluate against wp-content/themes (never plugins/).
+    $is_theme_row = ( function_exists( 'tsootc_detection_row_is_theme' ) && tsootc_detection_row_is_theme( $detected ) )
+        || ( ! empty( $detected['type'] ) && 'theme' === $detected['type'] )
+        || ( ! empty( $detected['folder'] ) && 0 === strpos( (string) $detected['folder'], 'theme:' ) )
+        || ( ! empty( $detected['name'] ) && function_exists( 'tsootc_label_looks_like_theme_group' )
+            && tsootc_label_looks_like_theme_group( (string) $detected['name'] ) );
+
+    if ( $is_theme_row ) {
+        $theme_slug = '';
+        if ( ! empty( $detected['folder'] ) && 0 === strpos( (string) $detected['folder'], 'theme:' ) ) {
+            $theme_slug = sanitize_title( substr( (string) $detected['folder'], 6 ) );
+        } elseif ( function_exists( 'tsootc_detection_row_theme_slug' ) ) {
+            $theme_slug = tsootc_detection_row_theme_slug( $detected );
+        }
+        if ( '' === $theme_slug && ! empty( $detected['name'] )
+            && function_exists( 'tsootc_resolve_theme_slug_from_group_label' ) ) {
+            $theme_slug = tsootc_resolve_theme_slug_from_group_label( (string) $detected['name'], $installed_plugins );
+        }
+        if ( '' !== $theme_slug ) {
+            $exists = function_exists( 'tsootc_theme_slug_exists' ) && tsootc_theme_slug_exists( $theme_slug );
+            if ( ! $exists && function_exists( 'tsootc_resolve_installed_theme_slug_from_folder_token' ) ) {
+                $resolved = tsootc_resolve_installed_theme_slug_from_folder_token( $theme_slug, $installed_plugins );
+                if ( '' !== $resolved ) {
+                    $theme_slug = $resolved;
+                    $exists     = true;
+                }
+            }
+            if ( $exists ) {
+                $active = function_exists( 'tsootc_theme_slug_is_active' ) && tsootc_theme_slug_is_active( $theme_slug );
+                if ( $active ) {
+                    return array(
+                        'status'      => tsootc_ui_triple_text( $lang, '✅ Actiu', '✅ Activo', '✅ Active' ),
+                        'color'       => '#2a7a2a',
+                        'inactive'    => false,
+                        'uninstalled' => false,
+                    );
+                }
+                return array(
+                    'status'      => tsootc_ui_triple_text( $lang, '⚠️ Inactiu', '⚠️ Inactivo', '⚠️ Inactive' ),
+                    'color'       => '#c07000',
+                    'inactive'    => true,
+                    'uninstalled' => false,
+                );
+            }
+            return tsootc_get_uninstalled_status( $lang );
+        }
     }
 
     if ( array_key_exists( 'installed', $detected ) && ! $detected['installed'] ) {
@@ -10227,6 +10852,12 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
         ? $inventory
         : ( function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array() );
 
+    // Saved manual map (UI "manual" badge) must leave the Widgets bucket even when
+    // the scored detection row differs from custom_map.
+    if ( function_exists( 'tsootc_custom_map_get_plugin' ) && null !== tsootc_custom_map_get_plugin( $option_name ) ) {
+        return true;
+    }
+
     $source = is_array( $detected ) ? (string) ( $detected['source'] ?? '' ) : '';
 
     // Manual / trusted maps always promote widgets into the assigned plugin group,
@@ -10269,41 +10900,7 @@ function tsootc_widget_uses_plugin_group( $option_name, $detected, $inventory = 
         return true;
     }
 
-    if ( empty( $detected ) || ! is_array( $detected ) ) {
-        return false;
-    }
-    if ( 'unconfirmed' === $source ) {
-        return false;
-    }
-
-    if ( ! in_array( $source, array( 'widget_map', 'legacy_installed', 'theme_disk', 'prefix_map_theme' ), true ) ) {
-        return false;
-    }
-
-    if ( ! empty( $detected['folder'] ) ) {
-        if ( ! tsootc_plugin_folder_has_site_evidence( (string) $detected['folder'], $installed ) ) {
-            return false;
-        }
-        if ( function_exists( 'tsootc_detection_compute_row_score' ) ) {
-            $score = tsootc_detection_compute_row_score( $detected, $option_name, $installed );
-            return $score >= (int) TSOOTC_DETECTION_SCORE_THRESHOLD;
-        }
-        return true;
-    }
-
-    if ( empty( $detected['file'] ) || false === strpos( (string) $detected['file'], '/' ) ) {
-        return false;
-    }
-    if ( function_exists( 'tsootc_option_key_map_entry_is_valid' )
-        && ! tsootc_option_key_map_entry_is_valid( $option_name, (string) $detected['file'], $installed ) ) {
-        return false;
-    }
-    if ( function_exists( 'tsootc_detection_compute_row_score' ) ) {
-        $score = tsootc_detection_compute_row_score( $detected, $option_name, $installed );
-        return $score >= (int) TSOOTC_DETECTION_SCORE_THRESHOLD;
-    }
-
-    return true;
+    return tsootc_widget_detection_qualifies_for_plugin_group( $option_name, $detected, $installed );
 }
 
 function tsootc_option_safety( $name, $detected, $plugins, $lang = 'ca' ) {
@@ -10367,9 +10964,10 @@ function tsootc_get_installed_plugins() {
                     if ( empty( $theme_name ) ) {
                         continue;
                     }
+                    // file = stylesheet slug only (never a fake plugins/path.php).
                     $cache[] = array(
                         'name'   => $theme_name,
-                        'file'   => $slug . '/' . $slug . '.php',
+                        'file'   => (string) $slug,
                         'active' => ( $slug === $active_theme || $slug === $active_template ),
                         'type'   => 'theme',
                     );
@@ -11104,7 +11702,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 59 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 61 );
 }
 
 /**
@@ -12313,7 +12911,16 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
             continue;
         }
 
-        $detected    = tsootc_detect_plugin_with_history( $name, $plugins, $detect_args );
+        $detected = tsootc_detect_plugin_with_history( $name, $plugins, $detect_args );
+        if ( function_exists( 'tsootc_custom_map_get_plugin' ) && function_exists( 'tsootc_resolve_custom_map_detection_row' ) ) {
+            $mapped_label = tsootc_custom_map_get_plugin( $name );
+            if ( null !== $mapped_label ) {
+                $mapped_row = tsootc_resolve_custom_map_detection_row( $name, $mapped_label, $plugins );
+                if ( is_array( $mapped_row ) ) {
+                    $detected = $mapped_row;
+                }
+            }
+        }
         if ( ! isset( $GLOBALS['tsootc_opts_safety_cache'][ $name ] ) ) {
             $GLOBALS['tsootc_opts_safety_cache'][ $name ] = tsootc_option_safety( $name, $detected, $plugins, $lang );
         }

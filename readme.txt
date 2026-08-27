@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.8
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -92,39 +92,13 @@ No external connections: This plugin does not make any HTTP requests to external
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
 
-= 1.2.8 =
-* Safety: WordPress core options are always locked in the UI and in every delete handler
-* Detection: merge evidence by owner before applying score margin (prevents false Unconfirmed rows)
-* Detection: installed-only legacy fallback restores established plugin mappings without reviving stale labels
-* SweepPress d4p_* and Jetpack subscription/stats/sharing keys resolve to installed plugins
-* Widgets without an identified plugin are ordered directly above WordPress Core
-* Freemius, Softaculous and WP Toolkit show a hosting warning but remain manually deletable
-* Detection regression expanded to 82 fixtures
-* Fix: Assign dropdown no longer lists internal owner: tokens (V2 group keys)
-* Fix: assigning a widget to a plugin that has no Options group yet now reloads and creates the group
-* Widgets assigned via manual map always leave the shared Widgets bucket
-* Extra tables: activation snapshots map newly created tables to the activating plugin
-* Extra tables: codescan sibling families and confirmed-sibling propagation reduce unknowns
-* Extra tables: schema signatures for WPForms, Gravity Forms, Rank Math SEO, LearnPress, Fluent Forms, Elementor Pro, Wordfence, MailPoet, GiveWP, BuddyPress and Formidable
-* Extra tables: uncertain rows show top detection candidates with source and score
-* Extra tables: sibling propagation persists into the table map and records history (family trigger)
-* History: tables_mapped events show activation / install / update / remap / family source
-* Extra tables: prefix map + folder hints for Fluent Forms, LearnDash, Elementor Pro and LiteSpeed Cache
-* Storage: duplicate transient invalidations are collapsed within each request
-* Extra tables: candidates are merged by plugin before margin checks; codescan recognizes prefix aliases and sprintf table names
-* Extra tables: confirmed sibling families can identify related tables; combined evidence is shown in the UI
-* Extra tables: ownership maps now survive plugin deletion while leftover tables still exist
-* Extra tables: deep scans include database, schema, migration, installer and upgrade source trees
-* Extra tables: high-confidence column signatures detect WooCommerce, Yoast, Redirection and Action Scheduler tables
-* Extra tables: explicit deep-scan button rebuilds only the table index without clearing option detection caches
-* wp_options detection: unified engine V2 is now the default path (candidates + score + margin)
-* Options tab groups by owner token (folder/theme) instead of display label only; mixed/outlier badges
-* Audit panel: Evidence column; filter for uncertain rows
-* Codescan: distinguishes update_option API hits from generic string literals (weighted evidence)
-* Extra tables: history reconcile respects test/staging inventory; label token matching improved
-* Legacy cascade moved to includes/tso-detection-cascade-legacy.php (force_cascade / debug only)
-* Detection regression runner: php scripts/run-detection-regression.php
-* Release tooling: scripts/release-check.sh, build-zip.sh, prepare-svn.sh; GitHub Actions CI on main
+= 1.3.0 =
+* Safety: WordPress core options are locked in the UI and every delete handler
+* Detection V2 is the default (candidates, score, margin); evidence merges by owner to cut false Unconfirmed rows
+* Widgets: manual assignment and plugin_disk/history detection move rows out of the shared Widgets bucket; theme groups resolve to wp-content/themes/
+* Extra tables: activation snapshots, schema signatures (WPForms, Gravity Forms, Rank Math, WooCommerce, etc.), sibling propagation and candidate UI
+* Options tab groups by owner token; audit panel shows evidence and uncertain-row filter; History records tables_mapped with source
+* Hosting stacks (Freemius, Softaculous, WP Toolkit) show a warning but stay manually deletable
 
 = 1.2.7 =
 * Detection audit: theme vs plugin on-disk checks, synthetic hosting/SDK labels, group-flag mismatch detection, mixed-sample normalization

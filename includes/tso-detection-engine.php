@@ -27,7 +27,7 @@ function tsootc_detection_engine_v2_enabled() {
 	/**
 	 * Filter whether the unified detection engine V2 is active.
 	 *
-	 * @param bool $enabled Default false (Phase A).
+	 * @param bool $enabled Default true (production default; constant TSOOTC_DETECTION_ENGINE_V2 overrides).
 	 */
 	return (bool) apply_filters( 'tsootc_detection_engine_v2', true );
 }
@@ -910,6 +910,16 @@ function tsootc_detection_resolve_option_group_bucket( $option_name, $detected, 
 	}
 
 	if ( '' !== $owner_token && $plugin_name ) {
+		// Themes always group by owner:theme:{slug}, never by bare "Tema: Name".
+		if ( 0 === strpos( $owner_token, 'theme:' ) ) {
+			$slug = sanitize_title( substr( $owner_token, 6 ) );
+			if ( function_exists( 'tsootc_canonical_theme_stylesheet_slug' ) ) {
+				$slug = tsootc_canonical_theme_stylesheet_slug( $slug );
+			}
+			if ( '' !== $slug ) {
+				$owner_token = 'theme:' . $slug;
+			}
+		}
 		$group_key = tsootc_detection_owner_token_group_key( $owner_token );
 		return array(
 			'group_key'     => $group_key,
@@ -919,6 +929,25 @@ function tsootc_detection_resolve_option_group_bucket( $option_name, $detected, 
 	}
 
 	if ( $plugin_name ) {
+		// "Tema: Enclosed" without token → still use owner:theme:enclosed so groups merge.
+		if ( function_exists( 'tsootc_label_looks_like_theme_group' )
+			&& tsootc_label_looks_like_theme_group( $plugin_name )
+			&& function_exists( 'tsootc_resolve_theme_slug_from_group_label' ) ) {
+			$slug = tsootc_resolve_theme_slug_from_group_label( $plugin_name, $plugins );
+			if ( '' !== $slug ) {
+				if ( function_exists( 'tsootc_canonical_theme_stylesheet_slug' ) ) {
+					$slug = tsootc_canonical_theme_stylesheet_slug( $slug );
+				}
+				$token = 'theme:' . $slug;
+				return array(
+					'group_key'     => tsootc_detection_owner_token_group_key( $token ),
+					'display_label' => function_exists( 'tsootc_format_theme_group_label' )
+						? tsootc_format_theme_group_label( $slug, $plugin_name )
+						: $plugin_name,
+					'owner_token'   => $token,
+				);
+			}
+		}
 		return array(
 			'group_key'     => $plugin_name,
 			'display_label' => $plugin_name,
@@ -937,11 +966,17 @@ function tsootc_detection_resolve_option_group_bucket( $option_name, $detected, 
 		$theme_slug = tsootc_find_history_theme_slug_for_option( $option_name, $plugins );
 	}
 	if ( '' !== $theme_slug && function_exists( 'tsootc_format_theme_group_label' ) ) {
+		if ( function_exists( 'tsootc_canonical_theme_stylesheet_slug' ) ) {
+			$theme_slug = tsootc_canonical_theme_stylesheet_slug( $theme_slug );
+		}
 		$label = tsootc_format_theme_group_label( $theme_slug );
+		$token = 'theme:' . $theme_slug;
 		return array(
-			'group_key'     => $label,
+			'group_key'     => function_exists( 'tsootc_detection_owner_token_group_key' )
+				? tsootc_detection_owner_token_group_key( $token )
+				: ( 'owner:' . $token ),
 			'display_label' => $label,
-			'owner_token'   => 'theme:' . $theme_slug,
+			'owner_token'   => $token,
 		);
 	}
 	if ( strlen( $root ) >= 4 && ! in_array( $root, $generic_prefixes, true ) ) {
