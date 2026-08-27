@@ -848,7 +848,7 @@ function tsootc_ajax_cron_clear_hook() {
 add_action( 'wp_ajax_tsootc_cron_clear_hook', 'tsootc_ajax_cron_clear_hook' );
 
 /**
- * Run hook callback now (same request).
+ * Run hook callback now (same request), then consume/reschedule the cron row.
  */
 function tsootc_ajax_cron_run_now() {
 	nocache_headers();
@@ -857,8 +857,10 @@ function tsootc_ajax_cron_run_now() {
 		return;
 	}
 
-	$hook = tsootc_cron_ajax_post_string( 'hook' );
-	$args = tsootc_cron_ajax_post_args( 'args' );
+	$hook      = tsootc_cron_ajax_post_string( 'hook' );
+	$args      = tsootc_cron_ajax_post_args( 'args' );
+	$timestamp = tsootc_cron_ajax_post_int( 'timestamp' );
+	$schedule  = tsootc_cron_ajax_post_schedule( 'schedule' );
 
 	if ( '' === $hook ) {
 		wp_send_json_error( array( 'msg' => tsootc_msg( 'Hook buit', 'Hook vacío', 'Empty hook' ) ) );
@@ -889,10 +891,64 @@ function tsootc_ajax_cron_run_now() {
 	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- runs the user-selected WP-Cron event hook.
 	do_action_ref_array( $hook, $args );
 
+	tsootc_cron_bootstrap();
+	$consumed = false;
+	$next_ts  = 0;
+	$data     = ( $timestamp > 0 ) ? tsootc_cron_find_event_row( $hook, $timestamp, $args ) : null;
+
+	if ( null === $data ) {
+		foreach ( tsootc_cron_collect_events() as $row ) {
+			if ( ! is_array( $row ) || (string) ( $row['hook'] ?? '' ) !== $hook ) {
+				continue;
+			}
+			$row_args = isset( $row['args'] ) && is_array( $row['args'] ) ? $row['args'] : array();
+			if ( $row_args !== $args ) {
+				continue;
+			}
+			$data      = $row;
+			$timestamp = isset( $row['timestamp'] ) ? (int) $row['timestamp'] : $timestamp;
+			break;
+		}
+	}
+
+	if ( is_array( $data ) && $timestamp > 0 ) {
+		$sched = $schedule ? $schedule : ( ! empty( $data['schedule'] ) ? (string) $data['schedule'] : '' );
+		wp_unschedule_event( $timestamp, $hook, $args );
+		$consumed  = true;
+		$schedules = wp_get_schedules();
+		if ( $sched && isset( $schedules[ $sched ] ) ) {
+			$interval = isset( $schedules[ $sched ]['interval'] ) ? (int) $schedules[ $sched ]['interval'] : 0;
+			if ( $interval < 1 && ! empty( $data['interval'] ) ) {
+				$interval = (int) $data['interval'];
+			}
+			if ( $interval < 1 ) {
+				$interval = DAY_IN_SECONDS;
+			}
+			$next_ts = time() + $interval;
+			wp_schedule_event( $next_ts, $sched, $hook, $args );
+		}
+	}
+
+	$msg = tsootc_msg( 'Hook executat', 'Hook ejecutado', 'Hook executed' );
+	if ( $consumed && $next_ts > 0 ) {
+		$msg = tsootc_msg(
+			'Hook executat. Propera execució reprogramada.',
+			'Hook ejecutado. Próxima ejecución reprogramada.',
+			'Hook executed. Next run rescheduled.'
+		);
+	} elseif ( $consumed ) {
+		$msg = tsootc_msg(
+			'Hook executat. Esdeveniment únic eliminat del cron.',
+			'Hook ejecutado. Evento único eliminado del cron.',
+			'Hook executed. One-time event removed from cron.'
+		);
+	}
+
 	wp_send_json_success(
 		array(
-			'hook' => $hook,
-			'msg'  => tsootc_msg( 'Hook executat ara', 'Hook ejecutado ahora', 'Hook executed now' ),
+			'hook'      => $hook,
+			'timestamp' => $next_ts,
+			'msg'       => $msg,
 		)
 	);
 }

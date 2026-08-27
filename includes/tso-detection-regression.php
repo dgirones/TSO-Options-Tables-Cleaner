@@ -1006,6 +1006,14 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'   => 'option_map_survives_plugin_delete_when_option_remains',
+			'type' => 'option_map_delete_reconcile',
+			'assert' => array(
+				'preserved' => 1,
+				'removed'   => 1,
+			),
+		),
+		array(
 			'id'        => 'table_schema_woocommerce_order_items',
 			'type'      => 'table_schema_signature',
 			'columns'   => array( 'order_item_id', 'order_item_name', 'order_item_type', 'order_id' ),
@@ -2011,6 +2019,38 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $pass,
 			'message' => $pass ? 'ok' : 'table maps were not reconciled safely after plugin deletion',
+		);
+	}
+
+	if ( 'option_map_delete_reconcile' === $type ) {
+		if ( ! function_exists( 'tsootc_reconcile_option_key_map_after_plugin_delete' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'tsootc_reconcile_option_key_map_after_plugin_delete missing',
+			);
+		}
+		$result = tsootc_reconcile_option_key_map_after_plugin_delete(
+			array(
+				'acme_settings' => 'acme-plugin/acme.php',
+				'acme_gone'     => 'acme-plugin/acme.php',
+				'other_opt'     => 'other-plugin/other.php',
+			),
+			'acme-plugin/acme.php',
+			array(
+				'acme_settings' => 1,
+				'other_opt'     => 1,
+			)
+		);
+		$pass = isset( $result['map']['acme_settings'] )
+			&& ! isset( $result['map']['acme_gone'] )
+			&& isset( $result['map']['other_opt'] )
+			&& (int) $result['preserved'] === (int) ( $assert['preserved'] ?? 0 )
+			&& (int) $result['removed'] === (int) ( $assert['removed'] ?? 0 );
+		return array(
+			'id'      => $id,
+			'pass'    => $pass,
+			'message' => $pass ? 'ok' : 'option key map was not reconciled safely after plugin deletion',
 		);
 	}
 

@@ -948,19 +948,73 @@ function tsootc_ajax_retroactive_scan() {
 }
 add_action( 'wp_ajax_tsootc_retroactive_scan', 'tsootc_ajax_retroactive_scan' );
 function tsootc_on_deleted_plugin_clean_map( $plugin_file, $deleted ) {
-    if ( ! $deleted ) return;
-    $map     = tsootc_get_option_key_map();
-    $changed = false;
-    foreach ( $map as $key => $file ) {
-        // Eliminar les entrades que apunten al plugin eliminat
-        if ( $file === $plugin_file || dirname( $file ) === dirname( $plugin_file ) ) {
-            unset( $map[ $key ] );
-            $changed = true;
-        }
+    if ( ! $deleted ) {
+        return;
     }
-    if ( $changed ) tsootc_option_key_map_save( $map );
+    $map      = tsootc_get_option_key_map();
+    $existing = function_exists( 'tsootc_snapshot_option_names_set' )
+        ? tsootc_snapshot_option_names_set()
+        : array();
+    $result   = tsootc_reconcile_option_key_map_after_plugin_delete( $map, $plugin_file, $existing );
+    if ( $result['removed'] > 0 ) {
+        tsootc_option_key_map_save( $result['map'] );
+    }
 }
 add_action( 'deleted_plugin', 'tsootc_on_deleted_plugin_clean_map', 10, 2 );
+
+/**
+ * Snapshot of current non-transient option names (name => 1).
+ *
+ * @return array<string,int>
+ */
+function tsootc_snapshot_option_names_set() {
+    global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $keys = $wpdb->get_col(
+        "SELECT option_name FROM {$wpdb->options}
+        WHERE option_name NOT LIKE '\\_transient\\_%'
+            AND option_name NOT LIKE '\\_site\\_transient\\_%'"
+    );
+    return array_flip( is_array( $keys ) ? $keys : array() );
+}
+
+/**
+ * Keep option_key_map ownership for leftover options after a plugin is deleted.
+ *
+ * Mirrors table-map preserve-on-delete: only drop map rows when the option
+ * itself is gone.
+ *
+ * @param array  $map             Option key => owner file.
+ * @param string $plugin_file     Deleted plugin bootstrap file.
+ * @param array  $existing_options Set of current option names.
+ * @return array{map:array,removed:int,preserved:int}
+ */
+function tsootc_reconcile_option_key_map_after_plugin_delete( array $map, $plugin_file, array $existing_options ) {
+    $plugin_file = (string) $plugin_file;
+    $removed     = 0;
+    $preserved   = 0;
+
+    foreach ( $map as $option_name => $file ) {
+        $file        = (string) $file;
+        $same_plugin = $file === $plugin_file
+            || ( '' !== $plugin_file && false !== strpos( $file, '/' ) && dirname( $file ) === dirname( $plugin_file ) );
+        if ( ! $same_plugin ) {
+            continue;
+        }
+        if ( isset( $existing_options[ (string) $option_name ] ) ) {
+            ++$preserved;
+            continue;
+        }
+        unset( $map[ $option_name ] );
+        ++$removed;
+    }
+
+    return array(
+        'map'       => $map,
+        'removed'   => $removed,
+        'preserved' => $preserved,
+    );
+}
 
 // ---- Situació 2: tracking de taules de BD per plugin ----
 /**

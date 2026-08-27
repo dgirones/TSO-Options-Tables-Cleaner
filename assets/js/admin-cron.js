@@ -78,8 +78,14 @@
             if (!confirm(cfg.confirmRun)) {
                 return;
             }
-            post('tsootc_cron_run_now', { hook: d.hook, args: d.args }, function (res) {
+            post('tsootc_cron_run_now', {
+                hook: d.hook,
+                args: d.args,
+                timestamp: d.timestamp,
+                schedule: d.schedule
+            }, function (res) {
                 alert(res.data && res.data.msg ? res.data.msg : cfg.ok);
+                location.reload();
             });
         });
     });
