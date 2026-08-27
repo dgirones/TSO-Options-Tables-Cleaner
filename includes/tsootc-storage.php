@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'TSOOTC_DB_SCHEMA' ) ) {
-	define( 'TSOOTC_DB_SCHEMA', 7 );
+	define( 'TSOOTC_DB_SCHEMA', 8 );
 }
 
 // Stored option symbolic ids (not wp_options names).
@@ -1385,7 +1385,32 @@ function tsootc_maybe_run_storage_migration() {
 		tsootc_migrate_stored_dynamic_transients();
 	}
 
+	if ( $current < 8 && function_exists( 'tsootc_migrate_auto_clean_owned_schedules' ) ) {
+		tsootc_migrate_auto_clean_owned_schedules();
+	}
+
 	update_option( 'tso_options_tables_cleaner_db_schema', TSOOTC_DB_SCHEMA, false );
+}
+
+/**
+ * Move auto-clean WP-Cron onto plugin-owned daily/weekly/monthly schedule slugs (schema 7 → 8).
+ *
+ * @return void
+ */
+function tsootc_migrate_auto_clean_owned_schedules() {
+	if ( ! function_exists( 'tsootc_auto_clean_get_settings' ) || ! function_exists( 'tsootc_auto_clean_schedule' ) ) {
+		return;
+	}
+
+	$cfg = tsootc_auto_clean_get_settings();
+	if ( ! empty( $cfg['enabled'] ) && ! empty( $cfg['actions'] ) ) {
+		tsootc_auto_clean_schedule( isset( $cfg['interval'] ) ? (string) $cfg['interval'] : 'weekly' );
+		return;
+	}
+
+	if ( function_exists( 'tsootc_auto_clean_unschedule' ) ) {
+		tsootc_auto_clean_unschedule();
+	}
 }
 
 /**
