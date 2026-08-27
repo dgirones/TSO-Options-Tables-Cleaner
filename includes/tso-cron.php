@@ -1228,6 +1228,8 @@ function tsootc_cron_schedule_label( $schedule_key, $interval, $lang ) {
 		'daily'                    => array( 'ca' => 'Un cop al dia', 'es' => 'Una vez al día', 'en' => 'Once daily' ),
 		'weekly'                   => array( 'ca' => 'Un cop per setmana', 'es' => 'Una vez por semana', 'en' => 'Once weekly' ),
 		'monthly'                  => array( 'ca' => 'Un cop al mes', 'es' => 'Una vez al mes', 'en' => 'Once monthly' ),
+		'tsootc_auto_clean_daily'  => array( 'ca' => 'Un cop al dia (TSO)', 'es' => 'Una vez al día (TSO)', 'en' => 'Once daily (TSO)' ),
+		'tsootc_auto_clean_weekly' => array( 'ca' => 'Un cop per setmana (TSO)', 'es' => 'Una vez por semana (TSO)', 'en' => 'Once weekly (TSO)' ),
 		'tsootc_auto_clean_monthly'=> array( 'ca' => 'Un cop al mes (TSO)', 'es' => 'Una vez al mes (TSO)', 'en' => 'Once monthly (TSO)' ),
 	);
 	if ( $key && isset( $map[ $key ] ) ) {

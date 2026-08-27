@@ -5827,6 +5827,31 @@ function tsootc_detect_cpotheme_option( $option_name, array $installed_plugins =
         }
     }
 
+    // Inventory-only fallback (regression stubs / missing style.css).
+    foreach ( $installed_plugins as $pl ) {
+        if ( ( $pl['type'] ?? '' ) !== 'theme' || empty( $pl['file'] ) ) {
+            continue;
+        }
+        $file = (string) $pl['file'];
+        $slug = false !== strpos( $file, '/' ) ? strtolower( dirname( $file ) ) : strtolower( $file );
+        if ( $slug !== $theme_slug ) {
+            continue;
+        }
+        $name = ! empty( $pl['name'] ) ? (string) $pl['name'] : $theme_slug;
+        return array(
+            'name'      => function_exists( 'tsootc_format_theme_group_label' )
+                ? tsootc_format_theme_group_label( $theme_slug, $name )
+                : 'Tema: ' . $name,
+            'file'      => $theme_slug,
+            'folder'    => 'theme:' . $theme_slug,
+            'active'    => ! empty( $pl['active'] ),
+            'installed' => true,
+            'type'      => 'theme',
+            'auto'      => false,
+            'source'    => 'theme_disk',
+        );
+    }
+
     return null;
 }
 
@@ -17086,6 +17111,14 @@ function tsootc_auto_clean_run() {
 
     tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RUN, time(), false );
     tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RESULTS, $results, false );
+
+    // Realign recurrence to saved settings after each run (heals legacy daily/weekly core slugs).
+    if ( ! empty( $cfg['enabled'] ) && ! empty( $cfg['actions'] ) ) {
+        tsootc_auto_clean_schedule( isset( $cfg['interval'] ) ? (string) $cfg['interval'] : 'weekly' );
+    } else {
+        tsootc_auto_clean_unschedule();
+    }
+
     if ( ! empty( $cfg['email'] ) && ! empty( $results ) ) {
         $to       = get_option( 'admin_email' );
         $subject  = '[' . get_bloginfo( 'name' ) . '] ' . tsootc_msg( 'TSO Options & Tables Cleaner — Neteja automàtica', 'TSO Options & Tables Cleaner — Limpieza automática', 'TSO Options & Tables Cleaner — Automatic cleanup' );
@@ -17119,27 +17152,47 @@ add_action( 'tsootc_auto_clean_cron_hook', 'tsootc_auto_clean_run' );
 /**
  * Map stored auto-clean interval to a WP-Cron schedule slug.
  *
+ * Uses plugin-owned schedule keys so core/plugin filters on "daily"/"weekly"
+ * cannot change the intended recurrence.
+ *
  * @param string $interval daily|weekly|monthly (UI setting).
  * @return string
  */
 function tsootc_auto_clean_cron_schedule_slug( $interval ) {
-    if ( 'monthly' === $interval ) {
-        return 'tsootc_auto_clean_monthly';
+    switch ( (string) $interval ) {
+        case 'daily':
+            return 'tsootc_auto_clean_daily';
+        case 'monthly':
+            return 'tsootc_auto_clean_monthly';
+        case 'weekly':
+        default:
+            return 'tsootc_auto_clean_weekly';
     }
-    return in_array( $interval, array( 'daily', 'weekly' ), true ) ? $interval : 'weekly';
 }
 
-function tsootc_auto_clean_schedule( $interval ) {
-    wp_clear_scheduled_hook( 'tsootc_auto_clean_cron_hook' );
-    // Legacy hook (pre-prefix migration) — clear so both never stay scheduled.
-    if ( function_exists( 'tsootc_legacy_wp_options_prefix' ) ) {
-        wp_clear_scheduled_hook( tsootc_legacy_wp_options_prefix() . 'auto_clean_cron_hook' );
-    } else {
-        wp_clear_scheduled_hook( 'tso_auto_clean_cron_hook' ); // legacy wp_options prefix
+/**
+ * Seconds between auto-clean runs for a UI interval.
+ *
+ * @param string $interval daily|weekly|monthly.
+ * @return int
+ */
+function tsootc_auto_clean_interval_seconds( $interval ) {
+    switch ( (string) $interval ) {
+        case 'daily':
+            return (int) DAY_IN_SECONDS;
+        case 'monthly':
+            return (int) ( 30 * DAY_IN_SECONDS );
+        case 'weekly':
+        default:
+            return (int) WEEK_IN_SECONDS;
     }
-    wp_schedule_event( time(), tsootc_auto_clean_cron_schedule_slug( $interval ), 'tsootc_auto_clean_cron_hook' );
 }
 
+/**
+ * Clear legacy and current auto-clean cron hooks.
+ *
+ * @return void
+ */
 function tsootc_auto_clean_unschedule() {
     wp_clear_scheduled_hook( 'tsootc_auto_clean_cron_hook' );
     if ( function_exists( 'tsootc_legacy_wp_options_prefix' ) ) {
@@ -17149,16 +17202,159 @@ function tsootc_auto_clean_unschedule() {
     }
 }
 
-function tsootc_auto_clean_add_monthly_schedule( $schedules ) {
-    if ( ! isset( $schedules['tsootc_auto_clean_monthly'] ) ) {
-        $schedules['tsootc_auto_clean_monthly'] = array(
-            'interval' => 30 * DAY_IN_SECONDS,
-            'display'  => __( 'Once monthly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
-        );
+/**
+ * Schedule the auto-clean cron from a UI interval.
+ *
+ * First run is interval seconds from now (not immediate) so "Next" matches the
+ * selected frequency after save.
+ *
+ * @param string $interval daily|weekly|monthly.
+ * @return bool True when WordPress accepted the schedule.
+ */
+function tsootc_auto_clean_schedule( $interval ) {
+    tsootc_auto_clean_unschedule();
+
+    $interval = in_array( (string) $interval, array( 'daily', 'weekly', 'monthly' ), true )
+        ? (string) $interval
+        : 'weekly';
+    $slug     = tsootc_auto_clean_cron_schedule_slug( $interval );
+    $seconds  = tsootc_auto_clean_interval_seconds( $interval );
+    $first    = time() + max( 60, $seconds );
+
+    $result = wp_schedule_event( $first, $slug, 'tsootc_auto_clean_cron_hook' );
+    return false !== $result;
+}
+
+/**
+ * Register plugin-owned cron recurrence schedules for auto-clean.
+ *
+ * @param array<string,array{interval:int,display:string}> $schedules Existing schedules.
+ * @return array<string,array{interval:int,display:string}>
+ */
+function tsootc_auto_clean_register_cron_schedules( $schedules ) {
+    if ( ! is_array( $schedules ) ) {
+        $schedules = array();
     }
+
+    $owned = array(
+        'tsootc_auto_clean_daily'   => array(
+            'interval' => (int) DAY_IN_SECONDS,
+            'display'  => __( 'Once daily (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
+        ),
+        'tsootc_auto_clean_weekly'  => array(
+            'interval' => (int) WEEK_IN_SECONDS,
+            'display'  => __( 'Once weekly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
+        ),
+        'tsootc_auto_clean_monthly' => array(
+            'interval' => (int) ( 30 * DAY_IN_SECONDS ),
+            'display'  => __( 'Once monthly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
+        ),
+    );
+
+    foreach ( $owned as $key => $def ) {
+        $schedules[ $key ] = $def;
+    }
+
     return $schedules;
 }
-add_filter( 'cron_schedules', 'tsootc_auto_clean_add_monthly_schedule' );
+add_filter( 'cron_schedules', 'tsootc_auto_clean_register_cron_schedules' );
+
+/**
+ * Back-compat alias — monthly schedule registration lived here historically.
+ *
+ * @param array<string,array{interval:int,display:string}> $schedules Existing schedules.
+ * @return array<string,array{interval:int,display:string}>
+ */
+function tsootc_auto_clean_add_monthly_schedule( $schedules ) {
+    return tsootc_auto_clean_register_cron_schedules( $schedules );
+}
+
+/**
+ * Read the next scheduled auto-clean event object when available.
+ *
+ * @return object|null
+ */
+function tsootc_auto_clean_get_scheduled_event() {
+    if ( function_exists( 'wp_get_scheduled_event' ) ) {
+        $event = wp_get_scheduled_event( 'tsootc_auto_clean_cron_hook' );
+        if ( is_object( $event ) && ! empty( $event->timestamp ) ) {
+            return $event;
+        }
+    }
+
+    $next = wp_next_scheduled( 'tsootc_auto_clean_cron_hook' );
+    if ( ! $next ) {
+        return null;
+    }
+
+    return (object) array(
+        'timestamp' => (int) $next,
+        'schedule'  => '',
+        'hook'      => 'tsootc_auto_clean_cron_hook',
+        'args'      => array(),
+    );
+}
+
+/**
+ * Whether a cron schedule slug is one of this plugin's auto-clean recurrences.
+ *
+ * @param string $schedule_slug Schedule key from a cron event.
+ * @return bool
+ */
+function tsootc_auto_clean_is_owned_schedule_slug( $schedule_slug ) {
+    return in_array(
+        (string) $schedule_slug,
+        array(
+            'tsootc_auto_clean_daily',
+            'tsootc_auto_clean_weekly',
+            'tsootc_auto_clean_monthly',
+        ),
+        true
+    );
+}
+
+/**
+ * Keep the WP-Cron event aligned with saved auto-clean settings.
+ *
+ * Heals missing events, legacy core daily/weekly slugs, and stale monthly keys.
+ *
+ * @return void
+ */
+function tsootc_auto_clean_ensure_schedule() {
+    $cfg = tsootc_auto_clean_get_settings();
+    if ( empty( $cfg['enabled'] ) || empty( $cfg['actions'] ) ) {
+        if ( wp_next_scheduled( 'tsootc_auto_clean_cron_hook' ) ) {
+            tsootc_auto_clean_unschedule();
+        }
+        return;
+    }
+
+    $interval = isset( $cfg['interval'] ) ? (string) $cfg['interval'] : 'weekly';
+    $expected = tsootc_auto_clean_cron_schedule_slug( $interval );
+    $seconds  = tsootc_auto_clean_interval_seconds( $interval );
+    $event    = tsootc_auto_clean_get_scheduled_event();
+
+    if ( ! $event ) {
+        tsootc_auto_clean_schedule( $interval );
+        return;
+    }
+
+    $actual = isset( $event->schedule ) ? (string) $event->schedule : '';
+    $ts     = isset( $event->timestamp ) ? (int) $event->timestamp : 0;
+    $now    = time();
+    $needs  = false;
+
+    if ( $actual !== $expected ) {
+        $needs = true;
+    } elseif ( $ts > 0 && $ts < ( $now - ( 2 * $seconds ) ) ) {
+        // Far overdue (WP-Cron never spawned): show a sensible next run instead of a stale past stamp.
+        $needs = true;
+    }
+
+    if ( $needs ) {
+        tsootc_auto_clean_schedule( $interval );
+    }
+}
 
 /**
  * Reschedule auto-clean cron when upgrading from the unprefixed "monthly" schedule slug.
@@ -17176,6 +17372,19 @@ function tsootc_maybe_migrate_auto_clean_monthly_cron() {
     tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_MIGRATED_CRON_MONTHLY_V1, 1, false );
 }
 add_action( 'init', 'tsootc_maybe_migrate_auto_clean_monthly_cron', 20 );
+
+/**
+ * Reconcile auto-clean WP-Cron on admin requests (settings ↔ event).
+ *
+ * @return void
+ */
+function tsootc_auto_clean_admin_reconcile_schedule() {
+    if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+    tsootc_auto_clean_ensure_schedule();
+}
+add_action( 'admin_init', 'tsootc_auto_clean_admin_reconcile_schedule', 25 );
 
 function tsootc_ajax_save_auto_clean() {
     nocache_headers();

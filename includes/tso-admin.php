@@ -323,6 +323,9 @@ function tsootc_page() {
         echo '<p style="color:#888;font-size:12px;margin-top:16px">' . wp_kses_post( __( '🟢 Safe: no risk &nbsp;·&nbsp; 🟡 Caution: review first &nbsp;·&nbsp; Make a <strong>backup</strong> before any bulk cleanup. Do <strong>LiteSpeed Purge All</strong> afterwards.', 'tso-options-tables-cleaner' ) ) . '</p>';
 
         // ---- Secció: Neteja automàtica ----
+        if ( function_exists( 'tsootc_auto_clean_ensure_schedule' ) ) {
+            tsootc_auto_clean_ensure_schedule();
+        }
         $last_run      = (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RUN, 0 );
         $last_results  = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RESULTS, array() );
         $next_run      = wp_next_scheduled( 'tsootc_auto_clean_cron_hook' );

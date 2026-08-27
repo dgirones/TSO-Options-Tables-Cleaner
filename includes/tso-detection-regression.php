@@ -135,6 +135,42 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'       => 'auto_clean_schedule_weekly_is_seven_days',
+			'type'     => 'auto_clean_schedule',
+			'interval' => 'weekly',
+			'assert'   => array(
+				'slug'    => 'tsootc_auto_clean_weekly',
+				'seconds' => 604800,
+			),
+		),
+		array(
+			'id'       => 'auto_clean_schedule_daily_is_one_day',
+			'type'     => 'auto_clean_schedule',
+			'interval' => 'daily',
+			'assert'   => array(
+				'slug'    => 'tsootc_auto_clean_daily',
+				'seconds' => 86400,
+			),
+		),
+		array(
+			'id'       => 'auto_clean_schedule_monthly_is_thirty_days',
+			'type'     => 'auto_clean_schedule',
+			'interval' => 'monthly',
+			'assert'   => array(
+				'slug'    => 'tsootc_auto_clean_monthly',
+				'seconds' => 2592000,
+			),
+		),
+		array(
+			'id'       => 'auto_clean_schedule_invalid_falls_back_to_weekly',
+			'type'     => 'auto_clean_schedule',
+			'interval' => 'yearly',
+			'assert'   => array(
+				'slug'    => 'tsootc_auto_clean_weekly',
+				'seconds' => 604800,
+			),
+		),
+		array(
 			'id'   => 'stored_transient_delete_deduplicated',
 			'type' => 'transient_delete_dedupe',
 		),
@@ -2297,6 +2333,41 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 			'id'      => $id,
 			'pass'    => $pass,
 			'message' => $pass ? 'ok' : 'keys=' . implode( '|', $keys ),
+		);
+	}
+
+	if ( 'auto_clean_schedule' === $type ) {
+		if ( ! function_exists( 'tsootc_auto_clean_cron_schedule_slug' )
+			|| ! function_exists( 'tsootc_auto_clean_interval_seconds' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'auto-clean schedule helpers missing',
+			);
+		}
+		$interval = (string) ( $fixture['interval'] ?? 'weekly' );
+		$slug     = tsootc_auto_clean_cron_schedule_slug( $interval );
+		$seconds  = (int) tsootc_auto_clean_interval_seconds( $interval );
+		$expect_slug = (string) ( $assert['slug'] ?? '' );
+		$expect_sec  = isset( $assert['seconds'] ) ? (int) $assert['seconds'] : 0;
+		if ( $slug !== $expect_slug ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => "expected slug={$expect_slug} got={$slug}",
+			);
+		}
+		if ( $seconds !== $expect_sec ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => "expected seconds={$expect_sec} got={$seconds}",
+			);
+		}
+		return array(
+			'id'      => $id,
+			'pass'    => true,
+			'message' => 'ok',
 		);
 	}
 
