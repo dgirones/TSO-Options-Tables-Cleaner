@@ -73,14 +73,14 @@
             if (tsTo < Infinity && ts > tsTo) {
                 show = false;
             }
-            row.style.display = show ? '' : 'none';
+            row.classList.toggle('tso-u-hidden', !show);
             if (show) {
                 visible++;
             }
         });
         var emptyMsg = document.getElementById('tso-hist-filter-empty');
         if (emptyMsg) {
-            emptyMsg.style.display = visible === 0 && rows.length > 0 ? '' : 'none';
+            emptyMsg.classList.toggle('tso-u-hidden', !(visible === 0 && rows.length > 0));
         }
     };
 })();

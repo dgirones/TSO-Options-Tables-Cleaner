@@ -1471,33 +1471,32 @@ function tsootc_history_enrich_detail_for_display( array $ev ) {
 function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
     $detail = tsootc_history_enrich_detail_for_display( $ev );
     $chunks = array();
-    $line   = 'font-size:11px;color:#555;margin:0 0 4px';
 
     if ( ! empty( $detail['version'] ) ) {
-        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+        $chunks[] = '<div class="tso-hist-detail-line"><strong>'
             . esc_html( tsootc_ui_triple_text( $lang, 'Versió:', 'Versión:', 'Version:' ) )
             . '</strong> ' . esc_html( (string) $detail['version'] ) . '</div>';
     }
     if ( ! empty( $detail['folder'] ) ) {
-        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+        $chunks[] = '<div class="tso-hist-detail-line"><strong>'
             . esc_html( tsootc_ui_triple_text( $lang, 'Carpeta:', 'Carpeta:', 'Folder:' ) )
-            . '</strong> <code style="font-size:10px;background:#f5f5f5;padding:1px 5px;border-radius:3px">'
+            . '</strong> <code class="tso-hist-detail-code">'
             . esc_html( (string) $detail['folder'] ) . '</code></div>';
     }
     if ( ! empty( $detail['bootstrap'] ) ) {
-        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+        $chunks[] = '<div class="tso-hist-detail-line"><strong>'
             . esc_html( tsootc_ui_triple_text( $lang, 'Bootstrap:', 'Bootstrap:', 'Bootstrap:' ) )
-            . '</strong> <code style="font-size:10px;background:#f5f5f5;padding:1px 5px;border-radius:3px">'
+            . '</strong> <code class="tso-hist-detail-code">'
             . esc_html( (string) $detail['bootstrap'] ) . '</code></div>';
     }
     if ( ! empty( $detail['replaces_folder'] ) ) {
-        $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+        $chunks[] = '<div class="tso-hist-detail-line"><strong>'
             . esc_html( tsootc_ui_triple_text( $lang, 'Substitueix:', 'Sustituye:', 'Replaces:' ) )
-            . '</strong> <code style="font-size:10px;background:#fff8f0;padding:1px 5px;border-radius:3px">'
+            . '</strong> <code class="tso-hist-detail-code tso-hist-detail-code--warm">'
             . esc_html( (string) $detail['replaces_folder'] ) . '</code></div>';
     }
     if ( ! empty( $detail['mapped_on_delete'] ) ) {
-        $chunks[] = '<div style="' . esc_attr( $line ) . ';color:#8a5c00"><strong>'
+        $chunks[] = '<div class="tso-hist-detail-line tso-hist-detail-line--warn"><strong>'
             . esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -1518,7 +1517,7 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
         );
         $trigger_key = sanitize_key( (string) $detail['trigger'] );
         if ( isset( $trigger_labels[ $trigger_key ] ) ) {
-            $chunks[] = '<div style="' . esc_attr( $line ) . '"><strong>'
+            $chunks[] = '<div class="tso-hist-detail-line"><strong>'
                 . esc_html( tsootc_ui_triple_text( $lang, 'Origen:', 'Origen:', 'Source:' ) )
                 . '</strong> ' . esc_html( $trigger_labels[ $trigger_key ] ) . '</div>';
         }
@@ -1529,7 +1528,7 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
         $kl    = isset( $detail['option_keys'] ) && is_array( $detail['option_keys'] ) ? $detail['option_keys'] : array();
         $lines = array();
         foreach ( $kl as $kn ) {
-            $lines[] = '<code style="font-size:10px;background:#f5f5f5;padding:2px 5px;border-radius:3px;display:inline-block;margin:2px 4px 0 0">' . esc_html( (string) $kn ) . '</code>';
+            $lines[] = '<code class="tso-hist-detail-chip">' . esc_html( (string) $kn ) . '</code>';
         }
         $more = max( 0, $kt - count( $kl ) );
         $head = sprintf(
@@ -1539,7 +1538,7 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
         );
         $tail = '';
         if ( $more > 0 ) {
-            $tail = ' <span style="color:#888;font-size:11px">' . esc_html(
+            $tail = ' <span class="tso-hist-detail-more">' . esc_html(
                 sprintf(
                     /* translators: %d: number of keys not shown in the list. */
                     __( '… +%d more', 'tso-options-tables-cleaner' ),
@@ -1547,7 +1546,7 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
                 )
             ) . '</span>';
         }
-        $chunks[] = '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">' . $head . $tail . '</div><div style="line-height:1.45">' . implode( '', $lines ) . '</div></div>';
+        $chunks[] = '<div class="tso-hist-detail-block"><div class="tso-hist-detail-head">' . $head . $tail . '</div><div class="tso-hist-detail-list">' . implode( '', $lines ) . '</div></div>';
     }
 
     if ( isset( $detail['tables_total'] ) && (int) $detail['tables_total'] > 0 ) {
@@ -1555,7 +1554,7 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
         $tl    = isset( $detail['tables'] ) && is_array( $detail['tables'] ) ? $detail['tables'] : array();
         $lines = array();
         foreach ( $tl as $tn ) {
-            $lines[] = '<code style="font-size:10px;background:#f5f5f5;padding:2px 5px;border-radius:3px;display:inline-block;margin:2px 4px 0 0">' . esc_html( (string) $tn ) . '</code>';
+            $lines[] = '<code class="tso-hist-detail-chip">' . esc_html( (string) $tn ) . '</code>';
         }
         $more = max( 0, $tt - count( $tl ) );
         $head = sprintf(
@@ -1565,7 +1564,7 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
         );
         $tail = '';
         if ( $more > 0 ) {
-            $tail = ' <span style="color:#888;font-size:11px">' . esc_html(
+            $tail = ' <span class="tso-hist-detail-more">' . esc_html(
                 sprintf(
                     /* translators: %d: number of tables not shown in the list. */
                     __( '… +%d more', 'tso-options-tables-cleaner' ),
@@ -1573,18 +1572,18 @@ function tsootc_history_format_detail_html( array $ev, $lang = 'ca' ) {
                 )
             ) . '</span>';
         }
-        $chunks[] = '<div style="margin-bottom:0"><div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">' . $head . $tail . '</div><div style="line-height:1.45">' . implode( '', $lines ) . '</div></div>';
+        $chunks[] = '<div class="tso-hist-detail-block tso-hist-detail-block--last"><div class="tso-hist-detail-head">' . $head . $tail . '</div><div class="tso-hist-detail-list">' . implode( '', $lines ) . '</div></div>';
     }
 
     if ( empty( $chunks ) ) {
-        return '<span style="color:#999">—</span>';
+        return '<span class="tso-hist-detail-empty">—</span>';
     }
 
     $allowed = array(
-        'div'    => array( 'style' => true, 'class' => true ),
-        'span'   => array( 'style' => true, 'class' => true ),
-        'code'   => array( 'style' => true, 'class' => true ),
-        'strong' => array( 'style' => true ),
+        'div'    => array( 'class' => true ),
+        'span'   => array( 'class' => true ),
+        'code'   => array( 'class' => true ),
+        'strong' => array(),
     );
 
     return wp_kses( implode( '', $chunks ), $allowed );
@@ -3443,16 +3442,17 @@ function tsootc_ajax_save_option_value() {
     $name = tsootc_get_ajax_post_text( 'option_name' );
     if ( ! $name ) { wp_send_json_error( array( 'msg' => tsootc_msg( 'Nom buit', 'Nombre vacío', 'Empty name' ) ) ); return; }
 
-    // Protecció: no permetre editar opcions core crítiques
-    $protected = array(
-        'siteurl', 'blogname', 'blogdescription', 'admin_email',
-        'active_plugins', 'template', 'stylesheet', 'upload_path',
-        'upload_url_path', 'secret_key', 'auth_key', 'secure_auth_key',
-        'logged_in_key', 'nonce_key', 'auth_salt', 'secure_auth_salt',
-        'logged_in_salt', 'nonce_salt',
-    );
-    if ( in_array( $name, $protected, true ) ) {
-        wp_send_json_error( array( 'msg' => tsootc_msg( 'Aquesta opció no es pot editar des d\'aquí per seguretat.', 'Esta opción no se puede editar aquí por seguridad.', 'This option cannot be edited here for security reasons.' ) ) ); return;
+    if ( tsootc_option_modify_is_blocked( $name ) ) {
+        wp_send_json_error(
+            array(
+                'msg' => tsootc_msg(
+                    'Aquesta opció no es pot editar des d\'aquí per seguretat.',
+                    'Esta opción no se puede editar aquí por seguridad.',
+                    'This option cannot be edited here for security reasons.'
+                ),
+            )
+        );
+        return;
     }
     $posted_value = tsootc_get_ajax_post_unslashed( 'option_value', null );
     $raw_value    = function_exists( 'tsootc_sanitize_stored_option_value_from_post' )

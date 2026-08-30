@@ -91,8 +91,41 @@ if ( function_exists( 'tsootc_get_stored_transient_id_map' ) ) {
 	}
 }
 
-// ── 4. Fitxers de backup ───────────────────────────────────────────────────────
-// NOTA: els fitxers SQL a wp-content/uploads/tso-options-tables-cleaner/backups/
-// (i carpetes legacy tso-backups / tso-options-tables-cleaner-backups) NO s'eliminen
-// automàticament perquè contenen còpies de seguretat de la BD que l'usuari
-// pot voler conservar. L'usuari pot eliminar la carpeta manualment.
+// ── 4. Fitxers a uploads (backups, cache, etc.) ───────────────────────────────
+/**
+ * Delete plugin-owned uploads trees (canonical folder + legacy backup dirs).
+ *
+ * @return void
+ */
+function tsootc_uninstall_remove_uploads_data() {
+	if ( ! function_exists( 'WP_Filesystem' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+
+	global $wp_filesystem;
+
+	if ( ! WP_Filesystem() ) {
+		return;
+	}
+
+	$upload = wp_upload_dir();
+	if ( ! empty( $upload['error'] ) ) {
+		return;
+	}
+
+	$basedir = trailingslashit( (string) $upload['basedir'] );
+	$targets = array(
+		'tso-options-tables-cleaner',
+		'tso-backups',
+		'tso-options-tables-cleaner-backups',
+	);
+
+	foreach ( $targets as $rel_dir ) {
+		$path = $basedir . $rel_dir;
+		if ( $wp_filesystem->exists( $path ) ) {
+			$wp_filesystem->delete( $path, true );
+		}
+	}
+}
+
+tsootc_uninstall_remove_uploads_data();

@@ -32,6 +32,124 @@ function tsootc_render_opts_summary_stat( $count, $classes, $title_html, $subtit
 	echo '</div>';
 }
 
+/**
+ * CSS class for autoload KB severity (summary stat).
+ *
+ * @param float $kb Autoload size in KB.
+ * @return string
+ */
+function tsootc_autoload_kb_class( $kb ) {
+	$kb = (float) $kb;
+	if ( $kb > 1024 ) {
+		return 'tso-text-danger';
+	}
+	if ( $kb > 512 ) {
+		return 'tso-text-warning';
+	}
+	return 'tso-text-success';
+}
+
+/**
+ * CSS class for option/table size severity.
+ *
+ * @param int $bytes Size in bytes.
+ * @return string
+ */
+function tsootc_option_bytes_class( $bytes ) {
+	$bytes = (int) $bytes;
+	if ( $bytes > 102400 ) {
+		return 'tso-text-danger';
+	}
+	if ( $bytes > 10240 ) {
+		return 'tso-text-warning';
+	}
+	return 'tso-text-muted-dark';
+}
+
+/**
+ * CSS class for autoload group percentage severity.
+ *
+ * @param float $pct Percentage of total autoload.
+ * @return string
+ */
+function tsootc_pct_severity_class( $pct ) {
+	$pct = (float) $pct;
+	if ( $pct >= 20 ) {
+		return 'tso-sev-high';
+	}
+	if ( $pct >= 8 ) {
+		return 'tso-sev-medium';
+	}
+	return 'tso-sev-normal';
+}
+
+/**
+ * CSS class for autoload group percentage label color.
+ *
+ * @param float $pct Percentage of total autoload.
+ * @return string
+ */
+function tsootc_pct_label_class( $pct ) {
+	$pct = (float) $pct;
+	if ( $pct >= 20 ) {
+		return 'tso-sev-pct-high';
+	}
+	if ( $pct >= 8 ) {
+		return 'tso-sev-pct-medium';
+	}
+	return 'tso-sev-pct-normal';
+}
+
+/**
+ * Map status hex color to a semantic CSS class.
+ *
+ * @param string $hex Color hex from detection status.
+ * @return string
+ */
+function tsootc_status_hex_class( $hex ) {
+	$map = array(
+		'#2a7a2a' => 'tso-status-active',
+		'#46b450' => 'tso-status-active',
+		'#c07000' => 'tso-status-inactive',
+		'#9a6700' => 'tso-status-hosting-warn',
+		'#0075be' => 'tso-status-core',
+		'#c00'    => 'tso-status-undetected',
+		'#c00000' => 'tso-status-removed',
+		'#999'    => 'tso-text-muted-faint',
+		'#555'    => 'tso-text-muted-dark',
+	);
+	$key = strtolower( (string) $hex );
+	return isset( $map[ $key ] ) ? $map[ $key ] : 'tso-status-default';
+}
+
+/**
+ * History fill bar/text level from usage percentage.
+ *
+ * @param int $pct Percentage of max history entries.
+ * @return string ok|warning|danger
+ */
+function tsootc_history_fill_level( $pct ) {
+	$pct = (int) $pct;
+	if ( $pct >= 90 ) {
+		return 'danger';
+	}
+	if ( $pct >= 60 ) {
+		return 'warning';
+	}
+	return 'ok';
+}
+
+function tsootc_table_kb_class( $kb ) {
+	$kb = (int) $kb;
+	if ( $kb > 102400 ) {
+		return 'tso-text-danger';
+	}
+	if ( $kb > 10240 ) {
+		return 'tso-text-warning';
+	}
+	return 'tso-text-muted-dark';
+}
+
 function tsootc_page() {
     // Backup download: tsootc_handle_backup_download() on load-tools_page_tso-options-tables-cleaner.
 
@@ -114,7 +232,7 @@ function tsootc_page() {
     }
 
     // Calcul colors
-    $auto_color = $s['autoload_kb'] > 1024 ? '#dc3232' : ( $s['autoload_kb'] > 512 ? '#f56e28' : '#46b450' );
+    $auto_class = tsootc_autoload_kb_class( $s['autoload_kb'] );
 
 
     // ── i18n: canviar locale per a la preferència de l'usuari (CA / ES / EN) ─
@@ -145,14 +263,9 @@ function tsootc_page() {
         ),
         admin_url( 'tools.php' )
     );
-    $lang_url_ca = esc_url( wp_nonce_url( add_query_arg( TSOOTC_ADMIN_QUERY_SET_LANG, 'ca', $lang_switch_base ), TSOOTC_ADMIN_QUERY_SET_LANG ) );
-    $lang_url_es = esc_url( wp_nonce_url( add_query_arg( TSOOTC_ADMIN_QUERY_SET_LANG, 'es', $lang_switch_base ), TSOOTC_ADMIN_QUERY_SET_LANG ) );
-    $lang_url_en = esc_url( wp_nonce_url( add_query_arg( TSOOTC_ADMIN_QUERY_SET_LANG, 'en', $lang_switch_base ), TSOOTC_ADMIN_QUERY_SET_LANG ) );
-    $inactive_lang_btn = 'background:#f6f7f7;color:#555;border-color:#ccc';
-    $active_lang_btn   = 'background:#007cba;color:#fff;border-color:#007cba;font-weight:700';
-    $ca_style          = ( $lang === 'ca' ) ? $active_lang_btn : $inactive_lang_btn;
-    $es_style          = ( $lang === 'es' ) ? $active_lang_btn : $inactive_lang_btn;
-    $en_style          = ( $lang === 'en' ) ? $active_lang_btn : $inactive_lang_btn;
+    $lang_url_ca = wp_nonce_url( add_query_arg( TSOOTC_ADMIN_QUERY_SET_LANG, 'ca', $lang_switch_base ), TSOOTC_ADMIN_QUERY_SET_LANG );
+    $lang_url_es = wp_nonce_url( add_query_arg( TSOOTC_ADMIN_QUERY_SET_LANG, 'es', $lang_switch_base ), TSOOTC_ADMIN_QUERY_SET_LANG );
+    $lang_url_en = wp_nonce_url( add_query_arg( TSOOTC_ADMIN_QUERY_SET_LANG, 'en', $lang_switch_base ), TSOOTC_ADMIN_QUERY_SET_LANG );
 
     echo '<div class="tso-nav-inner">';
     $tso_plugin_version = function_exists( 'tsootc_admin_assets_version' )
@@ -165,18 +278,19 @@ function tsootc_page() {
     }
     echo '</p>';
     echo '<div class="tso-nav-row">';
-    echo '<nav class="nav-tab-wrapper" style="border-bottom:none;flex:1">';
+    echo '<nav class="nav-tab-wrapper tso-main-tabs" aria-label="' . esc_attr__( 'Plugin sections', 'tso-options-tables-cleaner' ) . '">';
     $tabs = array(
         'cleanup' => __( '🧹 General cleanup', 'tso-options-tables-cleaner' ),
-        'options' => __( '⚙️ wp_options', 'tso-options-tables-cleaner' ),
+        'options' => __( '⚙️ WP-OPTIONS', 'tso-options-tables-cleaner' ),
         'tables'  => __( '📦 Extra tables', 'tso-options-tables-cleaner' ),
         'history' => __( '📅 History', 'tso-options-tables-cleaner' ),
         'cron'    => __( '⏱️ CRON', 'tso-options-tables-cleaner' ),
         'backup'  => __( '💾 Database backup', 'tso-options-tables-cleaner' ),
     );
     foreach ( $tabs as $t => $label ) {
-        $cls = $tab === $t ? ' nav-tab-active' : '';
-        echo '<a href="' . esc_url( $base_url . '&tab=' . $t ) . '" class="nav-tab' . esc_attr( $cls ) . '">' . esc_html( $label ) . '</a>';
+        $is_active = ( $tab === $t );
+        $cls       = $is_active ? ' nav-tab-active' : '';
+        echo '<a href="' . esc_url( $base_url . '&tab=' . $t ) . '" class="nav-tab' . esc_attr( $cls ) . '"' . ( $is_active ? ' aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
     }
     echo '</nav>';
     $tso_donate_label = tsootc_ui_triple_text(
@@ -189,10 +303,10 @@ function tsootc_page() {
     echo '<a class="tso-donate-btn" href="' . esc_url( tsootc_get_kofi_donate_url() ) . '" target="_blank" rel="noopener noreferrer">'
         . esc_html( $tso_donate_label ) . '</a>';
     echo '<div class="tso-lang-switch">';
-    echo '<span style="color:#888;font-size:11px">🌐</span>';
-    echo '<a href="' . $lang_url_ca . '" style="padding:2px 10px;border:1px solid;border-radius:3px;font-size:11px;font-weight:600;text-decoration:none;' . esc_attr( $ca_style ) . '">CA</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-    echo '<a href="' . $lang_url_es . '" style="padding:2px 10px;border:1px solid;border-radius:3px;font-size:11px;font-weight:600;text-decoration:none;' . esc_attr( $es_style ) . '">ES</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-    echo '<a href="' . $lang_url_en . '" style="padding:2px 10px;border:1px solid;border-radius:3px;font-size:11px;font-weight:600;text-decoration:none;' . esc_attr( $en_style ) . '">EN</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    echo '<span class="tso-lang-globe">🌐</span>';
+    echo '<a href="' . esc_url( $lang_url_ca ) . '" class="tso-lang-btn' . esc_attr( 'ca' === $lang ? ' is-active' : '' ) . '">CA</a>';
+    echo '<a href="' . esc_url( $lang_url_es ) . '" class="tso-lang-btn' . esc_attr( 'es' === $lang ? ' is-active' : '' ) . '">ES</a>';
+    echo '<a href="' . esc_url( $lang_url_en ) . '" class="tso-lang-btn' . esc_attr( 'en' === $lang ? ' is-active' : '' ) . '">EN</a>';
     echo '</div>';
     echo '</div>';
     echo '</div>';
@@ -218,7 +332,7 @@ function tsootc_page() {
         }
 
         // Stats cards
-        echo '<div style="max-width:1100px">';
+        echo '<div class="tso-max-w-1100">';
         echo '<div id="tso-cleanup-flash" aria-live="polite">';
         if ( '' !== $tso_cleanup_flash_notice ) {
             echo $tso_cleanup_flash_notice; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built with esc_html above
@@ -246,8 +360,8 @@ function tsootc_page() {
 
         // Card especial: total KB alliberat (acumulat)
         if ( $saved_bytes > 0 ) {
-            echo '<div class="tso-stat-card color-green" style="border:2px solid #46b450;position:relative" title="' . esc_attr( tsootc_ui_triple_text( $lang, 'Espai total alliberat des de la instal·lació del plugin', 'Espacio total liberado desde la instalación del plugin', 'Total space freed since this plugin was installed' ) ) . '">';
-            echo '<div class="tso-stat-value" style="font-size:18px">' . esc_html( tsootc_format_bytes( $saved_bytes ) ) . '</div>';
+            echo '<div class="tso-stat-card color-green tso-stat-card--highlight" title="' . esc_attr( tsootc_ui_triple_text( $lang, 'Espai total alliberat des de la instal·lació del plugin', 'Espacio total liberado desde la instalación del plugin', 'Total space freed since this plugin was installed' ) ) . '">';
+            echo '<div class="tso-stat-value tso-stat-value-sm">' . esc_html( tsootc_format_bytes( $saved_bytes ) ) . '</div>';
             echo '<div class="tso-stat-label">' . esc_html( $saved_label ) . '</div>';
             echo '</div>';
         }
@@ -263,28 +377,28 @@ function tsootc_page() {
             $is_zero = ( $a['count'] === 0 );
             echo '<div class="tso-action-card" data-cleanup-action="' . esc_attr( (string) $a['key'] ) . '">';
             echo '<div class="tso-action-header">';
-            echo '<span style="font-size:20px">' . esc_html( (string) $a['icon'] ) . '</span>';
+            echo '<span class="tso-icon-20">' . esc_html( (string) $a['icon'] ) . '</span>';
             echo '<span class="tso-action-title">' . esc_html( (string) $a['title'] ) . '</span>';
             echo '<span class="tso-risk-badge tso-risk-' . esc_attr( (string) $a['risk'] ) . '">' . esc_html( (string) $a['risk_label'] ) . '</span>';
             echo '</div>';
             echo '<div class="tso-action-count' . ( $is_zero ? ' zero' : '' ) . '">' . esc_html( (string) $a['count'] ) . ( $is_zero ? esc_html( __( ' — already clean', 'tso-options-tables-cleaner' ) ) : esc_html( __( ' entries', 'tso-options-tables-cleaner' ) ) ) . '</div>';
             echo '<div class="tso-action-desc">' . esc_html( (string) $a['desc'] ) . '</div>';
             echo '<div class="tso-action-btn">';
-            echo '<form method="post" class="tso-cleanup-form" style="margin:0" data-cleanup-action="' . esc_attr( (string) $a['key'] ) . '">';
+            echo '<form method="post" class="tso-cleanup-form tso-m0" data-cleanup-action="' . esc_attr( (string) $a['key'] ) . '">';
             wp_nonce_field( TSOOTC_NONCE_FORM );
             echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="' . esc_attr( (string) $a['key'] ) . '">';
             echo '<input type="hidden" name="tab" value="cleanup">';
             if ( ! empty( $a['requires_days'] ) ) {
-                echo '<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:#555">';
+                echo '<label class="tso-retention-label">';
                 echo '<span>' . esc_html( __( 'Older than (days):', 'tso-options-tables-cleaner' ) ) . '</span>';
-                echo '<input type="number" min="1" max="3650" name="retention_days[' . esc_attr( (string) $a['key'] ) . ']" value="' . esc_attr( (string) $a['days'] ) . '" style="width:90px">';
+                echo '<input type="number" min="1" max="3650" name="retention_days[' . esc_attr( (string) $a['key'] ) . ']" value="' . esc_attr( (string) $a['days'] ) . '" class="tso-retention-input">';
                 echo '</label>';
             }
             $btn_label = '🗑️ ' . (string) $a['title'];
             if ( $is_zero ) {
-                echo '<button type="submit" class="button button-disabled tso-cleanup-submit" disabled data-label="' . esc_attr( $btn_label ) . '" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '" style="width:100%;text-align:center">' . esc_html( __( '✅ Nothing to clean', 'tso-options-tables-cleaner' ) ) . '</button>';
+                echo '<button class="button button-disabled tso-cleanup-submit tso-btn-block" type="submit" disabled data-label="' . esc_attr( $btn_label ) . '" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '">' . esc_html( __( '✅ Nothing to clean', 'tso-options-tables-cleaner' ) ) . '</button>';
             } else {
-                echo '<button type="submit" class="button button-primary tso-cleanup-submit" data-label="' . esc_attr( $btn_label ) . '" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '" style="width:100%;text-align:center">' . esc_html( $btn_label ) . '</button>';
+                echo '<button class="button button-primary tso-cleanup-submit tso-btn-block" type="submit" data-label="' . esc_attr( $btn_label ) . '" data-confirm="' . esc_attr( (string) $a['confirm'] ) . '">' . esc_html( $btn_label ) . '</button>';
             }
             echo '</form>';
             echo '</div>';
@@ -294,26 +408,26 @@ function tsootc_page() {
         // Targeta especial: Optimize Table (AJAX)
         $total_free_kb   = isset( $optimize_frag_hints['free_kb_hint'] ) ? (int) $optimize_frag_hints['free_kb_hint'] : 0;
         $optimize_status = $total_free_kb > 0
-            ? '<span style="color:#c07000;font-weight:700">⚠️ ' . number_format( $total_free_kb ) . ' KB ' . esc_html( tsootc_ui_triple_text( $lang, 'fragmentats', 'fragmentados', 'fragmented' ) ) . '</span>'
-            : '<span style="color:#46b450;font-weight:700">✅ ' . esc_html( tsootc_ui_triple_text( $lang, 'Sense fragmentació', 'Sin fragmentación', 'No fragmentation' ) ) . '</span>';
+            ? '<span class="tso-text-warn-strong">⚠️ ' . number_format( $total_free_kb ) . ' KB ' . esc_html( tsootc_ui_triple_text( $lang, 'fragmentats', 'fragmentados', 'fragmented' ) ) . '</span>'
+            : '<span class="tso-text-success-strong">✅ ' . esc_html( tsootc_ui_triple_text( $lang, 'Sense fragmentació', 'Sin fragmentación', 'No fragmentation' ) ) . '</span>';
         $optimize_sub = $total_free_kb > 0 && ! empty( $optimize_frag_hints['frag_preview'] )
             ? (string) $optimize_frag_hints['frag_preview']
             : tsootc_ui_triple_text( $lang, 'Cap taula amb espai lliure estimat (DATA_FREE)', 'Ninguna tabla con espacio libre estimado (DATA_FREE)', 'No tables with estimated free space (DATA_FREE)' );
 
         echo '<div class="tso-action-card">';
         echo '<div class="tso-action-header">';
-        echo '<span style="font-size:20px">🔧</span>';
+        echo '<span class="tso-icon-20">🔧</span>';
         echo '<span class="tso-action-title">' . esc_html( __( 'Optimize fragmented tables', 'tso-options-tables-cleaner' ) ) . '</span>';
         echo '<span class="tso-risk-badge tso-risk-blue">' . esc_html( __( 'ℹ️ Maintenance', 'tso-options-tables-cleaner' ) ) . '</span>';
         echo '</div>';
-        echo '<div class="tso-action-count" style="font-size:16px"><span id="tso-optimize-frag-status">' . $optimize_status . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-        echo '<div style="font-size:11px;color:#888;margin-bottom:6px" id="tso-optimize-frag-sub">' . esc_html( $optimize_sub ) . '</div>';
+        echo '<div class="tso-action-count tso-action-count-sm"><span id="tso-optimize-frag-status">' . $optimize_status . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo '<div class="tso-optimize-sub" id="tso-optimize-frag-sub">' . esc_html( $optimize_sub ) . '</div>';
         echo '<div class="tso-action-desc">' . esc_html( __( 'Runs OPTIMIZE TABLE only on tables with estimated free space (DATA_FREE). On InnoDB this is a hint, not guaranteed disk reclaim. Can lock tables briefly.', 'tso-options-tables-cleaner' ) ) . '</div>';
         echo '<div class="tso-action-btn">';
-        echo '<button id="tso-btn-optimize" class="button button-primary" style="width:100%;text-align:center" onclick="tsootcRunOptimize()">' . esc_html( __( '🔧 Optimize fragmented tables', 'tso-options-tables-cleaner' ) ) . '</button>';
+        echo '<button id="tso-btn-optimize" class="button button-primary tso-btn-block" data-tso-click="run-optimize">' . esc_html( __( '🔧 Optimize fragmented tables', 'tso-options-tables-cleaner' ) ) . '</button>';
         echo '</div>';
         echo '<div id="tso-optimize-results">';
-        echo '<div id="tso-optimize-header" style="display:none"></div>';
+        echo '<div id="tso-optimize-header" class="tso-u-hidden"></div>';
         echo '<div id="tso-optimize-summary"></div>';
         echo '<div id="tso-optimize-rows"></div>';
         echo '</div>';
@@ -321,7 +435,7 @@ function tsootc_page() {
 
         echo '</div>'; // .tso-actions-grid
 
-        echo '<p style="color:#888;font-size:12px;margin-top:16px">' . wp_kses_post( __( '🟢 Safe: no risk &nbsp;·&nbsp; 🟡 Caution: review first &nbsp;·&nbsp; Make a <strong>backup</strong> before any bulk cleanup. Do <strong>LiteSpeed Purge All</strong> afterwards.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '<p class="tso-cleanup-footnote">' . wp_kses_post( __( '🟢 Safe: no risk &nbsp;·&nbsp; 🟡 Caution: review first &nbsp;·&nbsp; Make a <strong>backup</strong> before any bulk cleanup. Do <strong>LiteSpeed Purge All</strong> afterwards.', 'tso-options-tables-cleaner' ) ) . '</p>';
 
         // ---- Secció: Neteja automàtica ----
         if ( function_exists( 'tsootc_auto_clean_ensure_schedule' ) ) {
@@ -330,40 +444,40 @@ function tsootc_page() {
         $last_run      = (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RUN, 0 );
         $last_results  = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RESULTS, array() );
         $next_run      = wp_next_scheduled( 'tsootc_auto_clean_cron_hook' );
-        echo '<div style="background:#fff;border:1px solid #e2e4e7;border-radius:8px;padding:20px 24px;margin-top:24px;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-        echo '<h3 style="margin:0 0 14px;font-size:15px">' . esc_html( __( '⏰ Scheduled automatic cleanup', 'tso-options-tables-cleaner' ) ) . '</h3>';
+        echo '<div class="tso-card-panel tso-card-panel--mt24">';
+        echo '<h3 class="tso-card-title">' . esc_html( __( '⏰ Scheduled automatic cleanup', 'tso-options-tables-cleaner' ) ) . '</h3>';
 
-        echo '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;font-size:13px;color:#555">';
+        echo '<div class="tso-auto-meta-row">';
         if ( $last_run ) {
             echo '<span id="tso-auto-last-wrap" data-ts="' . esc_attr( (string) $last_run ) . '">📅 ' . esc_html( __( 'Last run', 'tso-options-tables-cleaner' ) ) . ': <strong id="tso-auto-last-value">' . esc_html( date_i18n( get_option( 'date_format' ) . ' H:i', $last_run ) ) . '</strong></span>';
         }
         if ( $next_run ) {
             echo '<span id="tso-auto-next-wrap" data-ts="' . esc_attr( (string) $next_run ) . '">⏭️ ' . esc_html( __( 'Next', 'tso-options-tables-cleaner' ) ) . ': <strong id="tso-auto-next-value">' . esc_html( date_i18n( get_option( 'date_format' ) . ' H:i', $next_run ) ) . '</strong></span>';
         } else {
-            echo '<span id="tso-auto-next-wrap" data-ts="0" style="display:none">⏭️ ' . esc_html( __( 'Next', 'tso-options-tables-cleaner' ) ) . ': <strong id="tso-auto-next-value"></strong></span>';
+            echo '<span id="tso-auto-next-wrap" data-ts="0" class="tso-u-hidden">⏭️ ' . esc_html( __( 'Next', 'tso-options-tables-cleaner' ) ) . ': <strong id="tso-auto-next-value"></strong></span>';
         }
         if ( empty( $auto_cfg['enabled'] ) ) {
-            echo '<span id="tso-auto-off-wrap" style="color:#999">⏸️ ' . esc_html( __( 'Not scheduled', 'tso-options-tables-cleaner' ) ) . '</span>';
+            echo '<span id="tso-auto-off-wrap" class="tso-auto-off-text">⏸️ ' . esc_html( __( 'Not scheduled', 'tso-options-tables-cleaner' ) ) . '</span>';
         } else {
-            echo '<span id="tso-auto-off-wrap" style="color:#999;display:none">⏸️ ' . esc_html( __( 'Not scheduled', 'tso-options-tables-cleaner' ) ) . '</span>';
+            echo '<span id="tso-auto-off-wrap" class="tso-auto-off-text tso-u-hidden">⏸️ ' . esc_html( __( 'Not scheduled', 'tso-options-tables-cleaner' ) ) . '</span>';
         }
         echo '</div>';
 
         if ( ! empty( $last_results ) && is_array( $last_results ) ) {
-            echo '<div style="margin-bottom:16px;padding:12px 14px;background:#f6f7f7;border:1px solid #dcdcde;border-radius:6px">';
-            echo '<div style="font-size:12px;font-weight:600;margin-bottom:8px">' . esc_html( tsootc_ui_triple_text( $lang, 'Últims resultats', 'Últimos resultados', 'Last results' ) ) . '</div>';
-            echo '<ul style="margin:0;padding-left:18px">';
+            echo '<div class="tso-auto-results-box">';
+            echo '<div class="tso-auto-results-title">' . esc_html( tsootc_ui_triple_text( $lang, 'Últims resultats', 'Últimos resultados', 'Last results' ) ) . '</div>';
+            echo '<ul class="tso-auto-results-list">';
             foreach ( $last_results as $result_line ) {
-                echo '<li style="margin:0 0 4px;color:#50575e">' . esc_html( (string) $result_line ) . '</li>';
+                echo '<li class="tso-auto-result-li">' . esc_html( (string) $result_line ) . '</li>';
             }
             echo '</ul>';
             echo '</div>';
         }
 
-        echo '<div style="display:flex;flex-direction:column;gap:12px">';
+        echo '<div class="tso-auto-col">';
 
         $enabled_checked = ! empty( $auto_cfg['enabled'] ) ? ' checked' : '';
-        echo '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">';
+        echo '<label class="tso-auto-label-row">';
         echo '<input type="checkbox" id="tso-auto-enabled"' . esc_attr( $enabled_checked ) . '>';
         echo '<strong>' . esc_html( __( 'Enable automatic cleanup', 'tso-options-tables-cleaner' ) ) . '</strong>';
         echo '</label>';
@@ -383,8 +497,8 @@ function tsootc_page() {
         echo '</select>';
         echo '</div>';
 
-        echo '<div style="font-size:13px"><strong>' . esc_html( __( 'Actions to run:', 'tso-options-tables-cleaner' ) ) . '</strong>';
-        echo '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;margin-top:8px">';
+        echo '<div class="tso-notice-text"><strong>' . esc_html( __( 'Actions to run:', 'tso-options-tables-cleaner' ) ) . '</strong>';
+        echo '<div class="tso-auto-actions-grid">';
         foreach ( $actions as $scheduled_action ) {
             $act_key    = (string) $scheduled_action['key'];
             $chk        = in_array( $act_key, (array) $auto_cfg['actions'], true ) ? ' checked' : '';
@@ -404,18 +518,18 @@ function tsootc_page() {
                     ? '0' . __( ' — already clean', 'tso-options-tables-cleaner' )
                     : (string) $scheduled_action['count'] . __( ' entries', 'tso-options-tables-cleaner' );
             }
-            echo '<label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;cursor:pointer;border:1px solid #e2e4e7;border-radius:6px;padding:8px 10px;background:#fafafa">';
-            echo '<input type="checkbox" class="tso-auto-action" value="' . esc_attr( $act_key ) . '"' . esc_attr( $chk ) . ' style="margin-top:2px">';
-            echo '<span style="display:flex;flex-direction:column;gap:4px;flex:1">';
-            echo '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+            echo '<label class="tso-auto-label-col">';
+            echo '<input class="tso-auto-action tso-auto-label-col-input" type="checkbox" value="' . esc_attr( $act_key ) . '"' . esc_attr( $chk ) . '>';
+            echo '<span class="tso-auto-label-inner">';
+            echo '<span class="tso-auto-label-head">';
             echo '<span>' . esc_html( (string) $scheduled_action['icon'] . ' ' . (string) $scheduled_action['title'] ) . '</span>';
-            echo '<span class="tso-risk-badge tso-risk-' . esc_attr( (string) $scheduled_action['risk'] ) . '" style="font-size:10px">' . esc_html( (string) $scheduled_action['risk_label'] ) . '</span>';
+            echo '<span class="tso-risk-badge tso-risk-' . esc_attr( (string) $scheduled_action['risk'] ) . ' tso-auto-risk-sm">' . esc_html( (string) $scheduled_action['risk_label'] ) . '</span>';
             echo '</span>';
-            echo '<span class="tso-auto-action-count" data-cleanup-action="' . esc_attr( $act_key ) . '" style="font-size:11px;color:#666">' . esc_html( $count_text ) . '</span>';
+            echo '<span class="tso-auto-action-count tso-auto-count-sm" data-cleanup-action="' . esc_attr( $act_key ) . '">' . esc_html( $count_text ) . '</span>';
             if ( ! empty( $scheduled_action['requires_days'] ) ) {
-                echo '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#555">';
+                echo '<span class="tso-auto-retention-row">';
                 echo '<span>' . esc_html( __( 'Older than', 'tso-options-tables-cleaner' ) ) . '</span>';
-                echo '<input type="number" min="1" max="3650" class="tso-auto-retention" data-retention-key="' . esc_attr( $act_key ) . '" value="' . esc_attr( (string) $scheduled_action['days'] ) . '" style="width:78px;font-size:11px">';
+                echo '<input class="tso-auto-retention tso-auto-retention-input" type="number" min="1" max="3650" data-retention-key="' . esc_attr( $act_key ) . '" value="' . esc_attr( (string) $scheduled_action['days'] ) . '">';
                 echo '<span>' . esc_html( __( 'days', 'tso-options-tables-cleaner' ) ) . '</span>';
                 echo '</span>';
             }
@@ -425,14 +539,14 @@ function tsootc_page() {
         echo '</div></div>';
 
         $email_checked = ! empty( $auto_cfg['email'] ) ? ' checked' : '';
-        echo '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">';
+        echo '<label class="tso-auto-label-row">';
         echo '<input type="checkbox" id="tso-auto-email"' . esc_attr( $email_checked ) . '>';
         echo esc_html( __( 'Send notification email to ', 'tso-options-tables-cleaner' ) ) . '<strong>' . esc_html( get_option( 'admin_email' ) ) . '</strong>';
         echo '</label>';
 
-        echo '<div style="display:flex;align-items:center;gap:12px">';
-        echo '<button class="button button-primary" onclick="tsootcSaveAutoclean()">💾 ' . esc_html( __( 'Save settings', 'tso-options-tables-cleaner' ) ) . '</button>';
-        echo '<span id="tso-auto-msg" style="font-size:12px;color:#666"></span>';
+        echo '<div class="tso-auto-save-row">';
+        echo '<button class="button button-primary" data-tso-click="save-autoclean">💾 ' . esc_html( __( 'Save settings', 'tso-options-tables-cleaner' ) ) . '</button>';
+        echo '<span id="tso-auto-msg" class="tso-notice-text-sm"></span>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -545,8 +659,8 @@ function tsootc_page() {
             ),
             admin_url( 'tools.php' )
         );
-        echo '<div class="notice notice-info" style="margin:12px 0;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">';
-        echo '<span style="font-size:13px">';
+        echo '<div class="notice notice-info tso-notice-flex">';
+        echo '<span class="tso-notice-text">';
         if ( $opts_from_cache ) {
             echo esc_html(
                 tsootc_ui_triple_text(
@@ -570,7 +684,7 @@ function tsootc_page() {
         $cache_write = function_exists( 'tsootc_options_tab_get_last_write_result' ) ? tsootc_options_tab_get_last_write_result() : null;
         $cache_file  = function_exists( 'tsootc_options_tab_cache_file_path' ) ? tsootc_options_tab_cache_file_path() : '';
         if ( $opts_from_cache && is_file( $cache_file ) ) {
-            echo '<span style="font-size:12px;color:#666">';
+            echo '<span class="tso-notice-text-sm">';
             echo esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -584,7 +698,7 @@ function tsootc_page() {
             && function_exists( 'tsootc_options_tab_cache_option_key' )
             && is_string( tsootc_get_stored_option( tsootc_options_tab_cache_option_key(), '' ) )
             && '' !== tsootc_get_stored_option( tsootc_options_tab_cache_option_key(), '' ) ) {
-            echo '<span style="font-size:12px;color:#666">';
+            echo '<span class="tso-notice-text-sm">';
             echo esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -595,7 +709,7 @@ function tsootc_page() {
             );
             echo '</span>';
         } elseif ( $opts_from_cache && tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD ) ) {
-            echo '<span style="font-size:12px;color:#856404">';
+            echo '<span class="tso-notice-text-sm tso-text-alert">';
             echo esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -606,7 +720,7 @@ function tsootc_page() {
             );
             echo '</span>';
         } elseif ( is_array( $cache_write ) && ! empty( $cache_write['ok'] ) && 'option' === ( $cache_write['storage'] ?? '' ) ) {
-            echo '<span style="font-size:12px;color:#666">';
+            echo '<span class="tso-notice-text-sm">';
             echo esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -617,7 +731,7 @@ function tsootc_page() {
             );
             echo '</span>';
         } elseif ( is_array( $cache_write ) && ! empty( $cache_write['ok'] ) && 'transient' === ( $cache_write['storage'] ?? '' ) ) {
-            echo '<span style="font-size:12px;color:#856404">';
+            echo '<span class="tso-notice-text-sm tso-text-alert">';
             echo esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -628,11 +742,11 @@ function tsootc_page() {
             );
             echo '</span>';
         } elseif ( is_array( $cache_write ) && empty( $cache_write['ok'] ) && ! empty( $cache_write['error'] ) ) {
-            echo '<span style="font-size:12px;color:#b32d2e">';
+            echo '<span class="tso-notice-text-sm tso-text-error">';
             echo esc_html( (string) $cache_write['error'] );
             echo '</span>';
         } elseif ( ! $opts_from_cache && function_exists( 'tsootc_get_options_tab_cache_rel_dir' ) ) {
-            echo '<span style="font-size:12px;color:#666">';
+            echo '<span class="tso-notice-text-sm">';
             echo esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -692,7 +806,7 @@ function tsootc_page() {
             tsootc_ui_triple_text( $lang, 'Netejables si no els uses', 'Limpiables si no los usas', 'Safe to clean if you do not use them' )
         );
         tsootc_render_opts_summary_stat(
-            '<span style="color:' . esc_attr( $auto_color ) . '">' . esc_html( $s['autoload_kb'] ) . ' KB</span>',
+            '<span class="' . esc_attr( $auto_class ) . '">' . esc_html( $s['autoload_kb'] ) . ' KB</span>',
             '',
             '&#128202; AUTOLOAD',
             (int) $n_total . ' ' . tsootc_ui_triple_text( $lang, 'opcions totals', 'opciones totales', 'total options' ),
@@ -801,12 +915,12 @@ function tsootc_page() {
 
 
             echo '<div class="tso-al-panel tso-al-severity-' . esc_attr( $al_severity ) . '">';
-            echo '<div class="tso-al-head" onclick="tsootcAlToggle()">';
+            echo '<div class="tso-al-head" data-tso-click="al-toggle">';
             echo '<div class="tso-al-total">' . esc_html( $al_total_kb ) . ' KB</div>';
             echo '<div class="tso-al-head-title">';
             echo '<strong>' . esc_html( __( '📊 Autoload Diagnosis', 'tso-options-tables-cleaner' ) ) . '</strong>';
             echo '<span>' . esc_html( __( 'Which entries make up the total?', 'tso-options-tables-cleaner' ) ) . '</span>';
-            echo '<div style="font-size:11px;color:#aaa;margin-top:2px">';
+            echo '<div class="tso-al-subnote">';
             /* translators: %d: number of entries analyzed */
             echo esc_html( sprintf( __( '%d entries analyzed', 'tso-options-tables-cleaner' ), $al_top_count ) );
             if ( $al_analyzed_kb < $al_total_kb ) {
@@ -835,12 +949,12 @@ function tsootc_page() {
                     $g_pct_clr = $g_pct >= 20 ? '#dc3232' : ( $g_pct >= 8 ? '#c07000' : '#aaa' );
 
                     echo '<div class="tso-al-group">';
-                    echo '<div class="tso-al-group-head" onclick="tsootcAlGrpToggle(\'' . esc_attr( $g_id ) . '\')">';
+                    echo '<div class="tso-al-group-head" data-tso-click="al-grp-toggle" data-tso-arg="' . esc_attr( $g_id ) . '">';
                     echo '<div class="tso-al-group-name" title="' . esc_attr( $g_name ) . '">' . esc_html( $g_name ) . '</div>';
-                    echo '<div class="tso-al-bar-wrap"><div class="tso-al-bar ' . esc_attr( $g_color ) . '" style="width:' . esc_attr( $g_bar_w ) . '%"></div></div>';
-                    echo '<div class="tso-al-group-kb" style="color:' . esc_attr( $g_clr ) . '">' . esc_html( $g_kb_str ) . '</div>';
-                    echo '<div class="tso-al-group-pct" style="color:' . esc_attr( $g_pct_clr ) . '">' . esc_html( $g_pct ) . '%</div>';
-                    echo '<div style="color:#bbb;font-size:11px;min-width:14px" id="' . esc_attr( $g_id ) . '-arrow">▶</div>';
+                    echo '<div class="tso-al-bar-wrap"><div class="tso-al-bar ' . esc_attr( $g_color ) . '" data-bar-width="' . esc_attr( $g_bar_w ) . '"></div></div>';
+                    echo '<div class="tso-al-group-kb ' . esc_attr( tsootc_pct_severity_class( $g_pct ) ) . '">' . esc_html( $g_kb_str ) . '</div>';
+                    echo '<div class="tso-al-group-pct ' . esc_attr( tsootc_pct_label_class( $g_pct ) ) . '">' . esc_html( $g_pct ) . '%</div>';
+                    echo '<div class="tso-al-arrow" id="' . esc_attr( $g_id ) . '-arrow">▶</div>';
                     echo '</div>';
 
                     echo '<div class="tso-al-items" id="' . esc_attr( $g_id ) . '">';
@@ -871,12 +985,12 @@ function tsootc_page() {
                 $g_pct_clr = $g_pct >= 20 ? '#dc3232' : ( $g_pct >= 8 ? '#c07000' : '#aaa' );
 
                 echo '<div class="tso-al-group">';
-                echo '<div class="tso-al-group-head" onclick="tsootcAlGrpToggle(\'' . esc_attr( $g_id ) . '\')"> ';
+                echo '<div class="tso-al-group-head" data-tso-click="al-grp-toggle" data-tso-arg="' . esc_attr( $g_id ) . '"> ';
                 echo '<div class="tso-al-group-name" title="' . esc_attr( $g_name ) . '">' . esc_html( $g_name ) . '</div>';
-                echo '<div class="tso-al-bar-wrap"><div class="tso-al-bar ' . esc_attr( $g_color ) . '" style="width:' . esc_attr( $g_bar_w ) . '%"></div></div>';
-                echo '<div class="tso-al-group-kb" style="color:' . esc_attr( $g_clr ) . '">' . esc_html( $g_kb_str ) . '</div>';
-                echo '<div class="tso-al-group-pct" style="color:' . esc_attr( $g_pct_clr ) . '">' . esc_html( $g_pct ) . '%</div>';
-                echo '<div style="color:#bbb;font-size:11px;min-width:14px" id="' . esc_attr( $g_id ) . '-arrow">▶</div>';
+                echo '<div class="tso-al-bar-wrap"><div class="tso-al-bar ' . esc_attr( $g_color ) . '" data-bar-width="' . esc_attr( $g_bar_w ) . '"></div></div>';
+                echo '<div class="tso-al-group-kb ' . esc_attr( tsootc_pct_severity_class( $g_pct ) ) . '">' . esc_html( $g_kb_str ) . '</div>';
+                echo '<div class="tso-al-group-pct ' . esc_attr( tsootc_pct_label_class( $g_pct ) ) . '">' . esc_html( $g_pct ) . '%</div>';
+                echo '<div class="tso-al-arrow" id="' . esc_attr( $g_id ) . '-arrow">▶</div>';
                 echo '</div>'; // .tso-al-group-head
 
                 echo '<div class="tso-al-items" id="' . esc_attr( $g_id ) . '">';
@@ -887,7 +1001,7 @@ function tsootc_page() {
 
                     echo '<div class="tso-al-item">';
                     echo '<div class="tso-al-item-name">' . esc_html( $item['name'] ) . '</div>';
-                    echo '<div class="tso-al-item-bar-wrap"><div class="tso-al-item-bar" style="width:' . esc_attr( $i_bar_w ) . '%"></div></div>';
+                    echo '<div class="tso-al-item-bar-wrap"><div class="tso-al-item-bar" data-bar-width="' . esc_attr( $i_bar_w ) . '"></div></div>';
                     echo '<div class="tso-al-item-kb">' . esc_html( $i_kb_str ) . '</div>';
                     echo '<div class="tso-al-item-pct">' . esc_html( $i_pct ) . '%</div>';
                     echo '</div>'; // .tso-al-item
@@ -906,13 +1020,13 @@ function tsootc_page() {
         // ---- Filtres live (sense recàrrega) ----
         echo '<div class="tso-filter-row">';
         echo '<input type="text" id="tso-opts-search" placeholder="' . esc_attr( __( '🔍 Search option...', 'tso-options-tables-cleaner' ) ) . '"'
-           . ' value="' . esc_attr( $filter_search ) . '" oninput="tsootcFilterOpts()" style="flex:1;min-width:160px">';
-        echo '<select id="tso-opts-autoload" onchange="tsootcFilterOpts()" style="font-size:12px">';
+           . ' value="' . esc_attr( $filter_search ) . '" data-tso-input="filter-opts" class="tso-filter-input-flex">';
+        echo '<select id="tso-opts-autoload" data-tso-change="filter-opts" class="tso-cron-code">';
         echo '<option value="">' . esc_html( __( 'Autoload: all', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="on"' . ( $filter_autoload === 'on' ? ' selected' : '' ) . '>autoload on</option>';
         echo '<option value="off"' . ( $filter_autoload === 'off' ? ' selected' : '' ) . '>autoload off</option>';
         echo '</select>';
-        echo '<select id="tso-opts-safety" onchange="tsootcFilterOpts()" style="font-size:12px">';
+        echo '<select id="tso-opts-safety" data-tso-change="filter-opts" class="tso-cron-code">';
         echo '<option value="">' . esc_html( __( 'Safety: all', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="unknown"'  . selected( $filter_safety, 'unknown',  false ) . '>' . esc_html( __( '❓ Unknown', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="inactive"' . selected( $filter_safety, 'inactive', false ) . '>' . esc_html( __( '✅ Inactive plugin (cleanable)', 'tso-options-tables-cleaner' ) ) . '</option>';
@@ -946,7 +1060,7 @@ function tsootc_page() {
             ),
             $base_url
         );
-        echo '<a href="' . esc_url( $refresh_url ) . '" class="button button-primary" style="margin-left:auto">'
+        echo '<a href="' . esc_url( $refresh_url ) . '" class="button button-primary tso-btn-ml-auto">'
             . esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -1057,33 +1171,28 @@ function tsootc_page() {
                     && $group_name === tsootc_get_freemius_group_label()
                 );
 
-            // Color de la bora i comportament per defecte
+            // Group border + status label (CSS classes, no inline styles).
             if ( $is_uninstalled ) {
-                $border_color  = '#c00000';
                 $default_open  = true;
                 $status_label  = function_exists( 'tsootc_get_uninstalled_group_badge_html' )
                     ? tsootc_get_uninstalled_group_badge_html( $lang )
-                    : '<span style="color:#c00000;font-weight:800">' . esc_html( (string) $group_data['status'] ) . '</span>';
+                    : '<span class="tso-status-removed">' . esc_html( (string) $group_data['status'] ) . '</span>';
                 $wrapper_class = 'tso-plugin-group tso-uninstalled-group';
             } elseif ( $is_unknown_group ) {
-                $border_color  = '#e07070';
-                $default_open  = true; // sense detectar: desplegat per defecte per facilitar la revisió
-                $status_label  = '<span style="color:#c00;font-weight:700">❓ ' . esc_html( tsootc_ui_triple_text( $lang, 'Sense detectar', 'Sin detectar', 'Undetected' ) ) . '</span>';
+                $default_open  = true;
+                $status_label  = '<span class="tso-status-undetected">❓ ' . esc_html( tsootc_ui_triple_text( $lang, 'Sense detectar', 'Sin detectar', 'Undetected' ) ) . '</span>';
                 $wrapper_class = 'tso-plugin-group tso-unknown-group';
             } elseif ( $group_name === '__core__' ) {
-                $border_color  = '#b0c8e0';
                 $default_open  = false;
-                $status_label  = '<span style="color:#0075be;font-weight:600">🔒 Core WP</span>';
-                $wrapper_class = 'tso-plugin-group';
+                $status_label  = '<span class="tso-status-core">🔒 Core WP</span>';
+                $wrapper_class = 'tso-plugin-group tso-core-group';
             } elseif ( $group_name === $widgets_group_key ) {
-                $border_color  = '#9cb8d4';
                 $default_open  = false;
-                $status_label  = '<span style="color:#0075be;font-weight:600">📦 ' . esc_html( $widgets_group_label ) . '</span>';
+                $status_label  = '<span class="tso-status-core">📦 ' . esc_html( $widgets_group_label ) . '</span>';
                 $wrapper_class = 'tso-plugin-group tso-widgets-group';
             } elseif ( $is_freemius_group ) {
-                $border_color  = '#b0c8e0';
                 $default_open  = false;
-                $status_label  = '<span style="color:#9a6700;font-weight:600">⚠️ '
+                $status_label  = '<span class="tso-status-hosting-warn">⚠️ '
                     . esc_html(
                         tsootc_ui_triple_text(
                             $lang,
@@ -1095,24 +1204,23 @@ function tsootc_page() {
                     . '</span>';
                 $wrapper_class = 'tso-plugin-group tso-freemius-group';
             } elseif ( $is_inactive ) {
-                $border_color  = '#e0b070';
-                $default_open  = false; // inactius col·lapsats per defecte
-                $status_label  = '<span style="color:#c07000;font-weight:600">' . esc_html( (string) $group_data['status'] ) . '</span>';
-                $wrapper_class = 'tso-plugin-group';
-            } else {
-                $border_color  = '#ddd';
                 $default_open  = false;
-                $status_label  = '<span style="color:' . esc_attr( (string) $group_data['status_color'] ) . ';font-weight:600">' . esc_html( (string) $group_data['status'] ) . '</span>';
+                $status_label  = '<span class="tso-status-inactive">' . esc_html( (string) $group_data['status'] ) . '</span>';
+                $wrapper_class = 'tso-plugin-group tso-inactive-group';
+            } else {
+                $default_open  = false;
+                $status_class  = tsootc_status_hex_class( (string) $group_data['status_color'] );
+                $status_label  = '<span class="' . esc_attr( $status_class ) . '">' . esc_html( (string) $group_data['status'] ) . '</span>';
                 $wrapper_class = 'tso-plugin-group';
             }
 
             $head_class = 'tso-plugin-group-head' . ( $default_open ? ' open' : '' );
             $body_class = 'tso-plugin-group-body' . ( $default_open ? ' open' : '' );
 
-            echo '<div class="' . esc_attr( $wrapper_class ) . '" style="border-left:3px solid ' . esc_attr( $border_color ) . '" id="wrapper-' . esc_attr( $group_id ) . '">';
+            echo '<div class="' . esc_attr( $wrapper_class ) . '" id="wrapper-' . esc_attr( $group_id ) . '">';
 
             // Capçalera del grup
-            echo '<div class="' . esc_attr( $head_class ) . '" onclick="tsootcToggleGroup(this,event)">';
+            echo '<div class="' . esc_attr( $head_class ) . '" data-tso-click="toggle-group">';
             echo '<span class="tso-arrow">▶</span>';
             echo '<span class="grp-name" id="grp-title-' . esc_attr( $group_id ) . '" data-gkey="' . esc_attr( $group_name ) . '">' . esc_html( $display_name ) . '</span>';
             // Botó renombrar just al costat del títol (no per a __unknown__ ni __core__)
@@ -1123,9 +1231,8 @@ function tsootc_page() {
                     . ' data-gkey="' . esc_attr( $group_name ) . '"'
                     . ' data-gid="' . esc_attr( $group_id ) . '"'
                     . ' data-gname="' . esc_attr( $display_name ) . '"'
-                    . ' onclick="event.stopPropagation();tsootcOpenRenameGroup(this.dataset.gkey,this.dataset.gid,this.dataset.gname)"'
-                    . ' class="button button-small tso-rename-btn' . ( $has_alias ? ' has-alias' : '' ) . '"'
-                    . ' style="font-size:10px;padding:1px 6px;min-height:20px;line-height:1;margin-left:4px">✏️</button>';
+                    . ' data-tso-click="open-rename-group" data-tso-stop-propagation="1"'
+                    . ' class="button button-small tso-rename-btn tso-rename-btn-sm' . ( $has_alias ? ' has-alias' : '' ) . '">✏️</button>';
             }
             echo '<span class="grp-status">' . $status_label . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             if ( ! empty( $group_data['is_mixed_group'] ) ) {
@@ -1157,18 +1264,18 @@ function tsootc_page() {
             }
             echo '<span class="grp-meta">' . count( $items_all ) . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'entrades', 'entradas', 'entries' ) ) . ' · ' . esc_html( $grp_fmt ) . '</span>';
             if ( $can_delete ) {
-                echo '<button type="button" onclick="event.stopPropagation();tsootcAssignSelected(\'' . esc_js( $bulk_form_id ) . '\')" '
-                   . 'class="button button-small" style="color:#007cba;border-color:#007cba;background:#fff;font-size:11px;margin-right:6px">'
+                echo '<button type="button" data-tso-click="assign-selected" data-tso-stop-propagation="1" data-tso-form-id="' . esc_attr( $bulk_form_id ) . '" '
+                   . 'class="button button-small tso-btn-primary-outline">'
                    . '➕ ' . esc_html( tsootc_ui_triple_text( $lang, 'Assignar sel.', 'Asignar sel.', 'Assign selected' ) ) . '</button>';
-                echo '<button type="button" onclick="event.stopPropagation();tsootcDeleteSelected(\'' . esc_js( $bulk_form_id ) . '\')" '
-                   . 'class="button button-small" style="color:#dc3232;border-color:#dc3232;background:#fff;font-size:11px">'
+                echo '<button type="button" data-tso-click="delete-selected" data-tso-stop-propagation="1" data-tso-form-id="' . esc_attr( $bulk_form_id ) . '" '
+                   . 'class="button button-small tso-btn-danger-outline">'
                    . '🗑️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Eliminar sel.', 'Eliminar sel.', 'Delete selected' ) ) . '</button>';
             }
             echo '</div>';
 
             // Cos del grup
             echo '<div class="' . esc_attr( $body_class ) . '" id="' . esc_attr( $group_id ) . '">';
-            echo '<form id="' . esc_attr( $bulk_form_id ) . '" method="post" style="margin:0">';
+            echo '<form id="' . esc_attr( $bulk_form_id ) . '" method="post" class="tso-m0">';
             wp_nonce_field( TSOOTC_NONCE_FORM );
             echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="delete_options_bulk">';
 
@@ -1184,8 +1291,8 @@ function tsootc_page() {
             }
 
             if ( $group_name === $widgets_group_key ) {
-                echo '<div class="tso-widgets-intro" style="margin:0 0 12px;padding:12px 14px;background:#f4f8fc;border:1px solid #c5d9ea;border-radius:6px;font-size:13px;line-height:1.5;color:#334">';
-                echo '<p style="margin:0 0 6px;font-weight:700;color:#0075be">'
+                echo '<div class="tso-widgets-intro tso-intro-box">';
+                echo '<p class="tso-intro-box-title">'
                     . esc_html(
                         tsootc_ui_triple_text(
                             $lang,
@@ -1195,7 +1302,7 @@ function tsootc_page() {
                         )
                     )
                     . '</p>';
-                echo '<p style="margin:0">'
+                echo '<p class="tso-m0">'
                     . esc_html(
                         tsootc_ui_triple_text(
                             $lang,
@@ -1218,8 +1325,8 @@ function tsootc_page() {
             }
 
             if ( $is_freemius_group ) {
-                echo '<div class="tso-freemius-intro" style="margin:0 0 12px;padding:12px 14px;background:#f4f8fc;border:1px solid #c5d9ea;border-radius:6px;font-size:13px;line-height:1.5;color:#334">';
-                echo '<p style="margin:0">'
+                echo '<div class="tso-freemius-intro tso-intro-box">';
+                echo '<p class="tso-m0">'
                     . esc_html(
                         tsootc_ui_triple_text(
                             $lang,
@@ -1235,7 +1342,7 @@ function tsootc_page() {
             // Bulk bar
             if ( $can_delete ) {
                 echo '<div class="tso-bulk-bar">';
-                echo '<label><input type="checkbox" onchange="tsootcSelectAll(this,\'' . esc_js( $bulk_form_id ) . '\')">'
+                echo '<label><input type="checkbox" data-tso-change="select-all" data-tso-form-id="' . esc_attr( $bulk_form_id ) . '">'
                    . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'Seleccionar totes', 'Seleccionar todas', 'Select all' ) ) . '</label>';
                 echo '</div>';
             }
@@ -1245,9 +1352,9 @@ function tsootc_page() {
             echo '<thead><tr>';
             echo '<th class="col-chk"></th>';
             echo '<th>' . esc_html( __( 'Option name', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="text-align:right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="text-align:center">' . esc_html( __( 'Autoload', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="text-align:right">' . esc_html( __( 'Actions', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-th-right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-th-center">' . esc_html( __( 'Autoload', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-th-right">' . esc_html( __( 'Actions', 'tso-options-tables-cleaner' ) ) . '</th>';
             echo '</tr></thead><tbody>';
 
             foreach ( $items_all as $opt ) {
@@ -1261,7 +1368,7 @@ function tsootc_page() {
                 $row_can_delete = ( 'core' !== $row_safety );
                 $is_autoload = ! in_array( $opt->autoload, array( 'no', 'off', '0', '' ), true );
                 $kb          = $opt->mida > 1024 ? number_format( $opt->mida / 1024, 1 ) . ' KB' : $opt->mida . ' B';
-                $mida_color  = $opt->mida > 102400 ? '#dc3232' : ( $opt->mida > 10240 ? '#f56e28' : '#555' );
+                $mida_class = tsootc_option_bytes_class( (int) $opt->mida );
                 $auto_tip   = in_array( $opt->autoload, array( 'yes', 'on' ), true )
                     ? tsootc_ui_triple_text( $lang, 'Autoload ACTIU: es carrega a cada pàgina', 'Autoload ACTIVO: se carga en cada página', 'Autoload ON: loaded on every page' )
                     : tsootc_ui_triple_text( $lang, 'Autoload inactiu: no penalitza el rendiment', 'Autoload inactivo: no penaliza el rendimiento', 'Autoload off: does not hurt performance' );
@@ -1307,14 +1414,14 @@ function tsootc_page() {
                     }
                 }
                 if ( ! $is_custom && $group_name === $widgets_group_key && function_exists( 'tsootc_is_wp_core_widget_option' ) && tsootc_is_wp_core_widget_option( $name ) ) {
-                    echo ' <span class="tso-core-widget-badge" style="font-size:10px;color:#0075be;font-weight:600">'
+                    echo ' <span class="tso-core-widget-badge tso-core-widget-badge">'
                         . esc_html( tsootc_ui_triple_text( $lang, 'Core WP', 'Core WP', 'WP Core' ) )
                         . '</span>';
                 }
                 echo '</td>';
 
                 // Mida
-                echo '<td class="col-size" data-label="' . esc_attr( $tso_td_lab_size ) . '" style="color:' . esc_attr( $mida_color ) . '">' . esc_html( $kb ) . '</td>';
+                echo '<td class="col-size ' . esc_attr( $mida_class ) . '" data-label="' . esc_attr( $tso_td_lab_size ) . '">' . esc_html( $kb ) . '</td>';
 
                 // Autoload
                 echo '<td class="col-auto" data-label="' . esc_attr( $tso_td_lab_auto ) . '" id="auto-' . esc_attr( $row_id ) . '">' . $auto_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -1392,16 +1499,16 @@ function tsootc_page() {
         $trans_fmt = array_sum( array_map( function( $t ) { return intval( $t->mida ); }, $transients ) );
         $trans_fmt = $trans_fmt > 1048576 ? number_format( $trans_fmt / 1048576, 1 ) . ' MB' : round( $trans_fmt / 1024 ) . ' KB';
 
-        echo '<div class="tso-plugin-group" style="border-left:3px solid #b0c8e0;margin-top:16px">';
-        echo '<div class="tso-plugin-group-head" onclick="tsootcToggleGroup(this,event)">';
+        echo '<div class="tso-plugin-group tso-transients-group">';
+        echo '<div class="tso-plugin-group-head" data-tso-click="toggle-group">';
         echo '<span class="tso-arrow">▶</span>';
         echo '<span class="grp-name">⏳ ' . esc_html( __( 'Transients / Temporary', 'tso-options-tables-cleaner' ) ) . '</span>';
         echo '<span class="grp-meta">' . count( $transients ) . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'entrades', 'entradas', 'entries' ) ) . ' · ' . esc_html( $trans_fmt ) . '</span>';
         if ( $n_expired > 0 ) {
-            echo '<form method="post" style="margin:0" onclick="event.stopPropagation()">';
+            echo '<form method="post" class="tso-m0" data-tso-stop-propagation="form">';
             wp_nonce_field( TSOOTC_NONCE_FORM );
             echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="expired_transients">';
-            echo '<button class="button button-small button-primary" style="font-size:11px">'
+            echo '<button class="button button-small button-primary tso-btn-sm">'
                . '🗑️ ' . esc_html( $n_expired ) . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'expirats', 'expirados', 'expired' ) ) . '</button>';
             echo '</form>';
         }
@@ -1409,26 +1516,26 @@ function tsootc_page() {
         echo '<div class="tso-plugin-group-body" id="grpb-transients">';
         echo '<div class="tso-opts-scroll">';
         echo '<table class="tso-opts-table">';
-        echo '<thead><tr><th>' . esc_html( __( 'Option name', 'tso-options-tables-cleaner' ) ) . '</th><th style="text-align:right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th><th style="text-align:center">' . esc_html( __( 'Autoload', 'tso-options-tables-cleaner' ) ) . '</th><th>' . esc_html( __( 'Status', 'tso-options-tables-cleaner' ) ) . '</th></tr></thead><tbody>';
+        echo '<thead><tr><th>' . esc_html( __( 'Option name', 'tso-options-tables-cleaner' ) ) . '</th><th class="tso-th-right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th><th class="tso-th-center">' . esc_html( __( 'Autoload', 'tso-options-tables-cleaner' ) ) . '</th><th>' . esc_html( __( 'Status', 'tso-options-tables-cleaner' ) ) . '</th></tr></thead><tbody>';
         foreach ( $transients as $t ) {
             $kb         = $t->mida > 1024 ? number_format( $t->mida / 1024, 1 ) . ' KB' : $t->mida . ' B';
             $is_timeout = strpos( $t->option_name, '_timeout_' ) !== false;
             $is_expired = $is_timeout && intval( get_option( (string) $t->option_name ) ) < $now;
             $allowed_status_html = array(
-                'span' => array( 'style' => true ),
+                'span' => array( 'class' => true ),
             );
             if ( $is_timeout ) {
                 $tipus = $is_expired
-                    ? '<span style="color:#dc3232;font-weight:600">' . esc_html__( '⌛ expired', 'tso-options-tables-cleaner' ) . '</span>'
-                    : '<span style="color:#888">' . esc_html__( '⏳ timeout', 'tso-options-tables-cleaner' ) . '</span>';
+                    ? '<span class="tso-status-expired">' . esc_html__( '⌛ expired', 'tso-options-tables-cleaner' ) . '</span>'
+                    : '<span class="tso-cand-muted">' . esc_html__( '⏳ timeout', 'tso-options-tables-cleaner' ) . '</span>';
             } else {
-                $tipus = '<span style="color:#555">' . esc_html__( '♾️ value', 'tso-options-tables-cleaner' ) . '</span>';
+                $tipus = '<span class="tso-status-value">' . esc_html__( '♾️ value', 'tso-options-tables-cleaner' ) . '</span>';
             }
             $auto_badge = '<span class="tso-badge tso-badge-' . esc_attr( (string) $t->autoload ) . '">' . esc_html( (string) $t->autoload ) . '</span>';
             echo '<tr>';
             echo '<td class="col-name" data-label="' . esc_attr( $tso_td_lab_name ) . '">' . esc_html( (string) $t->option_name ) . '</td>';
-            echo '<td style="text-align:right" data-label="' . esc_attr( $tso_td_lab_size ) . '">' . esc_html( $kb ) . '</td>';
-            echo '<td style="text-align:center" data-label="' . esc_attr( $tso_td_lab_auto ) . '">' . wp_kses( $auto_badge, array( 'span' => array( 'class' => true ) ) ) . '</td>';
+            echo '<td class="tso-th-right" data-label="' . esc_attr( $tso_td_lab_size ) . '">' . esc_html( $kb ) . '</td>';
+            echo '<td class="tso-th-center" data-label="' . esc_attr( $tso_td_lab_auto ) . '">' . wp_kses( $auto_badge, array( 'span' => array( 'class' => true ) ) ) . '</td>';
             echo '<td data-label="' . esc_attr( $tso_td_lab_status ) . '">' . wp_kses( $tipus, $allowed_status_html ) . '</td>';
             echo '</tr>';
         }
@@ -1592,10 +1699,10 @@ function tsootc_page() {
             return $b['total_kb'] <=> $a['total_kb'];
         } );
 
-        echo '<div style="max-width:1100px">';
+        echo '<div class="tso-max-w-1100">';
         echo '<div class="tso-section">';
         echo '<h3>' . esc_html( __( '📊 Extra tables summary', 'tso-options-tables-cleaner' ) ) . '</h3>';
-        echo '<div class="tso-stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">';
+        echo '<div class="tso-stats-grid tso-stats-grid tso-stats-grid--auto-fill">';
         echo '<div class="tso-stat-card color-blue"><div class="tso-stat-value">' . (int) $total_tables . '</div><div class="tso-stat-label">' . esc_html( __( 'Extra tables', 'tso-options-tables-cleaner' ) ) . '</div></div>';
         echo '<div class="tso-stat-card ' . ( $total_kb > 102400 ? 'color-red' : ( $total_kb > 10240 ? 'color-orange' : 'color-green' ) ) . '">';
         echo '<div class="tso-stat-value">' . number_format( $total_kb ) . ' KB</div><div class="tso-stat-label">' . esc_html( __( 'Total extra size', 'tso-options-tables-cleaner' ) ) . '</div></div>';
@@ -1604,7 +1711,7 @@ function tsootc_page() {
         echo '<div class="tso-stat-card ' . ( $total_free_kb > 1024 ? 'color-orange' : ( $total_free_kb > 0 ? 'color-blue' : 'color-green' ) ) . '">';
         echo '<div class="tso-stat-value">' . number_format( $total_free_kb ) . ' KB</div><div class="tso-stat-label">' . esc_html( $txt_fragmented_extra_space ) . '</div></div>';
         echo '</div>';
-        echo '<p style="color:#666;font-size:13px;margin:0">' . esc_html( __( 'Tables that do not belong to WordPress core. Deletion is locked by default. Enable “Allow table deletion” to unlock delete for any extra table (WordPress core tables stay protected). A confirmation and automatic SQL backup are still required before each drop.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '<p class="tso-desc-sm">' . esc_html( __( 'Tables that do not belong to WordPress core. Deletion is locked by default. Enable “Allow table deletion” to unlock delete for any extra table (WordPress core tables stay protected). A confirmation and automatic SQL backup are still required before each drop.', 'tso-options-tables-cleaner' ) ) . '</p>';
         echo '</div>';
 
         $allow_extra_table_delete = function_exists( 'tsootc_extra_table_delete_is_enabled' ) && tsootc_extra_table_delete_is_enabled();
@@ -1637,31 +1744,31 @@ function tsootc_page() {
                 'Escanea en profundidad las migraciones y esquemas de los plugins instalados para identificar más tablas desconocidas.',
                 'Deep-scan installed plugin migrations and schemas to identify more unknown tables.'
             );
-        echo '<div class="notice notice-info" style="margin:12px 0 16px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">';
+        echo '<div class="notice notice-info tso-notice-flex tso-notice-flex--mb16">';
         echo '<span>' . esc_html( $table_deep_scan_text ) . '</span>';
         echo '<a class="button button-secondary" href="' . esc_url( $table_refresh_url ) . '">'
             . esc_html( tsootc_ui_triple_text( $lang, '↻ Escaneig profund de taules', '↻ Escaneo profundo de tablas', '↻ Deep table scan' ) )
             . '</a>';
         echo '</div>';
 
-        echo '<div class="tso-section" id="tso-extra-table-delete-setting" style="padding:16px 18px;background:#fff8f0;border:1px solid #f0c070;border-radius:8px;margin-bottom:16px">';
-        echo '<h3 style="margin:0 0 10px;font-size:15px;color:#8a5c00">🔒 ' . esc_html( $txt_allow_delete_label ) . '</h3>';
-        echo '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0">';
-        echo '<input type="checkbox" id="tso-allow-extra-table-delete" value="1"' . checked( $allow_extra_table_delete, true, false ) . ' style="margin-top:3px">';
-        echo '<span><strong style="display:block;font-size:13px">' . esc_html( $txt_allow_delete_label ) . '</strong>';
-        echo '<span style="display:block;color:#666;font-size:12px;margin-top:4px;line-height:1.4">' . esc_html( $txt_allow_delete_help ) . '</span></span>';
+        echo '<div class="tso-section tso-extra-delete-panel" id="tso-extra-table-delete-setting">';
+        echo '<h3 class="tso-extra-delete-title">🔒 ' . esc_html( $txt_allow_delete_label ) . '</h3>';
+        echo '<label class="tso-extra-delete-label">';
+        echo '<input type="checkbox" id="tso-allow-extra-table-delete" value="1"' . checked( $allow_extra_table_delete, true, false ) . ' class="tso-extra-delete-chk">';
+        echo '<span><strong class="tso-extra-delete-label-title">' . esc_html( $txt_allow_delete_label ) . '</strong>';
+        echo '<span class="tso-extra-delete-label-help">' . esc_html( $txt_allow_delete_help ) . '</span></span>';
         echo '</label>';
-        echo '<span id="tso-allow-extra-table-delete-msg" style="display:block;margin-top:8px;font-size:12px;color:#666" aria-live="polite"></span>';
+        echo '<span id="tso-allow-extra-table-delete-msg" class="tso-extra-delete-msg" aria-live="polite"></span>';
         echo '</div>';
 
         if ( empty( $tables ) ) {
-            echo '<div class="tso-section" style="text-align:center;padding:40px">';
-            echo '<span style="font-size:40px">✅</span><br><strong style="font-size:16px;color:#46b450">' . esc_html( __( 'No extra tables detected', 'tso-options-tables-cleaner' ) ) . '</strong>';
-            echo '<p style="color:#666">' . esc_html( __( 'The database has no plugin table residues.', 'tso-options-tables-cleaner' ) ) . '</p></div>';
+            echo '<div class="tso-section tso-section tso-empty-state">';
+            echo '<span class="tso-empty-icon">✅</span><br><strong class="tso-empty-title">' . esc_html( __( 'No extra tables detected', 'tso-options-tables-cleaner' ) ) . '</strong>';
+            echo '<p class="tso-empty-desc">' . esc_html( __( 'The database has no plugin table residues.', 'tso-options-tables-cleaner' ) ) . '</p></div>';
         } else {
             echo '<div class="tso-section">';
             echo '<h3>' . esc_html( $txt_groups_title ) . '</h3>';
-            echo '<p style="color:#666;font-size:13px;margin:0 0 14px">' . esc_html( $txt_groups_desc ) . '</p>';
+            echo '<p class="tso-desc-sm-mb">' . esc_html( $txt_groups_desc ) . '</p>';
             echo '<div class="tso-table-groups">';
             foreach ( $table_groups as $group ) {
                 $group_meta = $group['count'] . ' ' . $txt_tables_word . ' · '
@@ -1681,8 +1788,8 @@ function tsootc_page() {
                 echo '<th>' . esc_html( __( 'Table', 'tso-options-tables-cleaner' ) ) . '</th>';
                 echo '<th>' . esc_html( $txt_engine ) . '</th>';
                 echo '<th>' . esc_html( $txt_updated ) . '</th>';
-                echo '<th style="text-align:right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th>';
-                echo '<th style="text-align:right">' . esc_html( tsootc_ui_triple_text( $lang, 'Fragmentació', 'Fragmentación', 'Fragmentation' ) ) . '</th>';
+                echo '<th class="tso-th-right">' . esc_html( __( 'Size', 'tso-options-tables-cleaner' ) ) . '</th>';
+                echo '<th class="tso-th-right">' . esc_html( tsootc_ui_triple_text( $lang, 'Fragmentació', 'Fragmentación', 'Fragmentation' ) ) . '</th>';
                 echo '<th>' . esc_html( $txt_usage_estimate ) . '</th>';
                 echo '</tr></thead><tbody>';
                 foreach ( $group['tables'] as $group_table ) {
@@ -1695,8 +1802,8 @@ function tsootc_page() {
                     echo '</td>';
                     echo '<td>' . esc_html( '' !== (string) $group_table['engine'] ? (string) $group_table['engine'] : '—' ) . '</td>';
                     echo '<td>' . esc_html( $updated_value ) . '</td>';
-                    echo '<td style="text-align:right">' . esc_html( number_format( (int) $group_table['kb'] ) ) . ' KB</td>';
-                    echo '<td style="text-align:right">' . esc_html( number_format( (int) $group_table['free_kb'] ) ) . ' KB</td>';
+                    echo '<td class="tso-th-right">' . esc_html( number_format( (int) $group_table['kb'] ) ) . ' KB</td>';
+                    echo '<td class="tso-th-right">' . esc_html( number_format( (int) $group_table['free_kb'] ) ) . ' KB</td>';
                     echo '<td>' . $render_usage_badge( $group_table ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                     echo '</tr>';
                 }
@@ -1744,7 +1851,7 @@ function tsootc_page() {
                 'Delete the table (a .sql backup is saved on the server first)'
             );
 
-            echo '<p class="description" style="max-width:960px;margin:0 0 16px;line-height:1.45">' . esc_html( $txt_extra_tables_legend ) . '</p>';
+            echo '<p class="description description tso-desc-legend">' . esc_html( $txt_extra_tables_legend ) . '</p>';
 
             $txt_tables_search_ph = tsootc_ui_triple_text(
                 $lang,
@@ -1762,22 +1869,22 @@ function tsootc_page() {
             $txt_sort_by = tsootc_ui_triple_text( $lang, 'Ordenar per ', 'Ordenar por ', 'Sort by ' );
 
             // Barra de selecció / accions bulk
-            echo '<div id="tso-tables-bulk-bar" class="tso-tables-bulk-bar" style="margin-bottom:12px;padding:10px 14px;background:#fff;border:1px solid #ddd;border-radius:6px">';
-            echo '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">';
+            echo '<div id="tso-tables-bulk-bar" class="tso-tables-bulk-bar tso-tables-bulk-panel">';
+            echo '<label class="tso-tables-bulk-label">';
             echo '<input type="checkbox" id="tso-tables-select-all"> <strong>' . esc_html( __( 'Select all', 'tso-options-tables-cleaner' ) ) . '</strong>';
             echo '</label>';
-            echo '<span id="tso-tables-selected-count" style="color:#666;font-size:12px">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
+            echo '<span id="tso-tables-selected-count" class="tso-tables-selected-count">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
             echo '<label class="tso-tables-search-wrap" for="tso-tables-search">';
             echo '<span class="screen-reader-text">' . esc_html( $txt_tables_search_lab ) . '</span>';
             echo '<input type="search" id="tso-tables-search" class="tso-tables-search" placeholder="' . esc_attr( $txt_tables_search_ph ) . '" autocomplete="off">';
             echo '</label>';
-            echo '<button id="tso-tables-bulk-export" class="button" style="margin-left:auto;border-color:#007cba;color:#007cba;background:#fff" disabled>';
+            echo '<button id="tso-tables-bulk-export" class="button button tso-btn-ml-auto tso-btn-blue-outline" disabled>';
             echo esc_html( __( '🧾 Export DROP SQL', 'tso-options-tables-cleaner' ) ) . '</button>';
-            echo '<button id="tso-tables-bulk-delete" class="button" style="color:#dc3232;border-color:#dc3232;background:#fff"' . ( $allow_extra_table_delete ? '' : ' disabled' ) . '>';
+            echo '<button id="tso-tables-bulk-delete" class="button button tso-btn-danger-outline-sm"' . ( $allow_extra_table_delete ? '' : ' disabled' ) . '>';
             echo esc_html( __( '🗑️ Delete selected', 'tso-options-tables-cleaner' ) ) . '</button>';
             echo '</div>';
             if ( ! $allow_extra_table_delete ) {
-                echo '<p class="description" style="margin:0 0 12px">' . esc_html(
+                echo '<p class="description description tso-desc-mb12">' . esc_html(
                     tsootc_ui_triple_text(
                         $lang,
                         'L\'eliminació està bloquejada. Activa «Permetre eliminar taules» per desbloquejar els botons d\'eliminar.',
@@ -1795,22 +1902,22 @@ function tsootc_page() {
             $xt_td_lab_action = __( 'Action', 'tso-options-tables-cleaner' );
             $xt_td_lab_frag   = tsootc_ui_triple_text( $lang, 'Fragmentació', 'Fragmentación', 'Fragmentation' );
 
-            echo '<p id="tso-tables-filter-empty" class="description" style="display:none;margin:0 0 12px" hidden>' . esc_html( $txt_tables_no_match ) . '</p>';
+            echo '<p id="tso-tables-filter-empty" class="description description tso-filter-empty-msg tso-u-hidden" hidden>' . esc_html( $txt_tables_no_match ) . '</p>';
 
             echo '<div class="tso-table-scroll">';
-            echo '<table class="tso-tables-grid" id="tso-tables-grid" style="width:100%">';
+            echo '<table class="tso-tables-grid tso-tables-grid-full" id="tso-tables-grid">';
             echo '<thead><tr>';
-            echo '<th style="width:32px;text-align:center"></th>';
+            echo '<th class="tso-th-chk"></th>';
             echo '<th class="tso-tables-sortable" data-sort-key="table" scope="col" role="columnheader" tabindex="0" aria-sort="none" title="' . esc_attr( $txt_sort_by . $xt_td_lab_tbl ) . '">' . esc_html( $xt_td_lab_tbl ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
             echo '<th class="tso-tables-sortable" data-sort-key="plugin" scope="col" role="columnheader" tabindex="0" aria-sort="none" title="' . esc_attr( $txt_sort_by . $xt_td_lab_plugin ) . '">' . esc_html( $xt_td_lab_plugin ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
             echo '<th class="tso-tables-sortable" data-sort-key="status" scope="col" role="columnheader" tabindex="0" aria-sort="none" title="' . esc_attr( $th_title_status ) . '">' . esc_html( $xt_td_lab_status ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
-            echo '<th class="tso-tables-sortable is-sorted is-desc" data-sort-key="size" scope="col" role="columnheader" tabindex="0" aria-sort="descending" style="text-align:right" title="' . esc_attr( $txt_sort_by . $xt_td_lab_size ) . '">' . esc_html( $xt_td_lab_size ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
+            echo '<th class="tso-tables-sortable is-sorted is-desc tso-th-right" data-sort-key="size" scope="col" role="columnheader" tabindex="0" aria-sort="descending" title="' . esc_attr( $txt_sort_by . $xt_td_lab_size ) . '">' . esc_html( $xt_td_lab_size ) . '<span class="tso-sort-ind" aria-hidden="true"></span></th>';
             echo '<th title="' . esc_attr( $th_title_usage ) . '">' . esc_html( $xt_td_lab_usage ) . '</th>';
-            echo '<th style="text-align:right">' . esc_html( $xt_td_lab_action ) . '</th>';
+            echo '<th class="tso-th-right">' . esc_html( $xt_td_lab_action ) . '</th>';
             echo '</tr></thead><tbody id="tso-tables-tbody">';
 
             foreach ( $tables as $t ) {
-                $color          = $t['kb'] > 102400 ? '#dc3232' : ( $t['kb'] > 10240 ? '#f56e28' : '#555' );
+                $size_class   = tsootc_table_kb_class( (int) $t['kb'] );
                 $row_id         = 'tbl-' . md5( $t['name'] );
                 $confirm_drop   = tsootc_ui_triple_text( $lang, 'ELIMINAR TAULA', 'ELIMINAR TABLA', 'DELETE TABLE' );
                 $can_delete_table = tsootc_can_delete_extra_table( $t );
@@ -1856,8 +1963,8 @@ function tsootc_page() {
                 );
 
                 echo '<tr id="' . esc_attr( $row_id ) . '" data-table="' . esc_attr( $t['name'] ) . '" data-kb="' . esc_attr( (string) (int) $t['kb'] ) . '" data-sort-table="' . esc_attr( strtolower( (string) $t['name'] ) ) . '" data-sort-plugin="' . esc_attr( strtolower( $plugin_name_plain ) ) . '" data-sort-status="' . esc_attr( (string) $status_rank_plain ) . '" data-sort-status-label="' . esc_attr( strtolower( $status_label_plain ) ) . '" data-search="' . esc_attr( $search_haystack ) . '" data-deletable="' . esc_attr( $can_delete_table ? '1' : '0' ) . '" data-delete-reason="' . esc_attr( $delete_block_reason ) . '">';
-                echo '<td class="tso-stack-td-chk" style="text-align:center"><input type="checkbox" class="tso-table-chk" value="' . esc_attr( $t['name'] ) . '"></td>';
-                echo '<td style="font-family:monospace;font-size:12px" data-label="' . esc_attr( $xt_td_lab_tbl ) . '"><strong>' . esc_html( $t['name'] ) . '</strong>';
+                echo '<td class="tso-stack-td-chk tso-th-center"><input type="checkbox" class="tso-table-chk" value="' . esc_attr( $t['name'] ) . '"></td>';
+                echo '<td class="tso-td-mono" data-label="' . esc_attr( $xt_td_lab_tbl ) . '"><strong>' . esc_html( $t['name'] ) . '</strong>';
                 if ( $is_custom_table ) {
                     echo ' <span class="tso-custom-badge">' . esc_html( __( 'manual', 'tso-options-tables-cleaner' ) ) . '</span>';
                 } elseif ( '' !== $detect_source && function_exists( 'tsootc_detection_render_row_badge_html' ) ) {
@@ -1896,7 +2003,7 @@ function tsootc_page() {
                             ? tsootc_detection_format_source_label( (string) ( $cand['source'] ?? '' ), $lang )
                             : (string) ( $cand['source'] ?? '' );
                         $cand_bits[] = esc_html( (string) $cand['name'] )
-                            . ' <span style="color:#888">('
+                            . ' <span class="tso-cand-muted">('
                             . esc_html( $src_lab )
                             . ( isset( $cand['score'] ) ? ' · ' . (int) $cand['score'] : '' )
                             . ')</span>';
@@ -1910,7 +2017,7 @@ function tsootc_page() {
                 }
                 echo '</td>';
                 echo '<td data-label="' . esc_attr( $xt_td_lab_status ) . '">' . $status_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                echo '<td style="text-align:right" data-label="' . esc_attr( $xt_td_lab_size ) . '"><span class="tso-size-chip" style="color:' . esc_attr( $color ) . '">' . number_format( $t['kb'] ) . ' KB</span><span class="tso-table-muted">' . esc_html( $xt_td_lab_frag . ': ' . $size_sub ) . '</span></td>';
+                echo '<td class="tso-th-right" data-label="' . esc_attr( $xt_td_lab_size ) . '"><span class="tso-size-chip ' . esc_attr( $size_class ) . '">' . number_format( $t['kb'] ) . ' KB</span><span class="tso-table-muted">' . esc_html( $xt_td_lab_frag . ': ' . $size_sub ) . '</span></td>';
                 echo '<td data-label="' . esc_attr( $xt_td_lab_usage ) . '">' . $usage_badge . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 echo '<td class="tso-tables-actions-td" data-label="' . esc_attr( $xt_td_lab_action ) . '">';
                 echo '<div class="tso-tables-detect-actions">';
@@ -1933,23 +2040,23 @@ function tsootc_page() {
                     . ' data-table-info="' . esc_attr( $t['name'] . ' (' . number_format( $t['kb'] / 1024, 2 ) . ' MB)' ) . '"'
                     . ' title="' . esc_attr( $lab_view_extra ) . '"'
                     . ' aria-label="' . esc_attr( $lab_view_extra ) . '">👁️</button>';
-                echo '<button type="button" class="button button-small tso-table-export-btn tso-table-act-icon" style="border-color:#007cba;color:#007cba"'
+                echo '<button type="button" class="button button-small tso-table-export-btn tso-table-act-icon tso-btn-blue-outline"'
                     . ' data-table="' . esc_attr( $t['name'] ) . '"'
                     . ' title="' . esc_attr( $lab_export_extra ) . '"'
                     . ' aria-label="' . esc_attr( $lab_export_extra ) . '">🧾</button>';
-                echo '<button type="button" class="button button-small tso-table-backup-restore-btn tso-table-act-icon" style="border-color:#2271b1;color:#1d2327"'
+                echo '<button type="button" class="button button-small tso-table-backup-restore-btn tso-table-act-icon tso-btn-wp-blue-outline"'
                     . ' data-table="' . esc_attr( $t['name'] ) . '"'
                     . ' title="' . esc_attr( $btn_backup_sql_tip ) . '"'
                     . ' aria-label="' . esc_attr( $btn_backup_sql_tip ) . '">💾</button>';
                 if ( $can_delete_table ) {
-                    echo '<button type="button" class="button button-small tso-table-del-btn tso-table-act-icon" style="color:#dc3232;border-color:#dc3232"'
+                    echo '<button type="button" class="button button-small tso-table-del-btn tso-table-act-icon tso-cron-del-btn"'
                         . ' data-table="' . esc_attr( $t['name'] ) . '" data-row="' . esc_attr( $row_id ) . '"'
                         . ' data-confirm="' . esc_attr( $confirm_drop ) . '"'
                         . ' title="' . esc_attr( $title_del_extra ) . '"'
                         . ' aria-label="' . esc_attr( $title_del_extra ) . '">🗑️</button>';
                 } else {
                     $lock_title = $delete_block_reason . ' — ' . $txt_review_only;
-                    echo '<button type="button" class="button button-small tso-table-act-icon" disabled style="opacity:.55;cursor:not-allowed" title="' . esc_attr( $lock_title ) . '" aria-label="' . esc_attr( $lock_title ) . '">🔒</button>';
+                    echo '<button class="button button-small tso-table-act-icon tso-btn-disabled-lock" type="button" disabled title="' . esc_attr( $lock_title ) . '" aria-label="' . esc_attr( $lock_title ) . '">🔒</button>';
                 }
                 echo '</div>';
                 if ( ! $can_delete_table ) {
@@ -2109,9 +2216,9 @@ function tsootc_page() {
         }
 
         // Barra de progrés d'entrades (entrades usades / màxim 500)
-        $pct_color = $history_pct >= 90 ? '#c00' : ( $history_pct >= 60 ? '#c07000' : '#007cba' );
+        $hist_fill_level = tsootc_history_fill_level( $history_pct );
 
-        echo '<div style="max-width:1100px">';
+        echo '<div class="tso-max-w-1100">';
 
         // ---- BANNER D'ALERTA si > 50 KB ----
         if ( $size_level !== 'ok' ) {
@@ -2130,44 +2237,44 @@ function tsootc_page() {
                     'ℹ️ The history already uses <strong>' . esc_html( $history_kb ) . ' KB</strong>. You can clear it if you do not need the full log.'
                 );
             }
-            $alert_border = $size_level === 'danger' ? '#c00' : '#c07000';
-            $alert_bg     = $size_level === 'danger' ? '#fff5f5' : '#fffdf0';
-            echo '<div class="tso-history-size-banner" style="background:' . esc_attr( $alert_bg ) . ';border-left:4px solid ' . esc_attr( $alert_border ) . ';border-radius:0 6px 6px 0;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.06)">';
-            echo '<div style="font-size:13px;color:#333">' . wp_kses_post( $alert_msg ) . '</div>';
-            echo '<button type="button" class="button tso-hist-clear-btn" style="color:' . esc_attr( $alert_border ) . ';border-color:' . esc_attr( $alert_border ) . ';white-space:nowrap;font-weight:700" onclick="tsootcHistoryClear()">'
+            $banner_class = 'danger' === $size_level ? 'tso-history-size-banner--danger' : 'tso-history-size-banner--warning';
+            $btn_class    = 'danger' === $size_level ? 'tso-hist-clear-btn--banner-danger' : 'tso-hist-clear-btn--banner-warn';
+            echo '<div class="tso-history-size-banner ' . esc_attr( $banner_class ) . '">';
+            echo '<div class="tso-history-banner-text">' . wp_kses_post( $alert_msg ) . '</div>';
+            echo '<button type="button" class="button tso-hist-clear-btn ' . esc_attr( $btn_class ) . '" data-tso-click="history-clear">'
                 . esc_html( __( '🗑️ Clear history', 'tso-options-tables-cleaner' ) ) . '</button>';
             echo '</div>';
         }
 
         // ---- Capçalera ----
-        echo '<div style="background:#fff;border:1px solid #e2e4e7;border-radius:8px;padding:20px 24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-        echo '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">';
+        echo '<div class="tso-panel-card tso-panel-card--plain">';
+        echo '<div class="tso-hist-header-row">';
         echo '<div>';
-        echo '<h2 style="margin:0 0 4px;font-size:18px">' . esc_html( __( '📅 Plugin and theme history', 'tso-options-tables-cleaner' ) ) . '</h2>';
-        echo '<p style="color:#666;font-size:13px;margin:0">' . esc_html( __( 'Event log of plugins and themes since TSO Options & Tables Cleaner was installed. Previous actions are shown in the "Current status" section.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '<h2 class="tso-hist-header-row h2">' . esc_html( __( '📅 Plugin and theme history', 'tso-options-tables-cleaner' ) ) . '</h2>';
+        echo '<p class="tso-desc-sm">' . esc_html( __( 'Event log of plugins and themes since TSO Options & Tables Cleaner was installed. Previous actions are shown in the "Current status" section.', 'tso-options-tables-cleaner' ) ) . '</p>';
         echo '</div>';
 
         // ---- Stats cards: events + mida ----
-        echo '<div style="display:flex;align-items:stretch;gap:10px;flex-wrap:wrap">';
+        echo '<div class="tso-hist-stats-row">';
 
         // Card: nombre d'events
-        echo '<div style="background:#f0f6fc;border:1px solid #d0e8f5;border-radius:6px;padding:10px 16px;text-align:center;min-width:90px">';
-        echo '<div style="font-size:26px;font-weight:800;color:#007cba;line-height:1">' . esc_html( $total_events ) . '</div>';
-        echo '<div style="font-size:10px;color:#666;margin-top:3px;text-transform:uppercase;letter-spacing:.03em">' . esc_html( __( 'Recorded events', 'tso-options-tables-cleaner' ) ) . '</div>';
+        echo '<div class="tso-hist-stat-card tso-hist-stat-card--events">';
+        echo '<div class="tso-hist-stat-value">' . esc_html( $total_events ) . '</div>';
+        echo '<div class="tso-hist-stat-label">' . esc_html( __( 'Recorded events', 'tso-options-tables-cleaner' ) ) . '</div>';
         // Barra de progrés d'entrades
-        echo '<div style="margin-top:6px;background:#dde;border-radius:4px;height:5px;overflow:hidden">';
-        echo '<div style="width:' . esc_attr( $history_pct ) . '%;background:' . esc_attr( $pct_color ) . ';height:100%;border-radius:4px;transition:width .3s"></div>';
+        echo '<div class="tso-hist-progress-track">';
+        echo '<div class="tso-hist-progress-fill tso-hist-fill-' . esc_attr( $hist_fill_level ) . '" data-bar-width="' . esc_attr( $history_pct ) . '"></div>';
         echo '</div>';
-        echo '<div style="font-size:10px;color:' . esc_attr( $pct_color ) . ';margin-top:2px">' . esc_html( $history_pct ) . '% / ' . (int) TSOOTC_HISTORY_MAX . '</div>';
+        echo '<div class="tso-hist-pct-text tso-hist-pct-' . esc_attr( $hist_fill_level ) . '">' . esc_html( $history_pct ) . '% / ' . (int) TSOOTC_HISTORY_MAX . '</div>';
         echo '</div>';
 
         // Card: mida a la BD
-        echo '<div style="background:' . esc_attr( $size_bg ) . ';border:1px solid ' . esc_attr( $size_bord ) . ';border-radius:6px;padding:10px 16px;text-align:center;min-width:90px">';
-        echo '<div style="font-size:22px;font-weight:800;color:' . esc_attr( $size_color ) . ';line-height:1">'
-            . esc_html( $history_kb ) . ' <span style="font-size:13px">KB</span></div>';
-        echo '<div style="font-size:10px;color:#666;margin-top:3px;text-transform:uppercase;letter-spacing:.03em">'
+        echo '<div class="tso-hist-size-card tso-hist-size-card--' . esc_attr( $size_level ) . '">';
+        echo '<div class="tso-hist-size-value tso-hist-size-value--' . esc_attr( $size_level ) . '">'
+            . esc_html( $history_kb ) . ' <span class="tso-hist-size-unit">KB</span></div>';
+        echo '<div class="tso-hist-stat-label">'
             . esc_html( tsootc_ui_triple_text( $lang, 'Mida a la BD', 'Tamaño en BD', 'Database size' ) ) . '</div>';
-        echo '<div style="font-size:11px;margin-top:4px">' . esc_html( $size_icon ) . ' '
+        echo '<div class="tso-hist-size-status">' . esc_html( $size_icon ) . ' '
             . esc_html(
                 $size_level === 'ok'
                 ? tsootc_ui_triple_text( $lang, 'Correcte', 'Correcto', 'OK' )
@@ -2183,13 +2290,11 @@ function tsootc_page() {
         echo '</div>'; // flex header row
 
         // Botons d'acció a la part inferior de la card
-        echo '<div style="margin-top:16px;padding-top:14px;border-top:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
-        $clear_style = $size_level === 'danger'
-            ? 'background:#c00;color:#fff;border-color:#c00;font-weight:700'
-            : 'color:#c00;border-color:#c00';
-        echo '<button type="button" class="button tso-hist-clear-btn" style="' . esc_attr( $clear_style ) . '" onclick="tsootcHistoryClear()">'
+        echo '<div class="tso-hist-actions-row">';
+        $clear_btn_class = 'danger' === $size_level ? 'tso-hist-clear-btn--solid-danger' : 'tso-hist-clear-btn--outline-danger';
+        echo '<button type="button" class="button tso-hist-clear-btn ' . esc_attr( $clear_btn_class ) . '" data-tso-click="history-clear">'
             . esc_html( __( '🗑️ Clear history', 'tso-options-tables-cleaner' ) ) . '</button>';
-        echo '<span style="color:#999;font-size:12px">'
+        echo '<span class="tso-hist-meta-note">'
             . wp_kses_post(
                 tsootc_ui_triple_text(
                     $lang,
@@ -2204,23 +2309,23 @@ function tsootc_page() {
         echo '</div>'; // capçalera card
 
         // ---- Secció 1: Log d'activitat ----
-        echo '<div style="background:#fff;border:1px solid #e2e4e7;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:24px">';
-        echo '<div style="padding:14px 20px;border-bottom:1px solid #eee;background:#fafbfc">';
-        echo '<h3 style="margin:0;font-size:15px">' . esc_html( __( '📋 Activity log', 'tso-options-tables-cleaner' ) ) . '</h3>';
+        echo '<div class="tso-panel-card">';
+        echo '<div class="tso-panel-head">';
+        echo '<h3 class="tso-panel-head-title">' . esc_html( __( '📋 Activity log', 'tso-options-tables-cleaner' ) ) . '</h3>';
         echo '</div>';
 
         // Barra de filtres
         $hist_base = esc_url( admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=history' ) );
-        echo '<div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f8f9fa" class="tso-hist-filter-row">';
+        echo '<div class="tso-panel-filter-row tso-hist-filter-row">';
 
         // Filtre cerca
         echo '<input type="text" id="tso-hist-search-live" placeholder="' . esc_attr( __( '🔍 Search by name...', 'tso-options-tables-cleaner' ) ) . '"'
             . ' value="' . esc_attr( $hist_search ) . '"'
-            . ' style="flex:1;min-width:160px;border-radius:4px;border:1px solid #ccc;padding:5px 10px;font-size:13px"'
-            . ' oninput="tsootcHistoryFilter()">';
+            . ' class="tso-hist-search"'
+            . ' data-tso-input="history-filter">';
 
         // Filtre tipus
-        echo '<select id="tso-hist-type" onchange="tsootcHistoryFilter()" style="font-size:12px;border-radius:4px;border:1px solid #ccc;padding:5px 8px">';
+        echo '<select id="tso-hist-type" class="tso-hist-filter-select" data-tso-change="history-filter">';
         echo '<option value="">' . esc_html( __( 'All', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="plugin"' . selected( $hist_filter_type, 'plugin', false ) . '>🔌 ' . esc_html( __( 'Plugins', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="theme"' . selected( $hist_filter_type, 'theme', false ) . '>🎨 ' . esc_html( __( 'Themes', 'tso-options-tables-cleaner' ) ) . '</option>';
@@ -2237,14 +2342,14 @@ function tsootc_page() {
             'keys_mapped'   => __( '🔑 New wp_options keys', 'tso-options-tables-cleaner' ),
             'tables_mapped' => __( '📊 New database tables', 'tso-options-tables-cleaner' ),
         );
-        echo '<select id="tso-hist-action" onchange="tsootcHistoryFilter()" style="font-size:12px;border-radius:4px;border:1px solid #ccc;padding:5px 8px">';
+        echo '<select id="tso-hist-action" class="tso-hist-filter-select" data-tso-change="history-filter">';
         foreach ( $action_opts as $val => $label ) {
             echo '<option value="' . esc_attr( $val ) . '"' . selected( $hist_filter_action, $val, false ) . '>' . esc_html( $label ) . '</option>';
         }
         echo '</select>';
 
         if ( $hist_filter_type || $hist_filter_action || $hist_search || $hist_date_from || $hist_date_to ) {
-            echo '<a href="' . esc_url( $hist_base ) . '" class="button" style="white-space:nowrap">' . esc_html( __( '✕ Clear', 'tso-options-tables-cleaner' ) ) . '</a>';
+            echo '<a href="' . esc_url( $hist_base ) . '" class="button tso-hist-clear-link">' . esc_html( __( '✕ Clear', 'tso-options-tables-cleaner' ) ) . '</a>';
         }
 
         // Filtres de data
@@ -2252,30 +2357,30 @@ function tsootc_page() {
         $date_to_label   = tsootc_ui_triple_text( $lang, 'Fins a', 'Hasta', 'To' );
         echo '<input type="date" id="tso-hist-date-from" value="' . esc_attr( $hist_date_from ) . '"'
             . ' title="' . esc_attr( $date_from_label ) . '" placeholder="' . esc_attr( $date_from_label ) . '"'
-            . ' style="border-radius:4px;border:1px solid #ccc;padding:5px 8px;font-size:12px" onchange="tsootcHistoryFilter()">';
-        echo '<span style="color:#999;font-size:12px">→</span>';
+            . ' class="tso-hist-date-input" data-tso-change="history-filter">';
+        echo '<span class="tso-hist-meta-note">→</span>';
         echo '<input type="date" id="tso-hist-date-to" value="' . esc_attr( $hist_date_to ) . '"'
             . ' title="' . esc_attr( $date_to_label ) . '" placeholder="' . esc_attr( $date_to_label ) . '"'
-            . ' style="border-radius:4px;border:1px solid #ccc;padding:5px 8px;font-size:12px" onchange="tsootcHistoryFilter()">';
+            . ' class="tso-hist-date-input" data-tso-change="history-filter">';
         echo '</div>';
 
         // Taula del log
         if ( empty( $history_log ) ) {
-            echo '<div style="padding:50px 30px;text-align:center;color:#999">';
-            echo '<div style="font-size:48px;margin-bottom:12px">📭</div>';
-            echo '<strong style="display:block;font-size:15px;color:#555;margin-bottom:8px">' . esc_html( __( 'No events recorded yet.', 'tso-options-tables-cleaner' ) ) . '</strong>';
-            echo '<p style="max-width:480px;margin:0 auto;font-size:13px">' . esc_html( __( 'From now on, every activation, deactivation, installation, update or deletion of plugins and themes will be recorded here.', 'tso-options-tables-cleaner' ) ) . '</p>';
+            echo '<div class="tso-empty-state--lg">';
+            echo '<div class="tso-empty-icon--lg">📭</div>';
+            echo '<strong class="tso-empty-title--md">' . esc_html( __( 'No events recorded yet.', 'tso-options-tables-cleaner' ) ) . '</strong>';
+            echo '<p class="tso-empty-desc--center">' . esc_html( __( 'From now on, every activation, deactivation, installation, update or deletion of plugins and themes will be recorded here.', 'tso-options-tables-cleaner' ) ) . '</p>';
             echo '</div>';
         } else {
             // Mapa de colors per acció
             $action_colors = array(
-                'activated'     => array( 'bg' => '#e8f5e9', 'color' => '#2e7d32', 'icon' => '✅' ),
-                'deactivated'   => array( 'bg' => '#fff8e1', 'color' => '#c07000', 'icon' => '⚠️' ),
-                'installed'     => array( 'bg' => '#e3f3ff', 'color' => '#0064a3', 'icon' => '📥' ),
-                'updated'       => array( 'bg' => '#f3e5f5', 'color' => '#6a1b9a', 'icon' => '🔄' ),
-                'deleted'       => array( 'bg' => '#fde8e8', 'color' => '#c00',    'icon' => '🗑️' ),
-                'keys_mapped'   => array( 'bg' => '#e8f4fd', 'color' => '#0277bd', 'icon' => '🔑' ),
-                'tables_mapped' => array( 'bg' => '#f3e5f5', 'color' => '#5e35b1', 'icon' => '📊' ),
+                'activated'     => array( 'class' => 'tso-hist-act-activated', 'icon' => '✅' ),
+                'deactivated'   => array( 'class' => 'tso-hist-act-deactivated', 'icon' => '⚠️' ),
+                'installed'     => array( 'class' => 'tso-hist-act-installed', 'icon' => '📥' ),
+                'updated'       => array( 'class' => 'tso-hist-act-updated', 'icon' => '🔄' ),
+                'deleted'       => array( 'class' => 'tso-hist-act-deleted', 'icon' => '🗑️' ),
+                'keys_mapped'   => array( 'class' => 'tso-hist-act-keys_mapped', 'icon' => '🔑' ),
+                'tables_mapped' => array( 'class' => 'tso-hist-act-tables_mapped', 'icon' => '📊' ),
             );
 
             $action_labels_map = array(
@@ -2289,20 +2394,20 @@ function tsootc_page() {
             );
 
             echo '<div class="tso-table-scroll tso-stack-on-mobile">';
-            echo '<table style="width:100%;border-collapse:collapse" id="tso-hist-table">';
-            echo '<thead><tr style="background:#f8f9fa">';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase;white-space:nowrap">' . esc_html( __( 'Date and time', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Type', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Name', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Action', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'File / Slug', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Details', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<table class="tso-hist-table" id="tso-hist-table">';
+            echo '<thead><tr class="tso-hist-thead-row">';
+            echo '<th class="tso-hist-th tso-th-left tso-hist-th--nowrap">' . esc_html( __( 'Date and time', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-center">' . esc_html( __( 'Type', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'Name', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-center">' . esc_html( __( 'Action', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'File / Slug', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'Details', 'tso-options-tables-cleaner' ) ) . '</th>';
             echo '</tr></thead>';
             echo '<tbody>';
 
             foreach ( $filtered_log as $idx => $ev ) {
                 $ts_str  = date_i18n( get_option( 'date_format' ) . ' H:i:s', (int) $ev['ts'] );
-                $ac      = isset( $action_colors[ $ev['action'] ] ) ? $action_colors[ $ev['action'] ] : array( 'bg' => '#f5f5f5', 'color' => '#555', 'icon' => '•' );
+                $ac      = isset( $action_colors[ $ev['action'] ] ) ? $action_colors[ $ev['action'] ] : array( 'class' => 'tso-hist-act-default', 'icon' => '•' );
                 $type_lbl = $ev['type'] === 'plugin'
                     ? '🔌 ' . esc_html( __( 'Plugin', 'tso-options-tables-cleaner' ) )
                     : '🎨 ' . esc_html( __( 'Theme', 'tso-options-tables-cleaner' ) );
@@ -2333,23 +2438,23 @@ function tsootc_page() {
                 }
                 $detail_cell = function_exists( 'tsootc_history_format_detail_html' )
                     ? tsootc_history_format_detail_html( $ev, $lang )
-                    : '<span style="color:#999">—</span>';
+                    : '<span class="tso-auto-off-text">—</span>';
 
-                $bg = $idx % 2 === 0 ? '#fff' : '#fafafa';
-                echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0"'
+                $row_class = $idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+                echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . '"'
                     . ' data-type="' . esc_attr( (string) $ev['type'] ) . '"'
                     . ' data-action="' . esc_attr( (string) $ev['action'] ) . '"'
                     . ' data-name="' . esc_attr( $data_name ) . '"'
                     . ' data-ts="' . esc_attr( (string) $ev['ts'] ) . '">';
-                echo '<td style="padding:9px 16px;font-size:12px;color:#555;white-space:nowrap" data-label="' . esc_attr( $hist_td_lab_dt ) . '">' . esc_html( $ts_str ) . '</td>';
-                echo '<td style="padding:9px 16px;text-align:center;font-size:12px;white-space:nowrap" data-label="' . esc_attr( $hist_td_lab_type ) . '">' . $type_lbl . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                echo '<td style="padding:9px 16px;font-size:13px;font-weight:600;color:#1d2327" data-label="' . esc_attr( $hist_td_lab_name ) . '">' . esc_html( (string) $ev['name'] ) . '</td>';
-                echo '<td style="padding:9px 16px;text-align:center" data-label="' . esc_attr( $hist_td_lab_act ) . '">';
-                echo '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:' . esc_attr( (string) $ac['bg'] ) . ';color:' . esc_attr( (string) $ac['color'] ) . '">'
+                echo '<td class="tso-hist-td tso-hist-td--dt" data-label="' . esc_attr( $hist_td_lab_dt ) . '">' . esc_html( $ts_str ) . '</td>';
+                echo '<td class="tso-hist-td tso-hist-td--type" data-label="' . esc_attr( $hist_td_lab_type ) . '">' . $type_lbl . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                echo '<td class="tso-hist-td tso-hist-td--name" data-label="' . esc_attr( $hist_td_lab_name ) . '">' . esc_html( (string) $ev['name'] ) . '</td>';
+                echo '<td class="tso-hist-td tso-hist-td--act" data-label="' . esc_attr( $hist_td_lab_act ) . '">';
+                echo '<span class="tso-hist-act-badge ' . esc_attr( (string) $ac['class'] ) . '">'
                     . esc_html( (string) $ac['icon'] . ' ' . (string) $action_label ) . '</span>';
                 echo '</td>';
-                echo '<td style="padding:9px 16px;font-family:monospace;font-size:11px;color:#888" data-label="' . esc_attr( $hist_td_lab_file ) . '">' . esc_html( $display_file ) . '</td>';
-                echo '<td style="padding:9px 16px;font-size:12px;color:#444;vertical-align:top;max-width:420px" data-label="' . esc_attr( $hist_td_lab_det ) . '">' . $detail_cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_kses above
+                echo '<td class="tso-hist-td tso-hist-td--file" data-label="' . esc_attr( $hist_td_lab_file ) . '">' . esc_html( $display_file ) . '</td>';
+                echo '<td class="tso-hist-td tso-hist-td--det" data-label="' . esc_attr( $hist_td_lab_det ) . '">' . $detail_cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_kses above
                 echo '</tr>';
             }
 
@@ -2357,7 +2462,7 @@ function tsootc_page() {
             echo '</div>'; // .tso-table-scroll
 
             $hist_empty_filters = empty( $filtered_log ) && ( $hist_filter_type || $hist_filter_action || $hist_search || $hist_date_from || $hist_date_to );
-            echo '<div id="tso-hist-filter-empty" style="padding:30px;text-align:center;color:#999;font-size:13px;display:' . ( $hist_empty_filters ? 'block' : 'none' ) . '">';
+            echo '<div id="tso-hist-filter-empty" class="tso-hist-filter-empty' . ( $hist_empty_filters ? '' : ' tso-u-hidden' ) . '">';
             echo '🔍 ' . esc_html( tsootc_ui_triple_text( $lang, 'No hi ha resultats per als filtres aplicats.', 'No hay resultados para los filtros aplicados.', 'No results for the applied filters.' ) );
             echo '</div>';
         }
@@ -2367,25 +2472,25 @@ function tsootc_page() {
         if ( ! empty( $recently_activated ) ) {
             $ra_td_lab_file = __( 'File / Slug', 'tso-options-tables-cleaner' );
             $ra_td_lab_dt   = __( 'Date and time', 'tso-options-tables-cleaner' );
-            echo '<div style="background:#fff;border:1px solid #e2e4e7;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:24px">';
-            echo '<div style="padding:14px 20px;border-bottom:1px solid #eee;background:#fffdf5">';
-            echo '<h3 style="margin:0;font-size:15px">' . esc_html( __( '⌚ Recently deactivated (WordPress)', 'tso-options-tables-cleaner' ) ) . '</h3>';
-            echo '<p style="margin:4px 0 0;font-size:12px;color:#999">' . esc_html( __( 'Plugins recently deactivated as recorded by WordPress (recently_activated).', 'tso-options-tables-cleaner' ) ) . '</p>';
+            echo '<div class="tso-panel-card">';
+            echo '<div class="tso-panel-head tso-panel-head--warm">';
+            echo '<h3 class="tso-panel-head-title">' . esc_html( __( '⌚ Recently deactivated (WordPress)', 'tso-options-tables-cleaner' ) ) . '</h3>';
+            echo '<p class="tso-panel-head-desc">' . esc_html( __( 'Plugins recently deactivated as recorded by WordPress (recently_activated).', 'tso-options-tables-cleaner' ) ) . '</p>';
             echo '</div>';
             echo '<div class="tso-table-scroll tso-stack-on-mobile">';
-            echo '<table style="width:100%;border-collapse:collapse">';
-            echo '<thead><tr style="background:#f8f9fa">';
-            echo '<th style="padding:9px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'File / Slug', 'tso-options-tables-cleaner' ) ) . '</th>';
-            echo '<th style="padding:9px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Date and time', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<table class="tso-hist-table">';
+            echo '<thead><tr class="tso-hist-thead-row">';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'File / Slug', 'tso-options-tables-cleaner' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'Date and time', 'tso-options-tables-cleaner' ) ) . '</th>';
             echo '</tr></thead><tbody>';
             $ra_idx = 0;
             foreach ( $recently_activated as $pf => $ts ) {
                 if ( ! is_int( $ts ) && ! is_numeric( $ts ) ) continue;
                 $ts_str = date_i18n( get_option( 'date_format' ) . ' H:i:s', (int) $ts );
-                $bg     = $ra_idx % 2 === 0 ? '#fff' : '#fafafa';
-                echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0">';
-                echo '<td style="padding:8px 16px;font-family:monospace;font-size:12px" data-label="' . esc_attr( $ra_td_lab_file ) . '">' . esc_html( $pf ) . '</td>';
-                echo '<td style="padding:8px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $ra_td_lab_dt ) . '">' . esc_html( $ts_str ) . '</td>';
+                $row_class = $ra_idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+                echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . '">';
+                echo '<td class="tso-ra-td-file" data-label="' . esc_attr( $ra_td_lab_file ) . '">' . esc_html( $pf ) . '</td>';
+                echo '<td class="tso-ra-td-dt" data-label="' . esc_attr( $ra_td_lab_dt ) . '">' . esc_html( $ts_str ) . '</td>';
                 echo '</tr>';
                 $ra_idx++;
             }
@@ -2400,20 +2505,20 @@ function tsootc_page() {
         $cur_td_lab_ver  = __( 'Version', 'tso-options-tables-cleaner' );
         $cur_td_lab_fdat = __( 'File date (approx. install)', 'tso-options-tables-cleaner' );
         $cur_td_lab_file = __( 'File / Slug', 'tso-options-tables-cleaner' );
-        echo '<div style="background:#fff;border:1px solid #e2e4e7;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:24px">';
-        echo '<div style="padding:14px 20px;border-bottom:1px solid #eee;background:#fafbfc">';
-        echo '<h3 style="margin:0;font-size:15px">' . esc_html( __( '🔌 Current plugin and theme status', 'tso-options-tables-cleaner' ) ) . '</h3>';
-        echo '<p style="margin:4px 0 0;font-size:12px;color:#999">' . esc_html( __( 'Snapshot of all installed plugins and themes, with file date as installation reference.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '<div class="tso-panel-card">';
+        echo '<div class="tso-panel-head">';
+        echo '<h3 class="tso-panel-head-title">' . esc_html( __( '🔌 Current plugin and theme status', 'tso-options-tables-cleaner' ) ) . '</h3>';
+        echo '<p class="tso-panel-head-desc">' . esc_html( __( 'Snapshot of all installed plugins and themes, with file date as installation reference.', 'tso-options-tables-cleaner' ) ) . '</p>';
         echo '</div>';
         echo '<div class="tso-table-scroll tso-stack-on-mobile">';
-        echo '<table style="width:100%;border-collapse:collapse">';
-        echo '<thead><tr style="background:#f8f9fa">';
-        echo '<th style="padding:9px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Name', 'tso-options-tables-cleaner' ) ) . '</th>';
-        echo '<th style="padding:9px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Type', 'tso-options-tables-cleaner' ) ) . '</th>';
-        echo '<th style="padding:9px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Status', 'tso-options-tables-cleaner' ) ) . '</th>';
-        echo '<th style="padding:9px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'Version', 'tso-options-tables-cleaner' ) ) . '</th>';
-        echo '<th style="padding:9px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'File date (approx. install)', 'tso-options-tables-cleaner' ) ) . '</th>';
-        echo '<th style="padding:9px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( __( 'File / Slug', 'tso-options-tables-cleaner' ) ) . '</th>';
+        echo '<table class="tso-hist-table">';
+        echo '<thead><tr class="tso-hist-thead-row">';
+        echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'Name', 'tso-options-tables-cleaner' ) ) . '</th>';
+        echo '<th class="tso-hist-th tso-th-center">' . esc_html( __( 'Type', 'tso-options-tables-cleaner' ) ) . '</th>';
+        echo '<th class="tso-hist-th tso-th-center">' . esc_html( __( 'Status', 'tso-options-tables-cleaner' ) ) . '</th>';
+        echo '<th class="tso-hist-th tso-th-center">' . esc_html( __( 'Version', 'tso-options-tables-cleaner' ) ) . '</th>';
+        echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'File date (approx. install)', 'tso-options-tables-cleaner' ) ) . '</th>';
+        echo '<th class="tso-hist-th tso-th-left">' . esc_html( __( 'File / Slug', 'tso-options-tables-cleaner' ) ) . '</th>';
         echo '</tr></thead><tbody>';
 
         $cur_idx = 0;
@@ -2421,21 +2526,21 @@ function tsootc_page() {
         foreach ( $all_plugins as $plugin_file => $plugin_data ) {
             $is_active  = in_array( $plugin_file, $active_plugins, true );
             $status_lbl = $is_active
-                ? '<span style="color:#2e7d32;font-weight:700;font-size:12px">' . esc_html( __( '✅ Active', 'tso-options-tables-cleaner' ) ) . '</span>'
-                : '<span style="color:#c07000;font-weight:700;font-size:12px">' . esc_html( __( '⚠️ Inactive', 'tso-options-tables-cleaner' ) ) . '</span>';
+                ? '<span class="tso-status-plugin-active">' . esc_html( __( '✅ Active', 'tso-options-tables-cleaner' ) ) . '</span>'
+                : '<span class="tso-status-plugin-inactive">' . esc_html( __( '⚠️ Inactive', 'tso-options-tables-cleaner' ) ) . '</span>';
             $full_path  = function_exists( 'tsootc_get_plugin_file_path' ) ? tsootc_get_plugin_file_path( $plugin_file ) : '';
             $file_date  = file_exists( $full_path )
                 ? date_i18n( get_option( 'date_format' ), filemtime( $full_path ) )
                 : '—';
             $version    = ! empty( $plugin_data['Version'] ) ? $plugin_data['Version'] : '—';
-            $bg         = $cur_idx % 2 === 0 ? '#fff' : '#fafafa';
-            echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0">';
-            echo '<td style="padding:8px 16px;font-size:13px;font-weight:600;color:#1d2327" data-label="' . esc_attr( $cur_td_lab_name ) . '">' . esc_html( (string) $plugin_data['Name'] ) . '</td>';
-            echo '<td style="padding:8px 16px;text-align:center;font-size:12px" data-label="' . esc_attr( $cur_td_lab_type ) . '">🔌 ' . esc_html( __( 'Plugin', 'tso-options-tables-cleaner' ) ) . '</td>';
-            echo '<td style="padding:8px 16px;text-align:center" data-label="' . esc_attr( $cur_td_lab_stat ) . '">' . $status_lbl . '</td>'; // phpcs:ignore
-            echo '<td style="padding:8px 16px;text-align:center;font-size:12px;color:#555" data-label="' . esc_attr( $cur_td_lab_ver ) . '">' . esc_html( (string) $version ) . '</td>';
-            echo '<td style="padding:8px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $cur_td_lab_fdat ) . '">' . esc_html( (string) $file_date ) . '</td>';
-            echo '<td style="padding:8px 16px;font-family:monospace;font-size:11px;color:#888" data-label="' . esc_attr( $cur_td_lab_file ) . '">' . esc_html( $plugin_file ) . '</td>';
+            $row_class = $cur_idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+            echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . '">';
+            echo '<td class="tso-cur-td-name" data-label="' . esc_attr( $cur_td_lab_name ) . '">' . esc_html( (string) $plugin_data['Name'] ) . '</td>';
+            echo '<td class="tso-cur-td-type" data-label="' . esc_attr( $cur_td_lab_type ) . '">🔌 ' . esc_html( __( 'Plugin', 'tso-options-tables-cleaner' ) ) . '</td>';
+            echo '<td class="tso-cur-td-stat" data-label="' . esc_attr( $cur_td_lab_stat ) . '">' . $status_lbl . '</td>'; // phpcs:ignore
+            echo '<td class="tso-cur-td-ver" data-label="' . esc_attr( $cur_td_lab_ver ) . '">' . esc_html( (string) $version ) . '</td>';
+            echo '<td class="tso-ra-td-dt" data-label="' . esc_attr( $cur_td_lab_fdat ) . '">' . esc_html( (string) $file_date ) . '</td>';
+            echo '<td class="tso-cur-td-file" data-label="' . esc_attr( $cur_td_lab_file ) . '">' . esc_html( $plugin_file ) . '</td>';
             echo '</tr>';
             $cur_idx++;
         }
@@ -2444,8 +2549,8 @@ function tsootc_page() {
         foreach ( $all_themes as $theme_slug => $theme_obj ) {
             $is_active_theme = ( $theme_slug === $active_theme_slug );
             $status_lbl      = $is_active_theme
-                ? '<span style="color:#1565c0;font-weight:700;font-size:12px">' . esc_html( __( '🎨 Active theme', 'tso-options-tables-cleaner' ) ) . '</span>'
-                : '<span style="color:#555;font-weight:700;font-size:12px">' . esc_html( __( '🖼️ Installed theme', 'tso-options-tables-cleaner' ) ) . '</span>';
+                ? '<span class="tso-status-theme-active">' . esc_html( __( '🎨 Active theme', 'tso-options-tables-cleaner' ) ) . '</span>'
+                : '<span class="tso-status-theme-installed">' . esc_html( __( '🖼️ Installed theme', 'tso-options-tables-cleaner' ) ) . '</span>';
             $theme_root      = get_theme_root( $theme_slug );
             $theme_path      = $theme_root . '/' . $theme_slug . '/style.css';
             $file_date       = file_exists( $theme_path )
@@ -2453,14 +2558,14 @@ function tsootc_page() {
                 : '—';
             $version         = $theme_obj->get( 'Version' );
             if ( ! $version ) $version = '—';
-            $bg = $cur_idx % 2 === 0 ? '#fff' : '#fafafa';
-            echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0">';
-            echo '<td style="padding:8px 16px;font-size:13px;font-weight:600;color:#1d2327" data-label="' . esc_attr( $cur_td_lab_name ) . '">' . esc_html( (string) $theme_obj->get( 'Name' ) ) . '</td>';
-            echo '<td style="padding:8px 16px;text-align:center;font-size:12px" data-label="' . esc_attr( $cur_td_lab_type ) . '">🎨 ' . esc_html( __( 'Theme', 'tso-options-tables-cleaner' ) ) . '</td>';
-            echo '<td style="padding:8px 16px;text-align:center" data-label="' . esc_attr( $cur_td_lab_stat ) . '">' . $status_lbl . '</td>'; // phpcs:ignore
-            echo '<td style="padding:8px 16px;text-align:center;font-size:12px;color:#555" data-label="' . esc_attr( $cur_td_lab_ver ) . '">' . esc_html( (string) $version ) . '</td>';
-            echo '<td style="padding:8px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $cur_td_lab_fdat ) . '">' . esc_html( (string) $file_date ) . '</td>';
-            echo '<td style="padding:8px 16px;font-family:monospace;font-size:11px;color:#888" data-label="' . esc_attr( $cur_td_lab_file ) . '">' . esc_html( $theme_slug ) . '</td>';
+            $bg = $cur_idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+            echo '<tr class="tso-hist-row ' . esc_attr( $bg ) . '">';
+            echo '<td class="tso-cur-td-name" data-label="' . esc_attr( $cur_td_lab_name ) . '">' . esc_html( (string) $theme_obj->get( 'Name' ) ) . '</td>';
+            echo '<td class="tso-cur-td-type" data-label="' . esc_attr( $cur_td_lab_type ) . '">🎨 ' . esc_html( __( 'Theme', 'tso-options-tables-cleaner' ) ) . '</td>';
+            echo '<td class="tso-cur-td-stat" data-label="' . esc_attr( $cur_td_lab_stat ) . '">' . $status_lbl . '</td>'; // phpcs:ignore
+            echo '<td class="tso-cur-td-ver" data-label="' . esc_attr( $cur_td_lab_ver ) . '">' . esc_html( (string) $version ) . '</td>';
+            echo '<td class="tso-ra-td-dt" data-label="' . esc_attr( $cur_td_lab_fdat ) . '">' . esc_html( (string) $file_date ) . '</td>';
+            echo '<td class="tso-cur-td-file" data-label="' . esc_attr( $cur_td_lab_file ) . '">' . esc_html( $theme_slug ) . '</td>';
             echo '</tr>';
             $cur_idx++;
         }
@@ -2531,13 +2636,13 @@ function tsootc_page() {
         // ---- Render ----
         echo $msg_backup; // phpcs:ignore
 
-        echo '<div style="max-width:1100px">';
-        echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start" class="tso-backup-top-grid">';
+        echo '<div class="tso-max-w-1100">';
+        echo '<div class="tso-backup-top-grid">';
 
         // ---- Columna esquerra: Crear backup ----
-        echo '<div style="background:#fff;border:1px solid #e2e4e7;border-radius:8px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-        echo '<h3 style="margin:0 0 8px;font-size:16px">💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Crear backup', 'Crear backup', 'Create backup' ) ) . '</h3>';
-        echo '<p style="color:#666;font-size:13px;margin:0 0 16px">'
+        echo '<div class="tso-card-panel">';
+        echo '<h3 class="tso-card-title-sm">💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Crear backup', 'Crear backup', 'Create backup' ) ) . '</h3>';
+        echo '<p class="tso-card-desc">'
             . wp_kses_post(
                 tsootc_ui_triple_text(
                     $lang,
@@ -2547,22 +2652,22 @@ function tsootc_page() {
                 )
             )
             . '</p>';
-        echo '<form method="post" id="tso-backup-create-form" style="margin:0">';
+        echo '<form method="post" id="tso-backup-create-form" class="tso-m0">';
         wp_nonce_field( TSOOTC_NONCE_FORM );
         echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="create_backup">';
-        echo '<button type="submit" id="tso-backup-create-btn" class="button button-primary" style="font-size:14px;padding:8px 20px">'
+        echo '<button type="submit" id="tso-backup-create-btn" class="button button-primary tso-backup-create-btn">'
             . '💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Crear backup ara', 'Crear backup ahora', 'Create backup now' ) )
             . '</button>';
         echo '</form>';
-        echo '<p style="color:#999;font-size:11px;margin:12px 0 0">⚠️ '
+        echo '<p class="tso-backup-footnote">⚠️ '
             . esc_html( tsootc_ui_triple_text( $lang, 'Pot trigar uns segons en bases de dades grans.', 'Puede tardar varios segundos en bases de datos grandes.', 'May take several seconds on large databases.' ) )
             . '</p>';
         echo '</div>';
 
         // ---- Columna dreta: Info ----
-        echo '<div style="background:#fff8f0;border:1px solid #f0c070;border-radius:8px;padding:24px">';
-        echo '<h3 style="margin:0 0 8px;font-size:16px;color:#8a5c00">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Important', 'Importante', 'Important' ) ) . '</h3>';
-        echo '<ul style="margin:0;padding-left:18px;color:#666;font-size:13px;line-height:1.8">';
+        echo '<div class="tso-backup-warn-panel">';
+        echo '<h3 class="tso-backup-warn-title">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Important', 'Importante', 'Important' ) ) . '</h3>';
+        echo '<ul class="tso-backup-warn-list">';
         echo '<li>' . esc_html( tsootc_ui_triple_text( $lang, 'Només es desen còpies al servidor.', 'Solo se guardan copias en el servidor.', 'Copies are only stored on the server.' ) ) . '</li>';
         echo '<li>' . esc_html( tsootc_ui_triple_text( $lang, 'Descarrega els backups per tenir-los segurs.', 'Descarga los backups para tenerlos seguros.', 'Download backups to keep them safe.' ) ) . '</li>';
         echo '<li>' . esc_html( __( 'Deleting extra tables now creates an automatic table snapshot first.', 'tso-options-tables-cleaner' ) ) . '</li>';
@@ -2583,15 +2688,15 @@ function tsootc_page() {
         echo '</div>'; // grid
 
         // ---- Llistat de backups ----
-        echo '<div class="tso-backup-list-outer" style="margin-top:24px;background:#fff;border:1px solid #e2e4e7;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">';
-        echo '<div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">';
-        echo '<h3 style="margin:0;font-size:15px">📋 ' . esc_html( tsootc_ui_triple_text( $lang, 'Backups disponibles', 'Backups disponibles', 'Available backups' ) ) . '</h3>';
-        echo '<span style="color:#999;font-size:12px">' . count( $backups ) . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'fitxers', 'archivos', 'files' ) ) . ' · uploads/' . esc_html( function_exists( 'tsootc_get_backup_rel_dir' ) ? tsootc_get_backup_rel_dir() : 'tso-options-tables-cleaner/backups' ) . '/</span>';
+        echo '<div class="tso-backup-list-outer tso-card-panel tso-card-panel--mt24">';
+        echo '<div class="tso-backup-list-head">';
+        echo '<h3 class="tso-panel-head-title">📋 ' . esc_html( tsootc_ui_triple_text( $lang, 'Backups disponibles', 'Backups disponibles', 'Available backups' ) ) . '</h3>';
+        echo '<span class="tso-hist-meta-note">' . count( $backups ) . ' ' . esc_html( tsootc_ui_triple_text( $lang, 'fitxers', 'archivos', 'files' ) ) . ' · uploads/' . esc_html( function_exists( 'tsootc_get_backup_rel_dir' ) ? tsootc_get_backup_rel_dir() : 'tso-options-tables-cleaner/backups' ) . '/</span>';
         echo '</div>';
 
         if ( empty( $backups ) ) {
-            echo '<div style="padding:40px;text-align:center;color:#999">';
-            echo '<span style="font-size:40px">📭</span><br>';
+            echo '<div class="tso-backup-empty">';
+            echo '<span class="tso-empty-icon">📭</span><br>';
             echo '<strong>' . esc_html( tsootc_ui_triple_text( $lang, 'Encara no hi ha backups.', 'No hay backups todavía.', 'No backups yet.' ) ) . '</strong>';
             echo '</div>';
         } else {
@@ -2602,33 +2707,32 @@ function tsootc_page() {
             $bk_td_lab_date   = tsootc_ui_triple_text( $lang, 'Data', 'Fecha', 'Date' );
             $bk_td_lab_action = tsootc_ui_triple_text( $lang, 'Accions', 'Acciones', 'Actions' );
 
-            echo '<form method="post" id="tso-backup-bulk-form" style="margin:0">';
+            echo '<form method="post" id="tso-backup-bulk-form" class="tso-m0">';
             wp_nonce_field( TSOOTC_NONCE_FORM );
             echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="delete_backups_bulk">';
-            echo '<div id="tso-backup-bulk-bar" class="tso-tables-bulk-bar" style="margin:12px 16px;padding:10px 14px;background:#fff;border:1px solid #ddd;border-radius:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
-            echo '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">';
+            echo '<div id="tso-backup-bulk-bar" class="tso-tables-bulk-bar tso-backup-bulk-bar tso-tables-bulk-bar">';
+            echo '<label class="tso-tables-bulk-label">';
             echo '<input type="checkbox" id="tso-backup-select-all"> <strong>' . esc_html( __( 'Select all', 'tso-options-tables-cleaner' ) ) . '</strong>';
             echo '</label>';
-            echo '<span id="tso-backup-selected-count" style="color:#666;font-size:12px">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
-            echo '<button type="submit" id="tso-backup-bulk-delete" class="button" style="margin-left:auto;color:#dc3232;border-color:#dc3232;background:#fff" disabled>';
+            echo '<span id="tso-backup-selected-count" class="tso-tables-selected-count">' . esc_html( __( '0 selected', 'tso-options-tables-cleaner' ) ) . '</span>';
+            echo '<button type="submit" id="tso-backup-bulk-delete" class="button tso-btn-ml-auto tso-btn-danger-outline-sm" disabled>';
             echo esc_html( __( '🗑️ Delete selected', 'tso-options-tables-cleaner' ) ) . '</button>';
             echo '</div>';
             echo '</form>';
 
             echo '<div class="tso-table-scroll tso-stack-on-mobile">';
-            echo '<table style="width:100%;border-collapse:collapse">';
-            echo '<thead><tr style="background:#f8f9fa">';
-            echo '<th style="width:32px;padding:10px 12px;text-align:center"></th>';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( tsootc_ui_triple_text( $lang, 'Fitxer', 'Archivo', 'File' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( $bk_td_lab_type ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:left;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( $bk_td_lab_tables ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:right;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( tsootc_ui_triple_text( $lang, 'Mida', 'Tamaño', 'Size' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( tsootc_ui_triple_text( $lang, 'Data', 'Fecha', 'Date' ) ) . '</th>';
-            echo '<th style="padding:10px 16px;text-align:center;font-size:11px;color:#666;font-weight:700;text-transform:uppercase">' . esc_html( tsootc_ui_triple_text( $lang, 'Accions', 'Acciones', 'Actions' ) ) . '</th>';
+            echo '<table class="tso-hist-table">';
+            echo '<thead><tr class="tso-hist-thead-row">';
+            echo '<th class="tso-backup-th-chk"></th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( tsootc_ui_triple_text( $lang, 'Fitxer', 'Archivo', 'File' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( $bk_td_lab_type ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-left">' . esc_html( $bk_td_lab_tables ) . '</th>';
+            echo '<th class="tso-backup-th tso-backup-th-right">' . esc_html( tsootc_ui_triple_text( $lang, 'Mida', 'Tamaño', 'Size' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-center">' . esc_html( tsootc_ui_triple_text( $lang, 'Data', 'Fecha', 'Date' ) ) . '</th>';
+            echo '<th class="tso-hist-th tso-th-center">' . esc_html( tsootc_ui_triple_text( $lang, 'Accions', 'Acciones', 'Actions' ) ) . '</th>';
             echo '</tr></thead><tbody>';
 
             foreach ( $backups as $idx => $bk ) {
-                $bg               = $idx % 2 === 0 ? '#fff' : '#fafafa';
                 $bk_meta          = isset( $bk['meta'] ) && is_array( $bk['meta'] ) ? $bk['meta'] : array();
                 $restore_id       = 'restore-' . md5( $bk['file'] );
                 $can_restore      = ! empty( $bk_meta['can_restore'] );
@@ -2644,39 +2748,40 @@ function tsootc_page() {
                     $backup_scope = __( 'Only backups generated by this plugin can be restored from here.', 'tso-options-tables-cleaner' );
                 }
 
-                echo '<tr style="background:' . esc_attr( $bg ) . ';border-bottom:1px solid #f0f0f0">';
-                echo '<td style="padding:10px 12px;text-align:center" data-label="">';
+                $row_class = $idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+                echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . '">';
+                echo '<td class="tso-backup-td tso-td-center" data-label="">';
                 echo '<input type="checkbox" class="tso-backup-chk" name="backup_files[]" value="' . esc_attr( $bk['file'] ) . '" form="tso-backup-bulk-form">';
                 echo '</td>';
-                echo '<td style="padding:10px 16px;font-family:monospace;font-size:12px" data-label="' . esc_attr( $bk_td_lab_file ) . '">' . esc_html( $bk['file'] ) . '</td>';
-                echo '<td style="padding:10px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $bk_td_lab_type ) . '"><strong>' . esc_html( $backup_type ) . '</strong><span class="tso-table-muted">' . esc_html( $backup_type_note ) . '</span></td>';
-                echo '<td style="padding:10px 16px;font-size:12px;color:#555" data-label="' . esc_attr( $bk_td_lab_tables ) . '">' . esc_html( $backup_scope ) . '</td>';
-                echo '<td style="padding:10px 16px;text-align:right;font-size:12px;color:#555" data-label="' . esc_attr( $bk_td_lab_size ) . '">' . esc_html( $bk['size'] ) . ' KB</td>';
-                echo '<td style="padding:10px 16px;text-align:center;font-size:12px;color:#555" data-label="' . esc_attr( $bk_td_lab_date ) . '">' . esc_html( $bk['date'] ) . '</td>';
-                echo '<td style="padding:10px 16px;text-align:center" class="tso-backup-actions-cell" data-label="' . esc_attr( $bk_td_lab_action ) . '">';
+                echo '<td class="tso-backup-td tso-backup-td-file" data-label="' . esc_attr( $bk_td_lab_file ) . '">' . esc_html( $bk['file'] ) . '</td>';
+                echo '<td class="tso-backup-td" data-label="' . esc_attr( $bk_td_lab_type ) . '"><strong>' . esc_html( $backup_type ) . '</strong><span class="tso-table-muted">' . esc_html( $backup_type_note ) . '</span></td>';
+                echo '<td class="tso-backup-td" data-label="' . esc_attr( $bk_td_lab_tables ) . '">' . esc_html( $backup_scope ) . '</td>';
+                echo '<td class="tso-backup-td tso-backup-td-right" data-label="' . esc_attr( $bk_td_lab_size ) . '">' . esc_html( $bk['size'] ) . ' KB</td>';
+                echo '<td class="tso-backup-td tso-backup-td-center" data-label="' . esc_attr( $bk_td_lab_date ) . '">' . esc_html( $bk['date'] ) . '</td>';
+                echo '<td class="tso-backup-td tso-backup-td-center tso-backup-actions-cell" data-label="' . esc_attr( $bk_td_lab_action ) . '">';
 
                 // Botó descarregar
                 $dl_url = wp_nonce_url(
                     admin_url( 'tools.php?page=tso-options-tables-cleaner&tab=backup&' . rawurlencode( TSOOTC_ADMIN_QUERY_DOWNLOAD ) . '=' . urlencode( $bk['file'] ) ),
                     TSOOTC_ADMIN_QUERY_DOWNLOAD
                 );
-                echo '<a href="' . esc_url( $dl_url ) . '" class="button button-small" style="margin-right:4px">⬇️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Descarregar', 'Descargar', 'Download' ) ) . '</a>';
+                echo '<a href="' . esc_url( $dl_url ) . '" class="button button-small tso-backup-dl-btn">⬇️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Descarregar', 'Descargar', 'Download' ) ) . '</a>';
 
                 // Botó restaurar
                 if ( $can_restore ) {
-                    echo '<button type="button" class="button button-small" style="margin-right:4px;color:#c07000;border-color:#c07000"'
-                        . ' onclick="document.getElementById(\'' . esc_attr( $restore_id ) . '\').style.display=\'block\'">'
+                    echo '<button type="button" class="button button-small tso-btn-warn-outline"'
+                        . ' data-tso-restore-show="' . esc_attr( $restore_id ) . '">'
                         . '🔄 ' . esc_html( tsootc_ui_triple_text( $lang, 'Restaurar', 'Restaurar', 'Restore' ) ) . '</button>';
                 } else {
-                    echo '<span class="tso-table-muted" style="margin-right:8px">' . esc_html( __( 'Restore unavailable', 'tso-options-tables-cleaner' ) ) . '</span>';
+                    echo '<span class="tso-table-muted tso-backup-restore-unavail">' . esc_html( __( 'Restore unavailable', 'tso-options-tables-cleaner' ) ) . '</span>';
                 }
 
                 // Botó eliminar
-                echo '<form method="post" style="display:inline" onsubmit="return confirm(\'' . esc_js( tsootc_ui_triple_text( $lang, 'Eliminar aquest backup?', '¿Eliminar este backup?', 'Delete this backup?' ) ) . '\')">';
+                echo '<form method="post" class="tso-backup-delete-form" data-tso-confirm="' . esc_attr( tsootc_ui_triple_text( $lang, 'Eliminar aquest backup?', '¿Eliminar este backup?', 'Delete this backup?' ) ) . '">';
                 wp_nonce_field( TSOOTC_NONCE_FORM );
                 echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="delete_backup">';
                 echo '<input type="hidden" name="backup_file" value="' . esc_attr( $bk['file'] ) . '">';
-                echo '<button class="button button-small" style="color:#c00;border-color:#c00">🗑️</button>';
+                echo '<button class="button button-small tso-btn-danger-text">🗑️</button>';
                 echo '</form>';
 
                 echo '</td>';
@@ -2684,10 +2789,10 @@ function tsootc_page() {
 
                 // Formulari de restauració (ocult)
                 if ( $can_restore ) {
-                    echo '<tr id="' . esc_attr( $restore_id ) . '" class="tso-mobile-full-row" style="display:none;background:#fff8f0">';
-                    echo '<td colspan="7" style="padding:16px 20px">';
-                    echo '<div style="border:2px solid #e0b070;border-radius:6px;padding:16px;background:#fffdf5">';
-                    echo '<strong style="color:#c00">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'RESTAURACIÓ IRREVERSIBLE', 'RESTAURACIÓN IRREVERSIBLE', 'IRREVERSIBLE RESTORE' ) ) . '</strong><br>';
+                    echo '<tr id="' . esc_attr( $restore_id ) . '" class="tso-mobile-full-row tso-backup-restore-row tso-u-hidden">';
+                    echo '<td colspan="7" class="tso-backup-restore-cell">';
+                    echo '<div class="tso-backup-restore-box">';
+                    echo '<strong class="tso-backup-restore-warn">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'RESTAURACIÓ IRREVERSIBLE', 'RESTAURACIÓN IRREVERSIBLE', 'IRREVERSIBLE RESTORE' ) ) . '</strong><br>';
 
                     if ( isset( $bk_meta['type'] ) && 'table_snapshot' === $bk_meta['type'] ) {
                         $restore_p = sprintf(
@@ -2704,16 +2809,16 @@ function tsootc_page() {
                         );
                     }
 
-                    echo '<p style="font-size:13px;margin:8px 0">' . wp_kses_post( $restore_p ) . '</p>';
-                    echo '<form method="post" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+                    echo '<p class="tso-backup-restore-text">' . wp_kses_post( $restore_p ) . '</p>';
+                    echo '<form method="post" class="tso-backup-restore-form">';
                     wp_nonce_field( TSOOTC_NONCE_FORM );
                     echo '<input type="hidden" name="' . esc_attr( TSOOTC_ADMIN_POST_ACTION ) . '" value="restore_backup">';
                     echo '<input type="hidden" name="backup_file" value="' . esc_attr( $bk['file'] ) . '">';
-                    echo '<input type="text" name="confirm_restore" placeholder="' . esc_attr( function_exists( 'tsootc_backup_restore_confirm_word' ) ? tsootc_backup_restore_confirm_word( $lang ) : tsootc_ui_triple_text( $lang, 'RESTAURAR', 'RESTAURAR', 'RESTORE' ) ) . '" style="width:200px;border-color:#c00">';
-                    echo '<button class="button" style="background:#c00;color:#fff;border-color:#c00">'
+                    echo '<input type="text" name="confirm_restore" placeholder="' . esc_attr( function_exists( 'tsootc_backup_restore_confirm_word' ) ? tsootc_backup_restore_confirm_word( $lang ) : tsootc_ui_triple_text( $lang, 'RESTAURAR', 'RESTAURAR', 'RESTORE' ) ) . '" class="tso-backup-restore-input">';
+                    echo '<button class="button tso-btn-danger-solid">'
                         . '🔄 ' . esc_html( tsootc_ui_triple_text( $lang, 'Confirmar restauració', 'Confirmar restauración', 'Confirm restore' ) )
                         . '</button>';
-                    echo '<button type="button" class="button" onclick="document.getElementById(\'' . esc_attr( $restore_id ) . '\').style.display=\'none\'">'
+                    echo '<button type="button" class="button" data-tso-restore-hide="' . esc_attr( $restore_id ) . '">'
                         . esc_html( tsootc_ui_triple_text( $lang, 'Cancel·lar', 'Cancelar', 'Cancel' ) )
                         . '</button>';
                     echo '</form>';
@@ -2738,54 +2843,54 @@ function tsootc_page() {
     $rename_save   = tsootc_ui_triple_text( $lang, '💾 Desar', '💾 Guardar', '💾 Save' );
     $rename_reset  = tsootc_ui_triple_text( $lang, '↩ Restaurar original', '↩ Restaurar original', '↩ Reset to original' );
     $rename_cancel = tsootc_ui_triple_text( $lang, 'Cancel·lar', 'Cancelar', 'Cancel' );
-    echo '<div id="tso-rename-overlay" onclick="if(event.target===this)this.classList.remove(\'active\')">';
+    echo '<div id="tso-rename-overlay" data-tso-overlay-dismiss="1">';
     echo '<div id="tso-rename-box">';
     echo '<h3>' . esc_html( $rename_title ) . '</h3>';
     echo '<p id="tso-rename-orig-label"></p>';
     echo '<input type="text" id="tso-rename-input" placeholder="' . esc_attr( $rename_ph ) . '" maxlength="120">';
     echo '<div id="tso-rename-actions">';
-    echo '<button class="button button-primary" onclick="tsootcSaveGroupAlias()">' . esc_html( $rename_save ) . '</button>';
-    echo '<button class="button" onclick="tsootcResetGroupAlias()">' . esc_html( $rename_reset ) . '</button>';
-    echo '<button class="button" onclick="document.getElementById(\'tso-rename-overlay\').classList.remove(\'active\')">' . esc_html( $rename_cancel ) . '</button>';
+    echo '<button class="button button-primary" data-tso-click="rename-save">' . esc_html( $rename_save ) . '</button>';
+    echo '<button class="button" data-tso-click="rename-reset">' . esc_html( $rename_reset ) . '</button>';
+    echo '<button class="button" data-tso-click="rename-close">' . esc_html( $rename_cancel ) . '</button>';
     echo '<span id="tso-rename-msg"></span>';
     echo '</div>';
     echo '</div>';
     echo '</div>';
 
     // Modal per veure/editar el valor d'una opció
-    echo '<div id="tso-modal-overlay" onclick="if(event.target===this)this.classList.remove(\'active\')">';
+    echo '<div id="tso-modal-overlay" data-tso-overlay-dismiss="1">';
     echo '<div id="tso-modal-box">';
     echo '<div id="tso-modal-head">';
-    echo '<strong id="tso-modal-name" style="flex:1;font-family:monospace;font-size:13px;word-break:break-all"></strong>';
-    echo '<span id="tso-modal-type-badge" style="display:none;font-size:11px;background:#e3f2fd;color:#0064a3;border:1px solid #b3d8f5;border-radius:4px;padding:2px 8px;margin-right:8px"></span>';
-    echo '<button id="tso-modal-edit-btn" class="button button-small" style="margin-right:8px" onclick="tsoModalToggleEdit()">✏️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Editar', 'Editar', 'Edit' ) ) . '</button>';
-    echo '<button id="tso-modal-close" onclick="document.getElementById(\'tso-modal-overlay\').classList.remove(\'active\')">✕</button>';
+    echo '<strong id="tso-modal-name"></strong>';
+    echo '<span id="tso-modal-type-badge"></span>';
+    echo '<button id="tso-modal-edit-btn" class="button button-small tso-modal-head-btn" data-tso-click="modal-toggle-edit">✏️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Editar', 'Editar', 'Edit' ) ) . '</button>';
+    echo '<button id="tso-modal-close" data-tso-click="modal-close">✕</button>';
     echo '</div>';
     echo '<div id="tso-modal-body">';
     echo '<div id="tso-modal-view-tabs">';
-    echo '<button type="button" id="tso-tab-tree" class="active" onclick="tsootcSwitchTab(\'tree\')">🌳 ' . esc_html( tsootc_ui_triple_text( $lang, 'Arbre', 'Árbol', 'Tree' ) ) . '</button>';
-    echo '<button type="button" id="tso-tab-raw" onclick="tsootcSwitchTab(\'raw\')">📄 ' . esc_html( tsootc_ui_triple_text( $lang, 'Raw', 'Raw', 'Raw' ) ) . '</button>';
-    echo '<button type="button" id="tso-tab-copy" onclick="tsoModalCopyAll()">📋 ' . esc_html( tsootc_ui_triple_text( $lang, 'Copiar', 'Copiar', 'Copy' ) ) . '</button>';
+    echo '<button type="button" id="tso-tab-tree" class="active" data-tso-click="modal-switch-tab" data-tso-tab="tree">🌳 ' . esc_html( tsootc_ui_triple_text( $lang, 'Arbre', 'Árbol', 'Tree' ) ) . '</button>';
+    echo '<button type="button" id="tso-tab-raw" data-tso-click="modal-switch-tab" data-tso-tab="raw">📄 ' . esc_html( tsootc_ui_triple_text( $lang, 'Raw', 'Raw', 'Raw' ) ) . '</button>';
+    echo '<button type="button" id="tso-tab-copy" data-tso-click="modal-copy">📋 ' . esc_html( tsootc_ui_triple_text( $lang, 'Copiar', 'Copiar', 'Copy' ) ) . '</button>';
     echo '</div>';
-    echo '<pre id="tso-modal-value" style="font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;background:#f9f9f9;border:1px solid #ddd;padding:12px;border-radius:4px;max-height:400px;overflow-y:auto;margin:0"></pre>';
+    echo '<pre id="tso-modal-value"></pre>';
     echo '<div id="tso-modal-tree"></div>';
     echo '<div id="tso-modal-table"></div>';
-    echo '<textarea id="tso-modal-editor" style="display:none;width:100%;min-height:260px;font-family:monospace;font-size:12px;border:2px solid #007cba;border-radius:4px;padding:10px;resize:vertical;box-sizing:border-box"></textarea>';
-    echo '<div id="tso-modal-edit-bar" style="margin-top:10px;gap:8px;align-items:center;flex-wrap:wrap">';
-    echo '<button id="tso-modal-save-btn" class="button button-primary" onclick="tsoModalSave()">💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Desar canvi', 'Guardar cambio', 'Save change' ) ) . '</button>';
-    echo '<button class="button" onclick="tsoModalCancelEdit()">✕ ' . esc_html( tsootc_ui_triple_text( $lang, 'Cancel·lar', 'Cancelar', 'Cancel' ) ) . '</button>';
-    echo '<span id="tso-modal-save-msg" style="font-size:12px;color:#666"></span>';
+    echo '<textarea id="tso-modal-editor"></textarea>';
+    echo '<div id="tso-modal-edit-bar">';
+    echo '<button id="tso-modal-save-btn" class="button button-primary" data-tso-click="modal-save">💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Desar canvi', 'Guardar cambio', 'Save change' ) ) . '</button>';
+    echo '<button class="button" data-tso-click="modal-cancel-edit">✕ ' . esc_html( tsootc_ui_triple_text( $lang, 'Cancel·lar', 'Cancelar', 'Cancel' ) ) . '</button>';
+    echo '<span id="tso-modal-save-msg" class="tso-notice-text-sm"></span>';
     echo '</div>';
     echo '</div>';
     echo '</div>';
     echo '</div>';
 
     // Modal Assignar Opció a Plugin
-    echo '<div id="tso-assign-overlay" onclick="if(event.target===this){this.classList.remove(\'active\');if(window.tsootcResetAssignModalButtons){window.tsootcResetAssignModalButtons();}}">';
+    echo '<div id="tso-assign-overlay" data-tso-overlay-dismiss="1">';
     echo '<div id="tso-assign-box">';
     echo '<div id="tso-assign-head">';
-    echo '<div style="flex:1"><strong>' . esc_html( __( '➕ Assign option to a plugin', 'tso-options-tables-cleaner' ) ) . '</strong><br><span id="tso-assign-option-name"></span></div>';
-    echo '<button onclick="document.getElementById(\'tso-assign-overlay\').classList.remove(\'active\');if(window.tsootcResetAssignModalButtons){window.tsootcResetAssignModalButtons();}">✕</button>';
+    echo '<div class="tso-assign-head-text"><strong>' . esc_html( __( '➕ Assign option to a plugin', 'tso-options-tables-cleaner' ) ) . '</strong><br><span id="tso-assign-option-name"></span></div>';
+    echo '<button data-tso-click="assign-close">✕</button>';
     echo '</div>';
     echo '<div id="tso-assign-body">';
 
@@ -2794,7 +2899,7 @@ function tsootc_page() {
     echo '<label>' . esc_html( __( 'Add to existing group', 'tso-options-tables-cleaner' ) ) . '</label>';
     echo '<select id="tso-assign-existing-select"><option value="">' . esc_html( __( '-- Select a group --', 'tso-options-tables-cleaner' ) ) . '</option></select>';
     echo '<br><br>';
-    echo '<button class="tso-assign-btn" id="tso-assign-save-existing" data-default-label="' . esc_attr( __( 'Assign to group', 'tso-options-tables-cleaner' ) ) . '" onclick="tsootcConfirmAssign(false)">' . esc_html( __( 'Assign to group', 'tso-options-tables-cleaner' ) ) . '</button>';
+    echo '<button class="tso-assign-btn" id="tso-assign-save-existing" data-default-label="' . esc_attr( __( 'Assign to group', 'tso-options-tables-cleaner' ) ) . '" data-tso-click="assign-confirm" data-tso-use-new="0">' . esc_html( __( 'Assign to group', 'tso-options-tables-cleaner' ) ) . '</button>';
     echo '</div>';
 
     // Secció 2: crear grup nou
@@ -2802,14 +2907,14 @@ function tsootc_page() {
     echo '<label>' . esc_html( __( 'Create a new group', 'tso-options-tables-cleaner' ) ) . '</label>';
     echo '<input type="text" id="tso-assign-new-input" placeholder="Nom del plugin o grup..." maxlength="80">';
     echo '<br><br>';
-    echo '<button class="tso-assign-btn" id="tso-assign-save-new" data-default-label="' . esc_attr( __( 'Create and assign', 'tso-options-tables-cleaner' ) ) . '" onclick="tsootcConfirmAssign(true)">' . esc_html( __( 'Create and assign', 'tso-options-tables-cleaner' ) ) . '</button>';
+    echo '<button class="tso-assign-btn" id="tso-assign-save-new" data-default-label="' . esc_attr( __( 'Create and assign', 'tso-options-tables-cleaner' ) ) . '" data-tso-click="assign-confirm" data-tso-use-new="1">' . esc_html( __( 'Create and assign', 'tso-options-tables-cleaner' ) ) . '</button>';
     echo '</div>';
 
     echo '</div>'; // #tso-assign-body
     echo '</div>'; // #tso-assign-box
     echo '</div>'; // #tso-assign-overlay
 
-    echo '<hr style="margin:20px 0"><p style="color:#999;font-size:12px">' . wp_kses_post( __( 'Remember to do <strong>LiteSpeed Cache → Purge All</strong> (or clear your cache plugin) after any cleanup. Always make a <strong>backup</strong> first.', 'tso-options-tables-cleaner' ) ) . '</p>';
+    echo '<hr class="tso-page-footnote-sep"><p class="tso-hist-meta-note">' . wp_kses_post( __( 'Remember to do <strong>LiteSpeed Cache → Purge All</strong> (or clear your cache plugin) after any cleanup. Always make a <strong>backup</strong> first.', 'tso-options-tables-cleaner' ) ) . '</p>';
     echo '</div>'; // .wrap
     restore_current_locale();
 }

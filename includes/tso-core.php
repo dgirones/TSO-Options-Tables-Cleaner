@@ -3687,6 +3687,18 @@ function tsootc_option_delete_is_blocked( $option_name ) {
 }
 
 /**
+ * Whether editing or changing autoload for an option from the UI/AJAX must be blocked.
+ *
+ * Uses the same rules as delete protection (WordPress core options).
+ *
+ * @param string $option_name Option key.
+ * @return bool
+ */
+function tsootc_option_modify_is_blocked( $option_name ) {
+	return tsootc_option_delete_is_blocked( $option_name );
+}
+
+/**
  * Plugin slugs referenced inside the shared Freemius fs_accounts blob.
  *
  * @return string[]
@@ -9537,7 +9549,7 @@ function tsootc_get_uninstalled_status( $lang = 'ca' ) {
  * @return string HTML (escaped).
  */
 function tsootc_get_uninstalled_group_badge_html( $lang = 'ca' ) {
-    return '<span class="tso-status-uninstalled" style="color:#a00000;font-weight:800;font-size:12px;line-height:1.35">'
+    return '<span class="tso-status-uninstalled">'
         . esc_html(
             tsootc_ui_triple_text(
                 $lang,
@@ -9644,7 +9656,7 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
         $relative_path = function_exists( 'tsootc_format_removed_component_path' )
             ? tsootc_format_removed_component_path( $plugin_folder )
             : 'wp-content/plugins/' . $plugin_folder . '/';
-        $path_line = '<p style="margin:8px 0 0"><strong>'
+        $path_line = '<p class="tso-orphan-path-line"><strong>'
             . esc_html(
                 tsootc_ui_triple_text(
                     $lang,
@@ -9653,7 +9665,7 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
                     'Server folder:'
                 )
             )
-            . '</strong> <code style="background:#fff;padding:2px 6px;border-radius:3px">'
+            . '</strong> <code class="tso-orphan-path-code">'
             . esc_html( $relative_path )
             . '</code> — '
             . esc_html(
@@ -9667,8 +9679,8 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
             . '</p>';
     }
 
-    $html  = '<div class="tso-orphan-safe-notice" style="margin:0 0 12px;padding:14px 16px;background:#fff8f8;border:1px solid #e8a0a0;border-left:4px solid #c00000;border-radius:6px;font-size:13px;line-height:1.5;color:#3c1f1f">';
-    $html .= '<p style="margin:0 0 6px;font-size:14px;font-weight:800;color:#a00000">'
+    $html  = '<div class="tso-orphan-safe-notice">';
+    $html .= '<p class="tso-orphan-safe-title">'
         . esc_html(
             tsootc_ui_triple_text(
                 $lang,
@@ -9678,7 +9690,7 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
             )
         )
         . '</p>';
-    $html .= '<p style="margin:0">'
+    $html .= '<p class="tso-orphan-safe-body">'
         . esc_html(
             tsootc_ui_triple_text(
                 $lang,
@@ -9697,7 +9709,7 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
             )
         )
         . '</p>';
-    $html .= '<p style="margin:8px 0 0;font-weight:600">'
+    $html .= '<p class="tso-orphan-safe-foot">'
         . esc_html(
             tsootc_ui_triple_text(
                 $lang,
@@ -15222,6 +15234,13 @@ function tsootc_do_clean( $action, $args = array() ) {
 
         case 'disable_autoload':
             $name = tsootc_get_ajax_post_text( 'option_name' );
+            if ( '' !== $name && tsootc_option_modify_is_blocked( $name ) ) {
+                return tsootc_msg(
+                    'Aquesta opció no es pot modificar des d\'aquí per seguretat.',
+                    'Esta opción no se puede modificar aquí por seguridad.',
+                    'This option cannot be modified here for security reasons.'
+                );
+            }
             if ( '' !== $name ) {
                 $wpdb->update( $wpdb->options, array( 'autoload' => 'no' ), array( 'option_name' => $name ), array( '%s' ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 wp_cache_delete( 'alloptions', 'options' );
@@ -15997,7 +16016,7 @@ add_action( 'wp_ajax_tsootc_get_option_value', 'tsootc_ajax_get_option_value' );
    ============================================================ */
 function tsootc_ajax_refresh_nonce() {
     nocache_headers();
-    if ( ! current_user_can( 'manage_options' ) ) {
+    if ( ! tsootc_verify_ajax_nonce() || ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array( 'msg' => tsootc_msg( 'No autoritzat', 'No autorizado', 'Not authorized' ) ) );
         return;
     }
@@ -16119,6 +16138,18 @@ function tsootc_ajax_disable_autoload() {
         wp_send_json_error( array( 'msg' => tsootc_msg( 'Nom buit', 'Nombre vacío', 'Empty name' ) ) );
         return;
     }
+    if ( tsootc_option_modify_is_blocked( $name ) ) {
+        wp_send_json_error(
+            array(
+                'msg' => tsootc_msg(
+                    'Aquesta opció no es pot modificar des d\'aquí per seguretat.',
+                    'Esta opción no se puede modificar aquí por seguridad.',
+                    'This option cannot be modified here for security reasons.'
+                ),
+            )
+        );
+        return;
+    }
     global $wpdb;
     $rows = $wpdb->update( $wpdb->options, array( 'autoload' => 'no' ), array( 'option_name' => $name ), array( '%s' ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
     wp_cache_delete( 'alloptions', 'options' );
@@ -16147,6 +16178,18 @@ function tsootc_ajax_enable_autoload() {
     $name = tsootc_get_ajax_post_text( 'option_name' );
     if ( '' === $name ) {
         wp_send_json_error( array( 'msg' => tsootc_msg( 'Nom buit', 'Nombre vacío', 'Empty name' ) ) );
+        return;
+    }
+    if ( tsootc_option_modify_is_blocked( $name ) ) {
+        wp_send_json_error(
+            array(
+                'msg' => tsootc_msg(
+                    'Aquesta opció no es pot modificar des d\'aquí per seguretat.',
+                    'Esta opción no se puede modificar aquí por seguridad.',
+                    'This option cannot be modified here for security reasons.'
+                ),
+            )
+        );
         return;
     }
     global $wpdb;
@@ -17097,7 +17140,7 @@ function tsootc_privacy_policy_content() {
     }
     $plugin_name = __( 'TSO Options & Tables Cleaner', 'tso-options-tables-cleaner' );
     $paragraph_1  = __( 'This plugin stores one administrator preference: the interface language (Catalan, Spanish, or English). It is saved as user metadata (<code>wp_usermeta</code>, key: <code>tso_options_tables_cleaner_ui_lang</code>) only for the user who selected the language. No data is sent to external servers.', 'tso-options-tables-cleaner' );
-    $paragraph_2  = __( 'If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-options-tables-cleaner/backups/</code>) and are not transmitted to third-party services.', 'tso-options-tables-cleaner' );
+    $paragraph_2  = __( 'If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-options-tables-cleaner/backups/</code>) and are not transmitted to third-party services. Uninstalling the plugin removes that uploads folder (download backups first if you need to keep them).', 'tso-options-tables-cleaner' );
     $allowed_html = array(
         'code' => array(),
         'p'    => array(),

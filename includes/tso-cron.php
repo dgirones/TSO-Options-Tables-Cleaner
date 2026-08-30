@@ -1374,10 +1374,10 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	$title_del    = tsootc_ui_triple_text( $lang, 'Eliminar aquesta instància', 'Eliminar esta instancia', 'Remove this instance' );
 	$title_clear  = tsootc_ui_triple_text( $lang, 'Eliminar totes les instàncies d\'aquest hook', 'Eliminar todas las instancias de este hook', 'Clear all instances of this hook' );
 
-	echo '<div style="max-width:1200px">';
+	echo '<div class="tso-cron-wrap">';
 	echo '<div class="tso-section">';
 	echo '<h3>⏱️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Cron de WordPress', 'Cron de WordPress', 'WordPress cron' ) ) . '</h3>';
-	echo '<p style="color:#666;font-size:13px;margin:0 0 14px;line-height:1.55">';
+	echo '<p class="tso-cron-intro">';
 	echo esc_html(
 		tsootc_ui_triple_text(
 			$lang,
@@ -1388,10 +1388,10 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	);
 	echo '</p>';
 
-	echo '<div class="tso-stats-grid" style="flex-wrap:wrap;margin-bottom:16px">';
+	echo '<div class="tso-stats-grid" class="tso-stats-grid tso-cron-stats-wrap">';
 	echo '<div class="tso-stat-card color-blue"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Esdeveniments actius', 'Eventos activos', 'Active events' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) count( $events ) ) . '</div></div>';
 	echo '<div class="tso-stat-card color-orange"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Pausats', 'Pausados', 'Paused' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) count( $paused ) ) . '</div></div>';
-	echo '<div class="tso-stat-card color-gray"><div class="tso-stat-label">WP-Cron</div><div class="tso-stat-value" style="font-size:14px">';
+	echo '<div class="tso-stat-card color-gray"><div class="tso-stat-label">WP-Cron</div><div class="tso-stat-value" class="tso-cron-stat-value">';
 	echo $disabled
 		? esc_html( tsootc_ui_triple_text( $lang, 'DISABLE_WP_CRON', 'DISABLE_WP_CRON', 'DISABLE_WP_CRON' ) )
 		: esc_html( tsootc_ui_triple_text( $lang, 'Actiu', 'Activo', 'Active' ) );
@@ -1399,7 +1399,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '</div>';
 
 	if ( $disabled ) {
-		echo '<div class="tso-notice-success" style="border-left-color:#f56e28"><span class="tso-notice-icon">ℹ️</span> ';
+		echo '<div class="tso-notice-success" class="tso-notice-success tso-notice-warn-accent"><span class="tso-notice-icon">ℹ️</span> ';
 		echo esc_html(
 			tsootc_ui_triple_text(
 				$lang,
@@ -1414,21 +1414,21 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '<form method="get" class="tso-filter-bar">';
 	echo '<input type="hidden" name="page" value="tso-options-tables-cleaner">';
 	echo '<input type="hidden" name="tab" value="cron">';
-	echo '<label style="font-size:12px;color:#555">' . esc_html( tsootc_ui_triple_text( $lang, 'Hook', 'Hook', 'Hook' ) ) . '</label>';
-	echo '<select name="cron_hook" style="min-width:200px">';
+	echo '<label class="tso-cron-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Hook', 'Hook', 'Hook' ) ) . '</label>';
+	echo '<select name="cron_hook" class="tso-cron-select">';
 	echo '<option value="">' . esc_html( tsootc_ui_triple_text( $lang, '— Tots —', '— Todos —', '— All —' ) ) . '</option>';
 	foreach ( $unique_hooks as $uh ) {
 		echo '<option value="' . esc_attr( $uh ) . '"' . selected( $filter_hook, $uh, false ) . '>' . esc_html( $uh ) . '</option>';
 	}
 	echo '</select>';
-	echo '<label style="font-size:12px;color:#555">' . esc_html( tsootc_ui_triple_text( $lang, 'Tipus', 'Tipo', 'Type' ) ) . '</label>';
+	echo '<label class="tso-cron-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Tipus', 'Tipo', 'Type' ) ) . '</label>';
 	echo '<select name="cron_sched">';
 	echo '<option value="">' . esc_html( tsootc_ui_triple_text( $lang, '— Tots —', '— Todos —', '— All —' ) ) . '</option>';
 	echo '<option value="recurring"' . selected( $filter_sched, 'recurring', false ) . '>' . esc_html( tsootc_ui_triple_text( $lang, 'Recurrent', 'Recurrente', 'Recurring' ) ) . '</option>';
 	echo '<option value="single"' . selected( $filter_sched, 'single', false ) . '>' . esc_html( $lbl_once ) . '</option>';
 	echo '<option value="overdue"' . selected( $filter_sched, 'overdue', false ) . '>' . esc_html( $lbl_overdue ) . '</option>';
 	echo '</select>';
-	echo '<input type="search" name="cron_q" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr( tsootc_ui_triple_text( $lang, 'Cercar hook…', 'Buscar hook…', 'Search hook…' ) ) . '" style="min-width:160px">';
+	echo '<input type="search" name="cron_q" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr( tsootc_ui_triple_text( $lang, 'Cercar hook…', 'Buscar hook…', 'Search hook…' ) ) . '" class="tso-cron-search">';
 	echo '<button type="submit" class="button">' . esc_html( tsootc_ui_triple_text( $lang, 'Filtrar', 'Filtrar', 'Filter' ) ) . '</button>';
 	echo '</form>';
 
@@ -1438,11 +1438,11 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '<th>' . esc_html( $lbl_sched ) . '</th>';
 	echo '<th>' . esc_html( $lbl_args ) . '</th>';
 	echo '<th>' . esc_html( $lbl_source ) . '</th>';
-	echo '<th style="text-align:right">' . esc_html( $lbl_actions ) . '</th>';
+	echo '<th class="tso-th-right">' . esc_html( $lbl_actions ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	if ( empty( $filtered ) ) {
-		echo '<tr><td colspan="6" style="text-align:center;color:#888;padding:24px">';
+		echo '<tr><td colspan="6" class="tso-cron-empty">';
 		echo esc_html( tsootc_ui_triple_text( $lang, 'Cap esdeveniment amb aquests filtres.', 'Ningún evento con estos filtros.', 'No events match these filters.' ) );
 		echo '</td></tr>';
 	}
@@ -1462,12 +1462,12 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		echo '<tr id="' . esc_attr( $row_id ) . '" data-hook="' . esc_attr( $hook ) . '" data-ts="' . esc_attr( (string) $ts ) . '"';
 		echo ' data-args="' . esc_attr( $ev['args_json'] ) . '" data-schedule="' . esc_attr( $sched_key ) . '" data-interval="' . esc_attr( (string) $ev['interval'] ) . '"';
 		echo ' data-core="' . ( $ev['is_core'] ? '1' : '0' ) . '">';
-		echo '<td><code style="font-size:12px">' . esc_html( $hook ) . '</code>';
+		echo '<td><code class="tso-cron-code">' . esc_html( $hook ) . '</code>';
 		if ( $ev['is_core'] ) {
 			echo ' <span class="tso-badge tso-badge-core" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';
 		}
 		if ( ! $ev['has_callback'] ) {
-			echo ' <span class="tso-badge" style="background:#f6f7f7;color:#666" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_no_cb ) . '</span>';
+			echo ' <span class="tso-badge" class="tso-badge tso-cron-badge-muted" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_no_cb ) . '</span>';
 		}
 		echo '</td>';
 		echo '<td>';
@@ -1475,20 +1475,20 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			echo '<span class="tso-badge tso-badge-auto">' . esc_html( $lbl_overdue ) . '</span> ';
 		}
 		echo esc_html( wp_date( 'Y-m-d H:i:s', $ts ) );
-		echo '<br><span style="font-size:11px;color:#888">';
+		echo '<br><span class="tso-cron-meta">';
 		$diff = tsootc_cron_human_time_diff( $ts, $now, $lang );
 		echo $ev['is_overdue']
 			? esc_html( sprintf( tsootc_ui_triple_text( $lang, 'fa %s', 'hace %s', '%s ago' ), $diff ) )
 			: esc_html( sprintf( tsootc_ui_triple_text( $lang, 'd\'aquí %s', 'dentro de %s', 'in %s' ), $diff ) );
 		echo '</span></td>';
 		echo '<td>' . esc_html( $sched_lbl ) . '</td>';
-		echo '<td><code style="font-size:11px;word-break:break-all">' . esc_html( $args_show ) . '</code></td>';
+		echo '<td><code class="tso-cron-code-sm">' . esc_html( $args_show ) . '</code></td>';
 		echo '<td>' . ( $source ? esc_html( $source ) : '—' ) . '</td>';
 		echo '<td class="tso-tables-actions-td"><div class="tso-tables-actions-rowicons">';
 		echo '<button type="button" class="button button-small tso-cron-run" title="' . esc_attr( $title_run ) . '" aria-label="' . esc_attr( $title_run ) . '">▶️</button>';
 		echo '<button type="button" class="button button-small tso-cron-postpone" title="' . esc_attr( $title_post ) . '" aria-label="' . esc_attr( $title_post ) . '">⏳</button>';
 		echo '<button type="button" class="button button-small tso-cron-pause" title="' . esc_attr( $title_pause ) . '" aria-label="' . esc_attr( $title_pause ) . '">⏸️</button>';
-		echo '<button type="button" class="button button-small tso-cron-unschedule" style="color:#dc3232;border-color:#dc3232" title="' . esc_attr( $title_del ) . '" aria-label="' . esc_attr( $title_del ) . '">🗑️</button>';
+		echo '<button type="button" class="button button-small tso-cron-unschedule" class="tso-cron-del-btn" title="' . esc_attr( $title_del ) . '" aria-label="' . esc_attr( $title_del ) . '">🗑️</button>';
 		echo '<button type="button" class="button button-small tso-cron-clear-hook" title="' . esc_attr( $title_clear ) . '" aria-label="' . esc_attr( $title_clear ) . '">🧹</button>';
 		echo '</div></td></tr>';
 	}
@@ -1497,13 +1497,13 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '</div>';
 
 	if ( ! empty( $paused ) ) {
-		echo '<div class="tso-section" style="margin-top:20px">';
+		echo '<div class="tso-section" class="tso-section tso-cron-section-mt">';
 		echo '<h3>⏸️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Esdeveniments pausats', 'Eventos pausados', 'Paused events' ) ) . '</h3>';
 		echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat"><thead><tr>';
 		echo '<th>' . esc_html( $lbl_hook ) . '</th>';
 		echo '<th>' . esc_html( $lbl_sched ) . '</th>';
 		echo '<th>' . esc_html( $lbl_args ) . '</th>';
-		echo '<th style="text-align:right">' . esc_html( $lbl_actions ) . '</th>';
+		echo '<th class="tso-th-right">' . esc_html( $lbl_actions ) . '</th>';
 		echo '</tr></thead><tbody>';
 		foreach ( $paused as $row ) {
 			$hook = isset( $row['hook'] ) ? (string) $row['hook'] : '';
@@ -1514,12 +1514,12 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			echo '<tr data-pause-id="' . esc_attr( $pid ) . '">';
 			echo '<td><code>' . esc_html( $hook ) . '</code></td>';
 			echo '<td>' . esc_html( $sched_lbl ) . '</td>';
-			echo '<td><code style="font-size:11px">' . esc_html( $args_json ) . '</code></td>';
+			echo '<td><code class="tso-cron-code-sm">' . esc_html( $args_json ) . '</code></td>';
 			echo '<td class="tso-tables-actions-td"><div class="tso-tables-actions-rowicons">';
 			$title_resume = tsootc_ui_triple_text( $lang, 'Restaurar al cron', 'Restaurar al cron', 'Restore to cron' );
 			$title_drop_p = tsootc_ui_triple_text( $lang, 'Eliminar registre de pausa', 'Eliminar registro de pausa', 'Delete pause record' );
 			echo '<button type="button" class="button button-small tso-cron-resume" title="' . esc_attr( $title_resume ) . '">▶️</button>';
-			echo '<button type="button" class="button button-small tso-cron-delete-paused" style="color:#dc3232;border-color:#dc3232" title="' . esc_attr( $title_drop_p ) . '">🗑️</button>';
+			echo '<button type="button" class="button button-small tso-cron-delete-paused" class="tso-cron-del-btn" title="' . esc_attr( $title_drop_p ) . '">🗑️</button>';
 			echo '</div></td></tr>';
 		}
 		echo '</tbody></table></div></div>';

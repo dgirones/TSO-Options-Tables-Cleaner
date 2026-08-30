@@ -643,11 +643,11 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 	);
 	$mismatch_url = add_query_arg( 'audit_mismatch', '1', $audit_base );
 	$all_url      = remove_query_arg( 'audit_mismatch', $audit_base );
-	echo '<div class="tso-section tso-audit-panel" style="margin-bottom:20px">';
+	echo '<div class="tso-section tso-audit-panel">';
 	echo '<h3>' . esc_html( $txt_title ) . '</h3>';
-	echo '<p style="color:#555;font-size:13px;margin:0 0 12px">' . esc_html( $txt_intro ) . '</p>';
+	echo '<p class="tso-audit-intro">' . esc_html( $txt_intro ) . '</p>';
 	if ( $mismatch_count > 0 ) {
-		echo '<p style="margin:0 0 12px"><strong style="color:#c00">' . esc_html(
+		echo '<p class="tso-audit-mismatch-alert"><strong>' . esc_html(
 			tsootc_ui_triple_text(
 				$lang,
 				sprintf( '%d grup(s) amb estat que no coincideix amb el disc.', $mismatch_count ),
@@ -656,7 +656,7 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 			)
 		) . '</strong></p>';
 	}
-	echo '<p style="margin:0 0 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
+	echo '<p class="tso-audit-actions">';
 	echo '<a class="button" href="' . esc_url( $off_url ) . '">' . esc_html( $txt_off ) . '</a>';
 	if ( $only_mismatch ) {
 		echo '<a class="button button-secondary" href="' . esc_url( $all_url ) . '">' . esc_html( $txt_all ) . '</a>';
@@ -679,19 +679,19 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 	echo '<th>' . esc_html( $txt_actions ) . '</th>';
 	echo '</tr></thead><tbody>';
 	if ( empty( $rows ) ) {
-		echo '<tr><td colspan="10" style="padding:16px;color:#666">' . esc_html( $txt_empty ) . '</td></tr>';
+		echo '<tr><td colspan="10" class="tso-audit-empty">' . esc_html( $txt_empty ) . '</td></tr>';
 	}
 	foreach ( $rows as $row ) {
 		$on_disk = $row['on_disk'];
 		if ( true === $on_disk ) {
 			$disk_label = $txt_yes;
-			$disk_style = 'color:#2a7a2a;font-weight:600';
+			$disk_class = 'tso-audit-disk--yes';
 		} elseif ( false === $on_disk ) {
 			$disk_label = $txt_no;
-			$disk_style = 'color:#c00000;font-weight:600';
+			$disk_class = 'tso-audit-disk--no';
 		} else {
 			$disk_label = $txt_na;
-			$disk_style = 'color:#666';
+			$disk_class = 'tso-audit-disk--na';
 		}
 		$mismatch = ! empty( $row['mismatch'] );
 		$sample   = (string) $row['sample'];
@@ -704,20 +704,20 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 			),
 			$base_url
 		) . '#' . $row_hash;
-		echo '<tr' . ( $mismatch ? ' style="background:#fff5f5"' : '' ) . '>';
-		echo '<td><strong>' . esc_html( (string) $row['display'] ) . '</strong><br><span style="color:#888">' . (int) $row['count'] . ' opt.</span></td>';
+		echo '<tr' . ( $mismatch ? ' class="tso-audit-row--mismatch"' : '' ) . '>';
+		echo '<td><strong>' . esc_html( (string) $row['display'] ) . '</strong><br><span class="tso-audit-opt-count">' . (int) $row['count'] . ' opt.</span></td>';
 		echo '<td>' . esc_html( (string) $row['history_label'] ) . '</td>';
 		echo '<td>' . esc_html( (string) $row['status'] ) . '</td>';
-		echo '<td style="' . esc_attr( $disk_style ) . '">' . esc_html( $disk_label ) . '</td>';
-		echo '<td><code style="font-size:11px">' . esc_html( (string) $row['method_label'] ) . '</code></td>';
-		echo '<td style="font-size:11px;color:#444">' . esc_html( (string) ( $row['evidence'] ?? '' ) ) . '</td>';
-		echo '<td style="font-size:11px;word-break:break-word;overflow-wrap:anywhere;max-width:200px">' . esc_html( (string) $row['disk_path'] ) . '</td>';
-		echo '<td><code style="font-size:11px"><a href="' . esc_url( $jump_url ) . '">' . esc_html( $sample ) . '</a></code></td>';
+		echo '<td class="' . esc_attr( $disk_class ) . '">' . esc_html( $disk_label ) . '</td>';
+		echo '<td><code class="tso-audit-code">' . esc_html( (string) $row['method_label'] ) . '</code></td>';
+		echo '<td class="tso-audit-evidence">' . esc_html( (string) ( $row['evidence'] ?? '' ) ) . '</td>';
+		echo '<td class="tso-audit-path">' . esc_html( (string) $row['disk_path'] ) . '</td>';
+		echo '<td><code class="tso-audit-code"><a href="' . esc_url( $jump_url ) . '">' . esc_html( $sample ) . '</a></code></td>';
 		echo '<td>';
 		if ( $mismatch ) {
-			echo '<span style="color:#c00;font-weight:700" title="' . esc_attr( (string) $row['mismatch_reason'] ) . '">⚠</span>';
+			echo '<span class="tso-audit-warn-icon" title="' . esc_attr( (string) $row['mismatch_reason'] ) . '">⚠</span>';
 			if ( ! empty( $row['mismatch_reason'] ) ) {
-				echo '<br><span style="font-size:11px;color:#a00">' . esc_html( (string) $row['mismatch_reason'] ) . '</span>';
+				echo '<br><span class="tso-audit-warn-reason">' . esc_html( (string) $row['mismatch_reason'] ) . '</span>';
 			}
 		} else {
 			echo '—';

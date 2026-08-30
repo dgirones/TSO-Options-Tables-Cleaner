@@ -3,10 +3,10 @@
 Contributors: deadko
 Donate link: https://ko-fi.com/deadko_cat
 Tags: database, cleanup, optimization, maintenance, wp-options
-Requires at least: 5.9
+Requires at least: 6.1
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,10 @@ Delete is allowed only when status and usage signals both look safe. If MySQL re
 
 In wp-content/uploads/tso-options-tables-cleaner/backups/. This directory is protected by .htaccess and an index.php to prevent direct access. Files are stored locally and never transmitted to any external service.
 
+= What happens to backups when I uninstall the plugin? =
+
+Uninstall removes the plugin-owned uploads folder (including SQL backups and options-tab cache). Download any backups you want to keep before deleting the plugin from WordPress.
+
 = Does it work with LiteSpeed Cache? =
 
 Yes. The plugin sends the appropriate no-cache headers and LiteSpeed Cache API calls to avoid caching the admin interface.
@@ -84,13 +88,19 @@ Data stored locally:
 
 * Language preference: The administrator's chosen UI language (Catalan, Spanish or English) is stored in wp_usermeta under the key tso_ui_lang. This data stays on your server and is never transmitted anywhere.
 * Plugin/theme history: A log of plugin and theme events is stored in wp_options under the key tso_plugin_history. This log is optional and can be cleared at any time from the History tab.
-* Database backups: SQL backup files are stored locally in wp-content/uploads/tso-options-tables-cleaner/backups/ and are never uploaded to any external service.
+* Database backups: SQL backup files are stored locally in wp-content/uploads/tso-options-tables-cleaner/backups/ and are never uploaded to any external service. They are removed when you uninstall the plugin (download first if you need to keep them).
 
 No external connections: This plugin does not make any HTTP requests to external servers, does not use analytics, and does not track usage of any kind.
 
 == Changelog ==
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+
+= 1.3.2 =
+* WordPress.org Plugin Check: admin UI uses enqueued JS/CSS only (no inline onclick, onchange, or style attributes)
+* Security: escaped admin tab and language URLs; AJAX refresh nonce requires verified nonce and manage_options
+* Uninstall: removes the plugin uploads folder (backups and options-tab cache); FAQ updated
+* Requires at least WordPress 6.1
 
 = 1.3.1 =
 * Options tab cache: no longer rebuilds on every visit when the automatic key map grows; language-aware payloads; cheaper inventory fingerprint (count + max id)

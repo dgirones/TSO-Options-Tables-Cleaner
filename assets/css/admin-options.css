@@ -85,7 +85,7 @@
 .btn-act.search   { border-color:#90bcd8; color:#007cba; background:#f0f8ff; width:30px;
                     justify-content:center; padding:4px 6px; }
 /* ---- Detection audit panel ---- */
-.tso-audit-panel { max-width:100%; overflow:hidden; }
+.tso-audit-panel { max-width:100%; overflow:hidden; margin-bottom:20px; }
 .tso-audit-table-wrap {
   width:100%; max-width:100%; box-sizing:border-box;
   border:1px solid #ddd; background:#fff; border-radius:6px;
@@ -199,3 +199,25 @@
                     padding:1px 6px; border-radius:3px; margin-left:4px; vertical-align:middle; }
 .tso-detect-badge-weak { color:#a00000; background:#fff0f0; }
 .btn-act.confirm { border-color:#1a7f37; color:#1a7f37; background:#f0fff4; }
+.tso-audit-intro { color:#555; font-size:13px; margin:0 0 12px; }
+.tso-audit-mismatch-alert { margin:0 0 12px; }
+.tso-audit-mismatch-alert strong { color:#c00; }
+.tso-audit-actions { margin:0 0 12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.tso-audit-empty { padding:16px; color:#666; }
+.tso-audit-row--mismatch { background:#fff5f5; }
+.tso-audit-opt-count { color:#888; }
+.tso-audit-disk--yes { color:#2a7a2a; font-weight:600; }
+.tso-audit-disk--no { color:#c00000; font-weight:600; }
+.tso-audit-disk--na { color:#666; }
+.tso-audit-code { font-size:11px; }
+.tso-audit-evidence { font-size:11px; color:#444; }
+.tso-audit-path { font-size:11px; word-break:break-word; overflow-wrap:anywhere; max-width:200px; }
+.tso-audit-warn-icon { color:#c00; font-weight:700; }
+.tso-audit-warn-reason { font-size:11px; color:#a00; }
+.tso-status-uninstalled { color:#a00000; font-weight:800; font-size:12px; line-height:1.35; }
+.tso-orphan-safe-notice { margin:0 0 12px; padding:14px 16px; background:#fff8f8; border:1px solid #e8a0a0; border-left:4px solid #c00000; border-radius:6px; font-size:13px; line-height:1.5; color:#3c1f1f; }
+.tso-orphan-safe-title { margin:0 0 6px; font-size:14px; font-weight:800; color:#a00000; }
+.tso-orphan-safe-body { margin:0; }
+.tso-orphan-safe-foot { margin:8px 0 0; font-weight:600; }
+.tso-orphan-path-line { margin:8px 0 0; }
+.tso-orphan-path-code { background:#fff; padding:2px 6px; border-radius:3px; }

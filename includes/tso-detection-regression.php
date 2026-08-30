@@ -107,6 +107,14 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'     => 'core_cron_modify_blocked',
+			'type'   => 'modify_blocked',
+			'option' => 'cron',
+			'assert' => array(
+				'blocked' => true,
+			),
+		),
+		array(
 			'id'      => 'core_options_all_protected',
 			'type'    => 'core_options_safe',
 			'options' => array(
@@ -2123,6 +2131,13 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 					'message' => 'core option is not protected: ' . (string) $core_option,
 				);
 			}
+			if ( function_exists( 'tsootc_option_modify_is_blocked' ) && ! tsootc_option_modify_is_blocked( $core_option ) ) {
+				return array(
+					'id'      => $id,
+					'pass'    => false,
+					'message' => 'core option modify is not protected: ' . (string) $core_option,
+				);
+			}
 		}
 		return array(
 			'id'      => $id,
@@ -2431,15 +2446,16 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 		);
 	}
 
-	if ( 'delete_blocked' === $type ) {
-		if ( ! function_exists( 'tsootc_option_delete_is_blocked' ) ) {
+	if ( 'delete_blocked' === $type || 'modify_blocked' === $type ) {
+		$helper = ( 'modify_blocked' === $type ) ? 'tsootc_option_modify_is_blocked' : 'tsootc_option_delete_is_blocked';
+		if ( ! function_exists( $helper ) ) {
 			return array(
 				'id'      => $id,
 				'pass'    => false,
-				'message' => 'tsootc_option_delete_is_blocked missing',
+				'message' => $helper . ' missing',
 			);
 		}
-		$blocked = tsootc_option_delete_is_blocked( $option );
+		$blocked = call_user_func( $helper, $option );
 		$expect  = ! empty( $assert['blocked'] );
 		return array(
 			'id'      => $id,

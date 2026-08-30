@@ -74,6 +74,12 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 		tsootc_admin_asset_file_version( 'assets/css/admin.css' )
 	);
 	wp_enqueue_style( 'tso-options-tables-cleaner-admin' );
+	wp_enqueue_style(
+		'tso-options-tables-cleaner-admin-panels',
+		$url . 'assets/css/admin-panels.css',
+		array( 'tso-options-tables-cleaner-admin' ),
+		tsootc_admin_asset_file_version( 'assets/css/admin-panels.css' )
+	);
 
 	$css_extra = tsootc_admin_get_extra_css();
 	if ( '' !== $css_extra ) {
@@ -89,9 +95,18 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 	);
 	wp_enqueue_script( 'tso-options-tables-cleaner-admin' );
 
+	wp_register_script(
+		'tso-options-tables-cleaner-admin-ui-bindings',
+		$url . 'assets/js/admin-ui-bindings.js',
+		array( 'tso-options-tables-cleaner-admin' ),
+		tsootc_admin_asset_file_version( 'assets/js/admin-ui-bindings.js' ),
+		true
+	);
+	wp_enqueue_script( 'tso-options-tables-cleaner-admin-ui-bindings' );
+
 	$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'cleanup'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-	$deps = array( 'tso-options-tables-cleaner-admin' );
+	$deps = array( 'tso-options-tables-cleaner-admin-ui-bindings' );
 	if ( 'options' === $tab ) {
 		wp_enqueue_style(
 			'tso-options-tables-cleaner-admin-options',

@@ -21,8 +21,8 @@ msgid "🧹 General cleanup"
 msgstr "🧹 Neteja general"
 
 #. Translation key: tab_options
-msgid "⚙️ wp_options"
-msgstr "⚙️ wp_options"
+msgid "⚙️ WP-OPTIONS"
+msgstr "⚙️ WP-OPTIONS"
 
 #. Translation key: tab_tables
 msgid "📦 Extra tables"
@@ -1013,8 +1013,8 @@ msgid "This plugin stores one administrator preference: the interface language (
 msgstr "Aquest plugin emmagatzema una única preferència de l'administrador: la llengua de la interfície (català, castellà o anglès). Es desa com a metadada d'usuari (<code>wp_usermeta</code>, clau: <code>tso_ui_lang</code>) únicament per a l'usuari que ha seleccionat l'idioma. No s'envia cap dada a servidors externs."
 
 #. Privacy policy paragraph 2
-msgid "If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-backups/</code>) and are not transmitted to third-party services."
-msgstr "Si s'utilitza la pestanya Backup, els fitxers SQL generats s'emmagatzemen localment al directori de pujades (habitualment <code>wp-content/uploads/tso-backups/</code>) i no es transmeten a cap servei de tercers."
+msgid "If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-options-tables-cleaner/backups/</code>) and are not transmitted to third-party services. Uninstalling the plugin removes that uploads folder (download backups first if you need to keep them)."
+msgstr "Si s'utilitza la pestanya Backup, els fitxers SQL generats s'emmagatzemen localment al directori de pujades (habitualment <code>wp-content/uploads/tso-options-tables-cleaner/backups/</code>) i no es transmeten a cap servei de tercers. En desinstal·lar el plugin s'elimina aquesta carpeta d'uploads (descarrega abans els backups que vulguis conservar)."
 
 msgid "Invalid table name."
 msgstr "Nom de taula no vàlid."

@@ -21,8 +21,8 @@ msgid "🧹 General cleanup"
 msgstr "🧹 Limpieza general"
 
 #. Translation key: tab_options
-msgid "⚙️ wp_options"
-msgstr "⚙️ wp_options"
+msgid "⚙️ WP-OPTIONS"
+msgstr "⚙️ WP-OPTIONS"
 
 #. Translation key: tab_tables
 msgid "📦 Extra tables"
@@ -1013,8 +1013,8 @@ msgid "This plugin stores one administrator preference: the interface language (
 msgstr "Este plugin almacena una única preferencia del administrador: el idioma de la interfaz (catalán, español o inglés). Se guarda como metadato de usuario (<code>wp_usermeta</code>, clave: <code>tso_ui_lang</code>) solo para el usuario que seleccionó el idioma. No se envían datos a servidores externos."
 
 #. Privacy policy paragraph 2
-msgid "If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-backups/</code>) and are not transmitted to third-party services."
-msgstr "Si utiliza la pestaña Backup, los archivos SQL generados se almacenan localmente en el directorio de subidas (normalmente <code>wp-content/uploads/tso-backups/</code>) y no se transmiten a servicios de terceros."
+msgid "If you use the Backup tab, generated SQL files are stored locally under your uploads directory (typically <code>wp-content/uploads/tso-options-tables-cleaner/backups/</code>) and are not transmitted to third-party services. Uninstalling the plugin removes that uploads folder (download backups first if you need to keep them)."
+msgstr "Si utiliza la pestaña Backup, los archivos SQL generados se almacenan localmente en el directorio de subidas (normalmente <code>wp-content/uploads/tso-options-tables-cleaner/backups/</code>) y no se transmiten a servicios de terceros. Al desinstalar el plugin se elimina esa carpeta de uploads (descarga antes los backups que quieras conservar)."
 
 msgid "Invalid table name."
 msgstr "Nombre de tabla no válido."
