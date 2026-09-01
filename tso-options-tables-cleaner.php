@@ -68,6 +68,7 @@ require_once TSOOTC_PATH . 'includes/tso-core.php';
 require_once TSOOTC_PATH . 'includes/tsootc-backup.php';
 require_once TSOOTC_PATH . 'includes/tsootc-optimize.php';
 require_once TSOOTC_PATH . 'includes/tsootc-cleanup.php';
+require_once TSOOTC_PATH . 'includes/tsootc-status.php';
 $tsootc_autodetect_file = TSOOTC_PATH . 'includes/tso-autodetect.php';
 if ( is_readable( $tsootc_autodetect_file ) ) {
 	require_once $tsootc_autodetect_file;

@@ -238,6 +238,27 @@
 .tso-cron-code { font-size:12px; }
 .tso-cron-code-sm { font-size:11px; word-break:break-all; }
 .tso-cron-badge-muted { background:#f6f7f7; color:#666; }
+.tso-status-wrap { max-width:1100px; }
+.tso-status-hero { border-radius:10px; padding:14px 16px; margin:0 0 16px; border:1px solid #dcdcde; }
+.tso-status-hero--ok { background:#f5fff6; border-color:#b8e6bc; }
+.tso-status-hero--warning { background:#fffbf0; border-color:#f0d080; }
+.tso-status-hero--critical { background:#fff5f5; border-color:#f0b0b0; }
+.tso-status-hero-badge { font-size:16px; font-weight:700; margin:0 0 6px; line-height:1.25; }
+.tso-status-hero--ok .tso-status-hero-badge { color:#1e7e34; }
+.tso-status-hero--warning .tso-status-hero-badge { color:#9a6700; }
+.tso-status-hero--critical .tso-status-hero-badge { color:#b32d2e; }
+.tso-status-hero-desc { margin:0; font-size:13px; color:#50575e; line-height:1.45; }
+.tso-status-metrics { margin-bottom:18px; }
+.tso-status-stat-sm { font-size:16px !important; line-height:1.2 !important; margin-top:4px !important; }
+.tso-status-findings { background:#fff; border:1px solid #e2e4e7; border-radius:10px; padding:12px 14px 10px; margin-bottom:12px; }
+.tso-status-findings-title { margin:0 0 10px; font-size:14px; font-weight:700; color:#1d2327; }
+.tso-status-findings-list { margin:0; padding:0; list-style:none; }
+.tso-status-finding { display:flex; align-items:center; gap:10px 12px; flex-wrap:wrap; padding:10px 0; border-top:1px solid #f0f0f1; }
+.tso-status-finding:first-child { border-top:none; padding-top:0; }
+.tso-status-finding-icon { flex:0 0 auto; font-size:14px; line-height:1; }
+.tso-status-finding-text { flex:1 1 220px; min-width:0; font-size:13px; color:#3c434a; line-height:1.4; }
+.tso-status-finding-btn { flex:0 0 auto; margin-left:auto !important; }
+.tso-status-footnote { margin-top:4px; }
 .tso-cron-meta { font-size:11px; color:#888; }
 .tso-cron-del-btn { color:#dc3232; border-color:#dc3232; }
 .tso-cron-section-mt { margin-top:20px; }

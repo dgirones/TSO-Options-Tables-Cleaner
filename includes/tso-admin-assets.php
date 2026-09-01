@@ -104,7 +104,7 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 	);
 	wp_enqueue_script( 'tso-options-tables-cleaner-admin-ui-bindings' );
 
-	$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'cleanup'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'status'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	$deps = array( 'tso-options-tables-cleaner-admin-ui-bindings' );
 	if ( 'options' === $tab ) {

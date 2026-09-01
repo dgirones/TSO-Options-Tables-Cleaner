@@ -376,7 +376,7 @@ function tsootc_handle_lang_switch() {
     if ( in_array( $lang, array( 'ca', 'es', 'en' ), true ) ) {
         tsootc_set_user_ui_lang( $lang );
     }
-    $allowed_tabs = array( 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' );
+    $allowed_tabs = array( 'status', 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' );
     $stay_tab     = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only param preserved across redirect
     $redirect_url = admin_url( 'tools.php?page=tso-options-tables-cleaner' );
     if ( $stay_tab && in_array( $stay_tab, $allowed_tabs, true ) ) {

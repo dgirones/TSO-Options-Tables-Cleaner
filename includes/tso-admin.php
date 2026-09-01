@@ -182,9 +182,11 @@ function tsootc_page() {
         $tso_cleanup_flash_notice = '<div class="' . esc_attr( $msg_class ) . '"><span class="tso-notice-icon">' . esc_html( $icon ) . '</span> ' . esc_html( (string) $saved_cleanup['msg'] ) . '</div>';
     }
 
-    $tab = isset( $_GET['tab'] ) ? sanitize_key( (string) ( $_GET['tab'] ?? '' ) ) : 'cleanup'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display parameter
+    $tab = isset( $_GET['tab'] ) ? sanitize_key( (string) ( $_GET['tab'] ?? '' ) ) : 'status'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display parameter
     // Validar tab
-    if ( ! in_array( $tab, array( 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' ), true ) ) $tab = 'cleanup';
+    if ( ! in_array( $tab, array( 'status', 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' ), true ) ) {
+        $tab = 'status';
+    }
 
     $base_url = admin_url( 'tools.php?page=tso-options-tables-cleaner' );
     $auto_cfg = tsootc_auto_clean_get_settings();
@@ -196,7 +198,7 @@ function tsootc_page() {
         ? tsootc_get_existing_group_names_light( $plugins )
         : tsootc_get_existing_group_names( $plugins );
     $force_opts_refresh = false;
-    if ( 'options' === $tab && function_exists( 'tsootc_options_tab_get_cached_payload' ) ) {
+    if ( in_array( $tab, array( 'options', 'status' ), true ) && function_exists( 'tsootc_options_tab_get_cached_payload' ) ) {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only cache bust flag
         $refresh_val        = tsootc_get_admin_query_arg( TSOOTC_ADMIN_QUERY_REFRESH, TSOOTC_ADMIN_QUERY_REFRESH_LEGACY );
         $force_opts_refresh = ( '1' === sanitize_key( $refresh_val ) );
@@ -297,6 +299,7 @@ function tsootc_page() {
     echo '</div>';
     echo '<nav class="tso-main-tabs" aria-label="' . esc_attr__( 'Plugin sections', 'tso-options-tables-cleaner' ) . '">';
     $tabs = array(
+        'status'  => tsootc_ui_triple_text( $lang, '📊 Estat actual', '📊 Estado actual', '📊 Current status' ),
         'cleanup' => __( '🧹 General cleanup', 'tso-options-tables-cleaner' ),
         'options' => __( '⚙️ WP-OPTIONS', 'tso-options-tables-cleaner' ),
         'tables'  => __( '📦 Extra tables', 'tso-options-tables-cleaner' ),
@@ -317,9 +320,18 @@ function tsootc_page() {
     echo '<div class="tso-tab-content"><div class="tso-tab-inner">';
 
     /* ====================================================================
+       TAB: ESTAT ACTUAL
+       ==================================================================== */
+    if ( 'status' === $tab ) {
+        if ( function_exists( 'tsootc_status_render_admin_tab' ) ) {
+            tsootc_status_render_admin_tab( $lang, $s, $base_url, $tso_opts_payload );
+        }
+    }
+
+    /* ====================================================================
        TAB: NETEJA GENERAL
        ==================================================================== */
-    if ( $tab === 'cleanup' ) {
+    elseif ( $tab === 'cleanup' ) {
 
         // Definir totes les accions amb metadades (compartides amb la neteja programada)
         $actions = array_values( tsootc_get_cleanup_action_definitions( $s, $age_days, true ) );
