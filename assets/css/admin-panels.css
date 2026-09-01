@@ -277,6 +277,23 @@
 .tso-status-autoclean--active { background:#f5fff6; border-color:#b8e6bc; }
 .tso-status-autoclean-text { margin:0 0 8px; font-size:13px; color:#3c434a; line-height:1.45; }
 .tso-status-autoclean-suggest { margin:0 0 10px; font-size:13px; color:#50575e; line-height:1.45; }
+.tso-status-freshness { margin:-4px 0 6px; text-align:center; }
+.tso-status-cron-line { margin:0 0 14px; text-align:center; }
+.tso-status-saved { background:#f5fff6; border:1px solid #b8e6bc; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:13px; color:#1d2327; }
+.tso-status-saved-value { color:#1e7e34; font-weight:700; }
+.tso-status-inventory { background:#fff; border:1px solid #e2e4e7; border-radius:10px; padding:12px 14px 10px; margin-bottom:14px; }
+.tso-status-inventory-grid { margin-bottom:8px; }
+.tso-status-autoload { background:#fff; border:1px solid #e2e4e7; border-radius:10px; padding:12px 14px 10px; margin-bottom:14px; }
+.tso-status-autoload-list { margin:0; padding:0; list-style:none; }
+.tso-status-autoload-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid #f0f0f1; font-size:13px; }
+.tso-status-autoload-item:first-child { border-top:none; padding-top:0; }
+.tso-status-autoload-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-decoration:none; }
+.tso-status-autoload-name code { font-size:12px; }
+.tso-status-autoload-kb { color:#50575e; font-weight:600; white-space:nowrap; }
+.tso-status-recent-detail { flex:1 1 100%; font-size:12px; color:#666; line-height:1.35; padding-left:24px; }
+.tso-status-recent--wp { border-color:#f0d080; }
+.tso-status-autoclean-results { margin:0 0 10px 18px; padding:0; font-size:12px; color:#50575e; line-height:1.4; }
+.tso-status-autoclean-results li { margin:0 0 3px; }
 .tso-cron-meta { font-size:11px; color:#888; }
 .tso-cron-del-btn { color:#dc3232; border-color:#dc3232; }
 .tso-cron-section-mt { margin-top:20px; }

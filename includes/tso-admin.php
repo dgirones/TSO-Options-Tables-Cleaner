@@ -212,7 +212,7 @@ function tsootc_page() {
         }
     }
 
-    if ( 'options' === $tab
+    if ( in_array( $tab, array( 'options', 'status' ), true )
         && is_array( $tso_opts_payload )
         && ! empty( $tso_opts_payload['from_cache'] )
         && ! empty( $tso_opts_payload['summary_stats'] )
