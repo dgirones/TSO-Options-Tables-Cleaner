@@ -1371,10 +1371,10 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	);
 	echo '</p>';
 
-	echo '<div class="tso-stats-grid" class="tso-stats-grid tso-cron-stats-wrap">';
+	echo '<div class="tso-stats-grid tso-stats-grid-compact">';
 	echo '<div class="tso-stat-card color-blue"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Esdeveniments actius', 'Eventos activos', 'Active events' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) count( $events ) ) . '</div></div>';
 	echo '<div class="tso-stat-card color-orange"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Pausats', 'Pausados', 'Paused' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) count( $paused ) ) . '</div></div>';
-	echo '<div class="tso-stat-card color-gray"><div class="tso-stat-label">WP-Cron</div><div class="tso-stat-value" class="tso-cron-stat-value">';
+	echo '<div class="tso-stat-card color-gray"><div class="tso-stat-label">WP-Cron</div><div class="tso-stat-value tso-cron-stat-value">';
 	echo $disabled
 		? esc_html( tsootc_ui_triple_text( $lang, 'DISABLE_WP_CRON', 'DISABLE_WP_CRON', 'DISABLE_WP_CRON' ) )
 		: esc_html( tsootc_ui_triple_text( $lang, 'Actiu', 'Activo', 'Active' ) );
@@ -1382,7 +1382,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '</div>';
 
 	if ( $disabled ) {
-		echo '<div class="tso-notice-success" class="tso-notice-success tso-notice-warn-accent"><span class="tso-notice-icon">ℹ️</span> ';
+		echo '<div class="tso-notice-success tso-notice-warn-accent"><span class="tso-notice-icon">ℹ️</span> ';
 		echo esc_html(
 			tsootc_ui_triple_text(
 				$lang,

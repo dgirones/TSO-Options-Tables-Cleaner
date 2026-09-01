@@ -124,6 +124,40 @@
 .tso-stat-card.color-green  .tso-stat-value { color:#46b450; }
 .tso-stat-card.color-blue   .tso-stat-value { color:#007cba; }
 .tso-stat-card.color-gray   .tso-stat-value { color:#555; }
+/* Compact centered row (Extra tables / CRON summary — fewer cards, less vertical space) */
+#tso-wrap .tso-stats-grid.tso-stats-grid-compact,
+.tso-stats-grid.tso-stats-grid-compact {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 10px;
+  margin-bottom: 14px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  width: auto;
+}
+.tso-stats-grid.tso-stats-grid-compact .tso-stat-card {
+  flex: 0 1 auto;
+  width: 150px;
+  max-width: 160px;
+  min-width: 0;
+  padding: 10px 10px 8px;
+}
+.tso-stats-grid.tso-stats-grid-compact .tso-stat-value {
+  font-size: 22px;
+  margin: 2px 0 4px;
+  line-height: 1.15;
+}
+.tso-stats-grid.tso-stats-grid-compact .tso-stat-label {
+  font-size: 10px;
+  line-height: 1.25;
+  letter-spacing: .3px;
+}
+.tso-stats-grid.tso-stats-grid-compact .tso-stat-value[style*="font-size"] {
+  font-size: 13px !important;
+  margin-top: 6px;
+}
 /* ---- Action Cards ---- */
 #tso-wrap .tso-actions-grid,
 .tso-actions-grid {
