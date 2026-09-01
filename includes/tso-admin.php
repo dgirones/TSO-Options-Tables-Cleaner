@@ -456,7 +456,7 @@ function tsootc_page() {
         $last_run      = (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RUN, 0 );
         $last_results  = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RESULTS, array() );
         $next_run      = wp_next_scheduled( 'tsootc_auto_clean_cron_hook' );
-        echo '<div class="tso-card-panel tso-card-panel--mt24">';
+        echo '<div class="tso-card-panel tso-card-panel--mt24" id="tso-auto-clean-panel">';
         echo '<h3 class="tso-card-title">' . esc_html( __( '⏰ Scheduled automatic cleanup', 'tso-options-tables-cleaner' ) ) . '</h3>';
 
         echo '<div class="tso-auto-meta-row">';

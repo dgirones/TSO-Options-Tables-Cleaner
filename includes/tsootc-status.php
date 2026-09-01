@@ -150,6 +150,175 @@ function tsootc_status_get_options_summary( $payload ) {
 }
 
 /**
+ * Recent plugin/theme lifecycle events for the status dashboard.
+ *
+ * @param int $limit Max rows.
+ * @return array<int,array{ts:int,type:string,action:string,name:string,file:string}>
+ */
+function tsootc_status_get_recent_history( $limit = 5 ) {
+	$limit = max( 1, min( 10, (int) $limit ) );
+	$log   = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_PLUGIN_HISTORY, array() );
+	if ( ! is_array( $log ) || empty( $log ) ) {
+		return array();
+	}
+
+	$allowed_actions = array( 'installed', 'deleted', 'activated', 'deactivated', 'updated' );
+	$rows            = array();
+	foreach ( $log as $ev ) {
+		if ( ! is_array( $ev ) ) {
+			continue;
+		}
+		$action = sanitize_key( (string) ( $ev['action'] ?? '' ) );
+		if ( ! in_array( $action, $allowed_actions, true ) ) {
+			continue;
+		}
+		$rows[] = array(
+			'ts'     => (int) ( $ev['ts'] ?? 0 ),
+			'type'   => sanitize_key( (string) ( $ev['type'] ?? 'plugin' ) ),
+			'action' => $action,
+			'name'   => sanitize_text_field( (string) ( $ev['name'] ?? '' ) ),
+			'file'   => sanitize_text_field( (string) ( $ev['file'] ?? '' ) ),
+		);
+	}
+
+	usort(
+		$rows,
+		static function ( $a, $b ) {
+			return (int) $b['ts'] <=> (int) $a['ts'];
+		}
+	);
+
+	return array_slice( $rows, 0, $limit );
+}
+
+/**
+ * Localized history action label for the status tab.
+ *
+ * @param string $lang   UI language.
+ * @param string $action Event action key.
+ * @return string
+ */
+function tsootc_status_history_action_label( $lang, $action ) {
+	$labels = array(
+		'installed'   => tsootc_ui_triple_text( $lang, 'Instal·lat', 'Instalado', 'Installed' ),
+		'deleted'     => tsootc_ui_triple_text( $lang, 'Desinstal·lat', 'Desinstalado', 'Uninstalled' ),
+		'activated'   => tsootc_ui_triple_text( $lang, 'Activat', 'Activado', 'Activated' ),
+		'deactivated' => tsootc_ui_triple_text( $lang, 'Desactivat', 'Desactivado', 'Deactivated' ),
+		'updated'     => tsootc_ui_triple_text( $lang, 'Actualitzat', 'Actualizado', 'Updated' ),
+	);
+	return isset( $labels[ $action ] ) ? (string) $labels[ $action ] : (string) $action;
+}
+
+/**
+ * Localized component type label for history rows.
+ *
+ * @param string $lang UI language.
+ * @param string $type plugin|theme.
+ * @return string
+ */
+function tsootc_status_history_type_label( $lang, $type ) {
+	return 'theme' === $type
+		? tsootc_ui_triple_text( $lang, 'Tema', 'Tema', 'Theme' )
+		: tsootc_ui_triple_text( $lang, 'Plugin', 'Plugin', 'Plugin' );
+}
+
+/**
+ * Build automatic cleanup suggestion from current metrics.
+ *
+ * @param string $lang UI language.
+ * @param array  $stats Cleanup stats.
+ * @param array  $frag  Fragmentation snapshot.
+ * @param array  $auto_cfg Auto-clean settings.
+ * @return array<string,mixed>
+ */
+function tsootc_status_build_autoclean_suggestion( $lang, array $stats, array $frag, array $auto_cfg ) {
+	$next_ts = wp_next_scheduled( 'tsootc_auto_clean_cron_hook' );
+	if ( ! empty( $auto_cfg['enabled'] ) ) {
+		return array(
+			'mode'     => 'active',
+			'interval' => isset( $auto_cfg['interval'] ) ? (string) $auto_cfg['interval'] : 'weekly',
+			'actions'  => isset( $auto_cfg['actions'] ) && is_array( $auto_cfg['actions'] ) ? $auto_cfg['actions'] : array(),
+			'next_ts'  => $next_ts ? (int) $next_ts : 0,
+		);
+	}
+
+	$action_keys = array();
+	if ( (int) ( $stats['expired_transients'] ?? 0 ) > 0 ) {
+		$action_keys[] = 'expired_transients';
+	}
+	if ( (int) ( $stats['spam_comments'] ?? 0 ) > 0 ) {
+		$action_keys[] = 'spam_comments';
+	}
+	$orphan_meta = (int) ( $stats['orphan_postmeta'] ?? 0 )
+		+ (int) ( $stats['orphan_commentmeta'] ?? 0 )
+		+ (int) ( $stats['orphan_usermeta'] ?? 0 )
+		+ (int) ( $stats['orphan_termmeta'] ?? 0 );
+	if ( $orphan_meta > 0 ) {
+		$action_keys[] = 'orphan_postmeta';
+	}
+	if ( (int) ( $stats['revisions'] ?? 0 ) > 100 ) {
+		$action_keys[] = 'revisions_older_than_days';
+	}
+	if ( (int) ( $stats['trashed_posts'] ?? 0 ) > 0 ) {
+		$action_keys[] = 'trashed_posts_older_than_days';
+	}
+	if ( (int) ( $frag['free_kb'] ?? 0 ) > 1024 ) {
+		$action_keys[] = 'optimize_fragmented_tables';
+	}
+	if ( empty( $action_keys ) ) {
+		$action_keys[] = 'expired_transients';
+	}
+	$action_keys = array_values( array_unique( $action_keys ) );
+
+	$interval = 'weekly';
+	if ( (int) ( $stats['expired_transients'] ?? 0 ) > 200 || $orphan_meta > 500 ) {
+		$interval = 'daily';
+	} elseif (
+		0 === (int) ( $stats['expired_transients'] ?? 0 )
+		&& 0 === $orphan_meta
+		&& (int) ( $stats['spam_comments'] ?? 0 ) === 0
+		&& (int) ( $frag['free_kb'] ?? 0 ) <= 256
+	) {
+		$interval = 'monthly';
+	}
+
+	$interval_labels = array(
+		'daily'   => tsootc_ui_triple_text( $lang, 'diària', 'diaria', 'daily' ),
+		'weekly'  => tsootc_ui_triple_text( $lang, 'setmanal', 'semanal', 'weekly' ),
+		'monthly' => tsootc_ui_triple_text( $lang, 'mensual', 'mensual', 'monthly' ),
+	);
+
+	return array(
+		'mode'           => 'suggest',
+		'interval'       => $interval,
+		'interval_label' => isset( $interval_labels[ $interval ] ) ? $interval_labels[ $interval ] : $interval_labels['weekly'],
+		'actions'        => $action_keys,
+		'next_ts'        => 0,
+	);
+}
+
+/**
+ * Resolve cleanup action titles for display.
+ *
+ * @param array $stats Stats for definitions.
+ * @param array $action_keys Action keys.
+ * @return string[]
+ */
+function tsootc_status_autoclean_action_titles( array $stats, array $action_keys ) {
+	if ( ! function_exists( 'tsootc_get_cleanup_action_definitions' ) ) {
+		return $action_keys;
+	}
+	$definitions = tsootc_get_cleanup_action_definitions( $stats );
+	$titles      = array();
+	foreach ( $action_keys as $key ) {
+		if ( isset( $definitions[ $key ]['title'] ) ) {
+			$titles[] = (string) $definitions[ $key ]['title'];
+		}
+	}
+	return $titles;
+}
+
+/**
  * Build prioritized findings for the status dashboard.
  *
  * @param string               $lang UI language code.
@@ -274,9 +443,9 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 			'severity'      => 'critical',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
-				sprintf( '%s taules extra semblen probablement orfes.', number_format_i18n( $tables['orphans'] ) ),
-				sprintf( '%s tablas extra parecen probablemente huérfanas.', number_format_i18n( $tables['orphans'] ) ),
-				sprintf( '%s extra tables look probably orphaned.', number_format_i18n( $tables['orphans'] ) )
+				sprintf( '%s taules creades per plugins semblen restes de plugins eliminats.', number_format_i18n( $tables['orphans'] ) ),
+				sprintf( '%s tablas creadas por plugins parecen restos de plugins eliminados.', number_format_i18n( $tables['orphans'] ) ),
+				sprintf( '%s plugin-created tables look like leftovers from removed plugins.', number_format_i18n( $tables['orphans'] ) )
 			),
 			'action_label'  => tsootc_ui_triple_text( $lang, 'Revisar taules', 'Revisar tablas', 'Review tables' ),
 			'action_url'    => $tab_url( 'tables' ),
@@ -286,9 +455,9 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 			'severity'      => 'info',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
-				sprintf( '%s taules extra detectades — revisa abans d\'eliminar res.', number_format_i18n( $tables['total'] ) ),
-				sprintf( '%s tablas extra detectadas — revisa antes de eliminar nada.', number_format_i18n( $tables['total'] ) ),
-				sprintf( '%s extra tables detected — review before deleting anything.', number_format_i18n( $tables['total'] ) )
+				sprintf( '%s taules creades per plugins (no són del nucli de WordPress) — revisa abans d\'eliminar res.', number_format_i18n( $tables['total'] ) ),
+				sprintf( '%s tablas creadas por plugins (no pertenecen al núcleo de WordPress) — revisa antes de eliminar nada.', number_format_i18n( $tables['total'] ) ),
+				sprintf( '%s plugin-created tables (not WordPress core) — review before deleting anything.', number_format_i18n( $tables['total'] ) )
 			),
 			'action_label'  => tsootc_ui_triple_text( $lang, 'Veure taules', 'Ver tablas', 'View tables' ),
 			'action_url'    => $tab_url( 'tables' ),
@@ -338,6 +507,25 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		);
 	}
 
+	$recent_history = tsootc_status_get_recent_history( 1 );
+	if ( ! empty( $recent_history[0]['action'] ) && 'deleted' === $recent_history[0]['action'] ) {
+		$deleted_ts = (int) ( $recent_history[0]['ts'] ?? 0 );
+		if ( $deleted_ts > ( time() - ( 14 * DAY_IN_SECONDS ) ) ) {
+			$deleted_name = (string) ( $recent_history[0]['name'] ?? '' );
+			$findings[]   = array(
+				'severity'      => 'warning',
+				'message'       => tsootc_ui_triple_text(
+					$lang,
+					sprintf( 'Recentment s\'ha desinstal·lat «%s» — revisa taules de plugins i opcions orfes.', $deleted_name ),
+					sprintf( 'Recientemente se desinstaló «%s» — revisa tablas de plugins y opciones huérfanas.', $deleted_name ),
+					sprintf( '«%s» was uninstalled recently — review plugin tables and orphan options.', $deleted_name )
+				),
+				'action_label'  => tsootc_ui_triple_text( $lang, 'Veure historial', 'Ver historial', 'View history' ),
+				'action_url'    => $tab_url( 'history' ),
+			);
+		}
+	}
+
 	if ( 0 === (int) $backup['count'] ) {
 		$findings[] = array(
 			'severity'      => 'warning',
@@ -361,21 +549,6 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 			),
 			'action_label'  => tsootc_ui_triple_text( $lang, 'Gestionar backups', 'Gestionar backups', 'Manage backups' ),
 			'action_url'    => $tab_url( 'backup' ),
-		);
-	}
-
-	$auto_cfg = function_exists( 'tsootc_auto_clean_get_settings' ) ? tsootc_auto_clean_get_settings() : array( 'enabled' => false );
-	if ( empty( $auto_cfg['enabled'] ) ) {
-		$findings[] = array(
-			'severity'      => 'info',
-			'message'       => tsootc_ui_triple_text(
-				$lang,
-				'La neteja automàtica està desactivada.',
-				'La limpieza automática está desactivada.',
-				'Automatic cleanup is disabled.'
-			),
-			'action_label'  => tsootc_ui_triple_text( $lang, 'Configurar neteja', 'Configurar limpieza', 'Configure cleanup' ),
-			'action_url'    => $tab_url( 'cleanup' ),
 		);
 	}
 
@@ -450,6 +623,11 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 
 	$findings = tsootc_status_build_findings( $lang, $stats, $tables, $options, $cron, $backup, $frag, $base_url );
 	$overall  = tsootc_status_overall_health( $findings );
+	$recent   = tsootc_status_get_recent_history( 5 );
+	$auto_cfg = function_exists( 'tsootc_auto_clean_get_settings' ) ? tsootc_auto_clean_get_settings() : array( 'enabled' => false );
+	$autoclean = tsootc_status_build_autoclean_suggestion( $lang, $stats, $frag, $auto_cfg );
+	$cleanup_url = $base_url . '&tab=cleanup#tso-auto-clean-panel';
+	$history_url = $base_url . '&tab=history';
 
 	$overall_labels = array(
 		'critical' => tsootc_ui_triple_text( $lang, 'Acció urgent', 'Acción urgente', 'Urgent action' ),
@@ -514,10 +692,52 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 	echo '<div class="tso-stats-grid tso-stats-grid-compact tso-status-metrics">';
 	echo '<div class="tso-stat-card color-' . esc_attr( $autoload_color ) . '"><div class="tso-stat-value">' . esc_html( number_format( $autoload_kb ) ) . ' KB</div><div class="tso-stat-label">' . esc_html__( 'Autoload', 'tso-options-tables-cleaner' ) . '</div></div>';
 	echo '<div class="tso-stat-card ' . esc_attr( ( (int) ( $stats['expired_transients'] ?? 0 ) ) > 0 ? 'color-red' : 'color-green' ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( (int) ( $stats['expired_transients'] ?? 0 ) ) ) . '</div><div class="tso-stat-label">' . esc_html__( 'Expired transients', 'tso-options-tables-cleaner' ) . '</div></div>';
-	echo '<div class="tso-stat-card ' . esc_attr( $tables['orphans'] > 0 ? 'color-red' : ( $tables['total'] > 0 ? 'color-orange' : 'color-green' ) ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( $tables['total'] ) ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Taules extra', 'Tablas extra', 'Extra tables' ) ) . '</div></div>';
+	echo '<div class="tso-stat-card ' . esc_attr( $tables['orphans'] > 0 ? 'color-red' : ( $tables['total'] > 0 ? 'color-orange' : 'color-green' ) ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( $tables['total'] ) ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Taules de plugins', 'Tablas de plugins', 'Plugin tables' ) ) . '</div></div>';
 	echo '<div class="tso-stat-card ' . esc_attr( 0 === (int) $backup['count'] ? 'color-orange' : 'color-blue' ) . '"><div class="tso-stat-value tso-status-stat-sm">' . esc_html( $backup_label ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Darrer backup', 'Último backup', 'Latest backup' ) ) . '</div></div>';
 	echo '<div class="tso-stat-card ' . esc_attr( $cron['overdue'] > 0 ? 'color-orange' : 'color-gray' ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( $cron['overdue'] ) ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'CRON endarrerit', 'CRON atrasado', 'Overdue CRON' ) ) . '</div></div>';
 	echo '<div class="tso-stat-card ' . esc_attr( ( (int) ( $frag['free_kb'] ?? 0 ) ) > 1024 ? 'color-orange' : 'color-green' ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( (int) ( $frag['free_kb'] ?? 0 ) ) ) . ' KB</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Fragmentació', 'Fragmentación', 'Fragmentation' ) ) . '</div></div>';
+	echo '</div>';
+	echo '<p class="tso-hist-meta-note tso-status-metrics-note">' . esc_html(
+		tsootc_ui_triple_text(
+			$lang,
+			'«Taules de plugins»: taules que els plugins han creat a la base de dades i que no formen part del nucli de WordPress.',
+			'«Tablas de plugins»: tablas que los plugins han creado en la base de datos y que no forman parte del núcleo de WordPress.',
+			'«Plugin tables»: tables plugins created in the database that are not part of WordPress core.'
+		)
+	) . '</p>';
+
+	echo '<div class="tso-status-recent">';
+	echo '<div class="tso-status-recent-head">';
+	echo '<h4 class="tso-status-findings-title">' . esc_html( tsootc_ui_triple_text( $lang, 'Darrers canvis de plugins i temes', 'Últimos cambios de plugins y temas', 'Recent plugin and theme changes' ) ) . '</h4>';
+	echo '<a class="tso-status-recent-all" href="' . esc_url( $history_url ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Historial complet →', 'Historial completo →', 'Full history →' ) ) . '</a>';
+	echo '</div>';
+	if ( empty( $recent ) ) {
+		echo '<p class="tso-status-recent-empty">' . esc_html(
+			tsootc_ui_triple_text(
+				$lang,
+				'Encara no hi ha esdeveniments registrats. A partir d\'ara s\'anotaran instal·lacions, desinstal·lacions, activacions i actualitzacions.',
+				'Aún no hay eventos registrados. A partir de ahora se anotarán instalaciones, desinstalaciones, activaciones y actualizaciones.',
+				'No events recorded yet. Installs, uninstalls, activations, and updates will be logged from now on.'
+			)
+		) . '</p>';
+	} else {
+		echo '<ul class="tso-status-recent-list">';
+		foreach ( $recent as $ev ) {
+			$when = ! empty( $ev['ts'] )
+				? date_i18n( get_option( 'date_format' ) . ' H:i', (int) $ev['ts'] )
+				: '—';
+			$type_label   = tsootc_status_history_type_label( $lang, (string) ( $ev['type'] ?? 'plugin' ) );
+			$action_label = tsootc_status_history_action_label( $lang, (string) ( $ev['action'] ?? '' ) );
+			$name         = (string) ( $ev['name'] ?? '' );
+			echo '<li class="tso-status-recent-item tso-status-recent-item--' . esc_attr( (string) ( $ev['action'] ?? '' ) ) . '">';
+			echo '<span class="tso-status-recent-when">' . esc_html( $when ) . '</span>';
+			echo '<span class="tso-status-recent-type">' . esc_html( $type_label ) . '</span>';
+			echo '<strong class="tso-status-recent-name">' . esc_html( $name ) . '</strong>';
+			echo '<span class="tso-status-recent-action">' . esc_html( $action_label ) . '</span>';
+			echo '</li>';
+		}
+		echo '</ul>';
+	}
 	echo '</div>';
 
 	echo '<div class="tso-status-findings">';
@@ -536,6 +756,58 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 		echo '</li>';
 	}
 	echo '</ul>';
+	echo '</div>';
+
+	$action_titles = tsootc_status_autoclean_action_titles( $stats, isset( $autoclean['actions'] ) ? (array) $autoclean['actions'] : array() );
+	echo '<div class="tso-status-autoclean tso-status-autoclean--' . esc_attr( 'active' === ( $autoclean['mode'] ?? 'suggest' ) ? 'active' : 'suggest' ) . '">';
+	echo '<h4 class="tso-status-findings-title">' . esc_html( tsootc_ui_triple_text( $lang, '⏰ Neteja automàtica', '⏰ Limpieza automática', '⏰ Automatic cleanup' ) ) . '</h4>';
+	if ( 'active' === ( $autoclean['mode'] ?? '' ) ) {
+		$active_interval = isset( $autoclean['interval'] ) ? (string) $autoclean['interval'] : 'weekly';
+		$interval_map    = array(
+			'daily'   => tsootc_ui_triple_text( $lang, 'diària', 'diaria', 'daily' ),
+			'weekly'  => tsootc_ui_triple_text( $lang, 'setmanal', 'semanal', 'weekly' ),
+			'monthly' => tsootc_ui_triple_text( $lang, 'mensual', 'mensual', 'monthly' ),
+		);
+		$interval_human = isset( $interval_map[ $active_interval ] ) ? $interval_map[ $active_interval ] : $active_interval;
+		echo '<p class="tso-status-autoclean-text">' . esc_html(
+			tsootc_ui_triple_text(
+				$lang,
+				'La neteja automàtica està activa (freqüència ' . $interval_human . ').',
+				'La limpieza automática está activa (frecuencia ' . $interval_human . ').',
+				'Automatic cleanup is enabled (' . $interval_human . ' schedule).'
+			)
+		) . '</p>';
+		if ( ! empty( $autoclean['next_ts'] ) ) {
+			echo '<p class="tso-hist-meta-note">' . esc_html( tsootc_ui_triple_text( $lang, 'Propera execució:', 'Próxima ejecución:', 'Next run:' ) ) . ' <strong>' . esc_html( date_i18n( get_option( 'date_format' ) . ' H:i', (int) $autoclean['next_ts'] ) ) . '</strong></p>';
+		}
+	} else {
+		echo '<p class="tso-status-autoclean-text">' . esc_html(
+			tsootc_ui_triple_text(
+				$lang,
+				'Recomanem activar la neteja programada per mantenir la base de dades sense acumular residus.',
+				'Recomendamos activar la limpieza programada para evitar acumular residuos en la base de datos.',
+				'We recommend enabling scheduled cleanup to prevent database clutter from building up.'
+			)
+		) . '</p>';
+		echo '<p class="tso-status-autoclean-suggest"><strong>' . esc_html( tsootc_ui_triple_text( $lang, 'Suggeriment:', 'Sugerencia:', 'Suggestion:' ) ) . '</strong> ';
+		echo esc_html(
+			tsootc_ui_triple_text(
+				$lang,
+				'Freqüència ' . (string) ( $autoclean['interval_label'] ?? 'setmanal' ) . '.',
+				'Frecuencia ' . (string) ( $autoclean['interval_label'] ?? 'semanal' ) . '.',
+				(string) ( $autoclean['interval_label'] ?? 'weekly' ) . ' frequency.'
+			)
+		);
+		if ( ! empty( $action_titles ) ) {
+			echo ' ' . esc_html( tsootc_ui_triple_text( $lang, 'Accions:', 'Acciones:', 'Actions:' ) ) . ' ' . esc_html( implode( ', ', $action_titles ) ) . '.';
+		}
+		echo '</p>';
+	}
+	echo '<a class="button button-secondary" href="' . esc_url( $cleanup_url ) . '">' . esc_html(
+		'active' === ( $autoclean['mode'] ?? '' )
+			? tsootc_ui_triple_text( $lang, 'Gestionar programació', 'Gestionar programación', 'Manage schedule' )
+			: tsootc_ui_triple_text( $lang, 'Configurar neteja automàtica', 'Configurar limpieza automática', 'Set up automatic cleanup' )
+	) . '</a>';
 	echo '</div>';
 
 	echo '<p class="tso-hist-meta-note tso-status-footnote">' . esc_html(
