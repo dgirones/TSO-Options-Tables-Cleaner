@@ -120,7 +120,10 @@
 .tso-hist-clear-btn--banner-warn { color:#c07000; border-color:#c07000; white-space:nowrap; font-weight:700; }
 .tso-hist-clear-btn--solid-danger { background:#c00; color:#fff; border-color:#c00; font-weight:700; }
 .tso-hist-clear-btn--outline-danger { color:#c00; border-color:#c00; }
-.tso-hist-header-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.tso-hist-header-row { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.tso-hist-header-text { flex:1 1 220px; min-width:0; }
+.tso-hist-header-title { display:flex; align-items:center; justify-content:flex-start; flex-wrap:wrap; gap:8px; margin:0 0 6px; font-size:18px; font-weight:600; color:#1d2327; line-height:1.3; }
+.tso-hist-header-title img.emoji { margin:0 !important; }
 .tso-hist-stats-row { display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; }
 .tso-hist-stat-card { border-radius:6px; padding:10px 16px; text-align:center; min-width:90px; }
 .tso-hist-stat-card--events { background:#f0f6fc; border:1px solid #d0e8f5; }
@@ -191,9 +194,11 @@
 .tso-cur-td-ver { padding:8px 16px; text-align:center; font-size:12px; color:#555; }
 .tso-cur-td-fdate { padding:8px 16px; font-size:12px; color:#555; }
 .tso-cur-td-file { padding:8px 16px; font-family:monospace; font-size:11px; color:#888; }
-.tso-backup-warn-panel { background:#fff8f0; border:1px solid #f0c070; border-radius:8px; padding:24px; }
-.tso-backup-warn-title { margin:0 0 8px; font-size:16px; color:#8a5c00; }
-.tso-backup-warn-list { margin:0; padding-left:18px; color:#666; font-size:13px; line-height:1.8; }
+.tso-backup-warn-panel { background:#fff8f0; border:1px solid #f0c070; border-radius:8px; padding:12px 14px; }
+.tso-backup-warn-title { margin:0 0 6px; font-size:13px; font-weight:700; color:#8a5c00; line-height:1.3; }
+.tso-backup-warn-list { margin:0; padding-left:16px; color:#666; font-size:12px; line-height:1.35; }
+.tso-backup-warn-list li { margin:0 0 4px; }
+.tso-backup-warn-list li:last-child { margin-bottom:0; }
 .tso-backup-create-btn { font-size:14px; padding:8px 20px; }
 .tso-backup-footnote { color:#999; font-size:11px; margin:12px 0 0; }
 .tso-backup-list-head { padding:16px 20px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }

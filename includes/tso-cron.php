@@ -1334,25 +1334,8 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	$filter_sched = isset( $_GET['cron_sched'] ) ? sanitize_key( (string) ( $_GET['cron_sched'] ?? '' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$search       = isset( $_GET['cron_q'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['cron_q'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-	$filtered = array();
-	foreach ( $events as $ev ) {
-		if ( $filter_hook && $ev['hook'] !== $filter_hook ) {
-			continue;
-		}
-		if ( $filter_sched === 'recurring' && ! $ev['is_recurring'] ) {
-			continue;
-		}
-		if ( $filter_sched === 'single' && $ev['is_recurring'] ) {
-			continue;
-		}
-		if ( $filter_sched === 'overdue' && ! $ev['is_overdue'] ) {
-			continue;
-		}
-		if ( $search && stripos( $ev['hook'], $search ) === false ) {
-			continue;
-		}
-		$filtered[] = $ev;
-	}
+	// Rows are filtered live in the browser; PHP only seeds the form controls from the URL.
+	$filtered = $events;
 
 	$unique_hooks = array_unique( array_column( $events, 'hook' ) );
 	sort( $unique_hooks );
@@ -1411,28 +1394,28 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		echo '</div>';
 	}
 
-	echo '<form method="get" class="tso-filter-bar">';
+	echo '<form method="get" class="tso-filter-bar" id="tso-cron-filter-form">';
 	echo '<input type="hidden" name="page" value="tso-options-tables-cleaner">';
 	echo '<input type="hidden" name="tab" value="cron">';
 	echo '<label class="tso-cron-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Hook', 'Hook', 'Hook' ) ) . '</label>';
-	echo '<select name="cron_hook" class="tso-cron-select">';
+	echo '<select name="cron_hook" id="tso-cron-filter-hook" class="tso-cron-select">';
 	echo '<option value="">' . esc_html( tsootc_ui_triple_text( $lang, '— Tots —', '— Todos —', '— All —' ) ) . '</option>';
 	foreach ( $unique_hooks as $uh ) {
 		echo '<option value="' . esc_attr( $uh ) . '"' . selected( $filter_hook, $uh, false ) . '>' . esc_html( $uh ) . '</option>';
 	}
 	echo '</select>';
 	echo '<label class="tso-cron-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Tipus', 'Tipo', 'Type' ) ) . '</label>';
-	echo '<select name="cron_sched">';
+	echo '<select name="cron_sched" id="tso-cron-filter-sched">';
 	echo '<option value="">' . esc_html( tsootc_ui_triple_text( $lang, '— Tots —', '— Todos —', '— All —' ) ) . '</option>';
 	echo '<option value="recurring"' . selected( $filter_sched, 'recurring', false ) . '>' . esc_html( tsootc_ui_triple_text( $lang, 'Recurrent', 'Recurrente', 'Recurring' ) ) . '</option>';
 	echo '<option value="single"' . selected( $filter_sched, 'single', false ) . '>' . esc_html( $lbl_once ) . '</option>';
 	echo '<option value="overdue"' . selected( $filter_sched, 'overdue', false ) . '>' . esc_html( $lbl_overdue ) . '</option>';
 	echo '</select>';
-	echo '<input type="search" name="cron_q" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr( tsootc_ui_triple_text( $lang, 'Cercar hook…', 'Buscar hook…', 'Search hook…' ) ) . '" class="tso-cron-search">';
-	echo '<button type="submit" class="button">' . esc_html( tsootc_ui_triple_text( $lang, 'Filtrar', 'Filtrar', 'Filter' ) ) . '</button>';
+	echo '<input type="search" name="cron_q" id="tso-cron-filter-q" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr( tsootc_ui_triple_text( $lang, 'Cercar hook…', 'Buscar hook…', 'Search hook…' ) ) . '" class="tso-cron-search" autocomplete="off">';
+	echo '<button type="submit" class="button tso-u-hidden" tabindex="-1" aria-hidden="true">' . esc_html( tsootc_ui_triple_text( $lang, 'Filtrar', 'Filtrar', 'Filter' ) ) . '</button>';
 	echo '</form>';
 
-	echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat"><thead><tr>';
+	echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat" id="tso-cron-events-table"><thead><tr>';
 	echo '<th>' . esc_html( $lbl_hook ) . '</th>';
 	echo '<th>' . esc_html( $lbl_next ) . '</th>';
 	echo '<th>' . esc_html( $lbl_sched ) . '</th>';
@@ -1441,11 +1424,9 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '<th class="tso-th-right">' . esc_html( $lbl_actions ) . '</th>';
 	echo '</tr></thead><tbody>';
 
-	if ( empty( $filtered ) ) {
-		echo '<tr><td colspan="6" class="tso-cron-empty">';
-		echo esc_html( tsootc_ui_triple_text( $lang, 'Cap esdeveniment amb aquests filtres.', 'Ningún evento con estos filtros.', 'No events match these filters.' ) );
-		echo '</td></tr>';
-	}
+	echo '<tr id="tso-cron-filter-empty"' . ( empty( $filtered ) ? '' : ' class="tso-u-hidden"' ) . '><td colspan="6" class="tso-cron-empty">';
+	echo esc_html( tsootc_ui_triple_text( $lang, 'Cap esdeveniment amb aquests filtres.', 'Ningún evento con estos filtros.', 'No events match these filters.' ) );
+	echo '</td></tr>';
 
 	foreach ( $filtered as $ev ) {
 		$hook      = $ev['hook'];
@@ -1459,9 +1440,11 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		$source = tsootc_cron_detect_hook_source( $hook );
 		$row_id = 'tso-cron-row-' . esc_attr( $ev['event_id'] );
 
-		echo '<tr id="' . esc_attr( $row_id ) . '" data-hook="' . esc_attr( $hook ) . '" data-ts="' . esc_attr( (string) $ts ) . '"';
+		echo '<tr id="' . esc_attr( $row_id ) . '" class="tso-cron-event-row" data-hook="' . esc_attr( $hook ) . '" data-ts="' . esc_attr( (string) $ts ) . '"';
 		echo ' data-args="' . esc_attr( $ev['args_json'] ) . '" data-schedule="' . esc_attr( $sched_key ) . '" data-interval="' . esc_attr( (string) $ev['interval'] ) . '"';
-		echo ' data-core="' . ( $ev['is_core'] ? '1' : '0' ) . '">';
+		echo ' data-core="' . ( $ev['is_core'] ? '1' : '0' ) . '"';
+		echo ' data-recurring="' . ( ! empty( $ev['is_recurring'] ) ? '1' : '0' ) . '"';
+		echo ' data-overdue="' . ( ! empty( $ev['is_overdue'] ) ? '1' : '0' ) . '">';
 		echo '<td><code class="tso-cron-code">' . esc_html( $hook ) . '</code>';
 		if ( $ev['is_core'] ) {
 			echo ' <span class="tso-badge tso-badge-core" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';

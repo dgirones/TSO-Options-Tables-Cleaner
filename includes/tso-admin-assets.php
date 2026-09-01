@@ -319,7 +319,20 @@ add_action( 'admin_enqueue_scripts', 'tsootc_admin_register_assets' );
  * @return string
  */
 function tsootc_admin_get_extra_css() {
+	// Critical layout safety net (also covers float clear if admin.css is late/cached).
 	return '
+#tso-wrap{max-width:100%;box-sizing:border-box}
+#tso-wrap .tso-nav-inner,#tso-wrap .tso-tab-inner{max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box}
+#tso-wrap .tso-nav-inner{padding:8px 20px 0}
+#tso-wrap .tso-tab-inner{padding:0 20px}
+#tso-wrap .tso-nav-top{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;margin-bottom:10px}
+#tso-wrap .tso-main-tabs{display:flex;flex-wrap:wrap;gap:8px;width:100%;max-width:100%;min-width:0;margin:0 0 4px;padding:10px;box-sizing:border-box;overflow:hidden;background:#fff;border:1px solid #e2e4e7;border-radius:12px}
+#tso-wrap .tso-main-tabs .tso-main-tab{display:inline-flex;align-items:center;flex:0 1 auto;min-width:0;max-width:100%;margin:0;border:1px solid #dcdcde;background:#fff;color:#1d2327;font-size:13px;font-weight:500;line-height:1.35;padding:10px 14px;border-radius:8px;text-decoration:none;box-sizing:border-box}
+#tso-wrap .tso-main-tabs .tso-main-tab.is-active{background:#2271b1!important;border-color:#2271b1!important;color:#fff!important;font-weight:700}
+#tso-wrap .tso-tab-content{clear:both;display:block;width:100%;box-sizing:border-box}
+#tso-wrap .tso-stats-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:24px;width:100%}
+#tso-wrap .tso-actions-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;width:100%}
+#tso-wrap .tso-lang-switch{display:flex;align-items:center;gap:5px}
 .tso-al-panel.tso-al-severity-high .tso-al-head{background:#fff5f5}
 .tso-al-panel.tso-al-severity-high{border-left-color:#dc3232}
 .tso-al-panel.tso-al-severity-high .tso-al-total{color:#dc3232}

@@ -271,28 +271,13 @@ function tsootc_page() {
     $tso_plugin_version = function_exists( 'tsootc_admin_assets_version' )
         ? tsootc_admin_assets_version()
         : ( defined( 'TSOOTC_VERSION' ) ? TSOOTC_VERSION : '' );
+    echo '<div class="tso-nav-top">';
     echo '<p class="tso-page-title" role="heading" aria-level="1">';
     echo esc_html( __( '🧹 TSO Options & Tables Cleaner', 'tso-options-tables-cleaner' ) );
     if ( '' !== $tso_plugin_version ) {
         echo ' <span class="tso-plugin-version">v' . esc_html( $tso_plugin_version ) . '</span>';
     }
     echo '</p>';
-    echo '<div class="tso-nav-row">';
-    echo '<nav class="nav-tab-wrapper tso-main-tabs" aria-label="' . esc_attr__( 'Plugin sections', 'tso-options-tables-cleaner' ) . '">';
-    $tabs = array(
-        'cleanup' => __( '🧹 General cleanup', 'tso-options-tables-cleaner' ),
-        'options' => __( '⚙️ WP-OPTIONS', 'tso-options-tables-cleaner' ),
-        'tables'  => __( '📦 Extra tables', 'tso-options-tables-cleaner' ),
-        'history' => __( '📅 History', 'tso-options-tables-cleaner' ),
-        'cron'    => __( '⏱️ CRON', 'tso-options-tables-cleaner' ),
-        'backup'  => __( '💾 Database backup', 'tso-options-tables-cleaner' ),
-    );
-    foreach ( $tabs as $t => $label ) {
-        $is_active = ( $tab === $t );
-        $cls       = $is_active ? ' nav-tab-active' : '';
-        echo '<a href="' . esc_url( $base_url . '&tab=' . $t ) . '" class="nav-tab' . esc_attr( $cls ) . '"' . ( $is_active ? ' aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
-    }
-    echo '</nav>';
     $tso_donate_label = tsootc_ui_triple_text(
         $lang,
         '☕ Dona suport al plugin',
@@ -310,6 +295,21 @@ function tsootc_page() {
     echo '</div>';
     echo '</div>';
     echo '</div>';
+    echo '<nav class="tso-main-tabs" aria-label="' . esc_attr__( 'Plugin sections', 'tso-options-tables-cleaner' ) . '">';
+    $tabs = array(
+        'cleanup' => __( '🧹 General cleanup', 'tso-options-tables-cleaner' ),
+        'options' => __( '⚙️ WP-OPTIONS', 'tso-options-tables-cleaner' ),
+        'tables'  => __( '📦 Extra tables', 'tso-options-tables-cleaner' ),
+        'history' => __( '📅 History', 'tso-options-tables-cleaner' ),
+        'cron'    => __( '⏱️ CRON', 'tso-options-tables-cleaner' ),
+        'backup'  => __( '💾 Database backup', 'tso-options-tables-cleaner' ),
+    );
+    foreach ( $tabs as $t => $label ) {
+        $is_active = ( $tab === $t );
+        $cls       = $is_active ? ' is-active' : '';
+        echo '<a href="' . esc_url( $base_url . '&tab=' . $t ) . '" class="tso-main-tab' . esc_attr( $cls ) . '"' . ( $is_active ? ' aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
+    }
+    echo '</nav>';
     echo '</div>';
 
     // Shared admin JS: assets/js/admin-shell.js + tsootcAdminConfig (enqueued).
@@ -1711,7 +1711,14 @@ function tsootc_page() {
         echo '<div class="tso-stat-card ' . ( $total_free_kb > 1024 ? 'color-orange' : ( $total_free_kb > 0 ? 'color-blue' : 'color-green' ) ) . '">';
         echo '<div class="tso-stat-value">' . number_format( $total_free_kb ) . ' KB</div><div class="tso-stat-label">' . esc_html( $txt_fragmented_extra_space ) . '</div></div>';
         echo '</div>';
-        echo '<p class="tso-desc-sm">' . esc_html( __( 'Tables that do not belong to WordPress core. Deletion is locked by default. Enable “Allow table deletion” to unlock delete for any extra table (WordPress core tables stay protected). A confirmation and automatic SQL backup are still required before each drop.', 'tso-options-tables-cleaner' ) ) . '</p>';
+        echo '<p class="tso-desc-sm">' . esc_html(
+            tsootc_ui_triple_text(
+                $lang,
+                'Taules que no formen part del nucli de WordPress. L\'eliminació està bloquejada per defecte. Activa «Permetre eliminar taules» per desbloquejar l\'eliminació de qualsevol taula extra (les taules del nucli de WordPress continuen protegides). Encara cal una confirmació i un backup SQL automàtic abans de cada eliminació.',
+                'Tablas que no pertenecen al núcleo de WordPress. La eliminación está bloqueada por defecto. Activa «Permitir eliminar tablas» para desbloquear el borrado de cualquier tabla extra (las tablas del núcleo de WordPress siguen protegidas). Sigue siendo necesaria una confirmación y una copia SQL automática antes de cada eliminación.',
+                'Tables that do not belong to WordPress core. Deletion is locked by default. Enable “Allow table deletion” to unlock delete for any extra table (WordPress core tables stay protected). A confirmation and automatic SQL backup are still required before each drop.'
+            )
+        ) . '</p>';
         echo '</div>';
 
         $allow_extra_table_delete = function_exists( 'tsootc_extra_table_delete_is_enabled' ) && tsootc_extra_table_delete_is_enabled();
@@ -2249,8 +2256,8 @@ function tsootc_page() {
         // ---- Capçalera ----
         echo '<div class="tso-panel-card tso-panel-card--plain">';
         echo '<div class="tso-hist-header-row">';
-        echo '<div>';
-        echo '<h2 class="tso-hist-header-row h2">' . esc_html( __( '📅 Plugin and theme history', 'tso-options-tables-cleaner' ) ) . '</h2>';
+        echo '<div class="tso-hist-header-text">';
+        echo '<h2 class="tso-hist-header-title">' . esc_html( __( '📅 Plugin and theme history', 'tso-options-tables-cleaner' ) ) . '</h2>';
         echo '<p class="tso-desc-sm">' . esc_html( __( 'Event log of plugins and themes since TSO Options & Tables Cleaner was installed. Previous actions are shown in the "Current status" section.', 'tso-options-tables-cleaner' ) ) . '</p>';
         echo '</div>';
 
@@ -2311,7 +2318,9 @@ function tsootc_page() {
         // ---- Secció 1: Log d'activitat ----
         echo '<div class="tso-panel-card">';
         echo '<div class="tso-panel-head">';
-        echo '<h3 class="tso-panel-head-title">' . esc_html( __( '📋 Activity log', 'tso-options-tables-cleaner' ) ) . '</h3>';
+        echo '<h3 class="tso-panel-head-title">' . esc_html(
+            tsootc_ui_triple_text( $lang, '📋 Registre d\'activitat', '📋 Registro de actividad', '📋 Activity log' )
+        ) . '</h3>';
         echo '</div>';
 
         // Barra de filtres
@@ -2666,19 +2675,24 @@ function tsootc_page() {
 
         // ---- Columna dreta: Info ----
         echo '<div class="tso-backup-warn-panel">';
-        echo '<h3 class="tso-backup-warn-title">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Important', 'Importante', 'Important' ) ) . '</h3>';
+        echo '<p class="tso-backup-warn-title">⚠️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Important', 'Importante', 'Important' ) ) . '</p>';
         echo '<ul class="tso-backup-warn-list">';
-        echo '<li>' . esc_html( tsootc_ui_triple_text( $lang, 'Només es desen còpies al servidor.', 'Solo se guardan copias en el servidor.', 'Copies are only stored on the server.' ) ) . '</li>';
-        echo '<li>' . esc_html( tsootc_ui_triple_text( $lang, 'Descarrega els backups per tenir-los segurs.', 'Descarga los backups para tenerlos seguros.', 'Download backups to keep them safe.' ) ) . '</li>';
+        echo '<li>' . esc_html(
+            tsootc_ui_triple_text(
+                $lang,
+                'Només es desen còpies al servidor — descarrega\'ls per tenir-los segurs.',
+                'Solo se guardan copias en el servidor — descárgalos para tenerlos seguros.',
+                'Copies are only stored on the server — download them to keep them safe.'
+            )
+        ) . '</li>';
         echo '<li>' . esc_html( __( 'Deleting extra tables now creates an automatic table snapshot first.', 'tso-options-tables-cleaner' ) ) . '</li>';
-        echo '<li>' . esc_html( tsootc_ui_triple_text( $lang, 'La restauració és IRREVERSIBLE.', 'La restauración es IRREVERSIBLE.', 'Restore is IRREVERSIBLE.' ) ) . '</li>';
         $restore_word = function_exists( 'tsootc_backup_restore_confirm_word' ) ? tsootc_backup_restore_confirm_word( $lang ) : 'RESTAURAR';
         echo '<li>' . esc_html(
             tsootc_ui_triple_text(
                 $lang,
-                'Escriu ' . $restore_word . ' per confirmar.',
-                'Escribe ' . $restore_word . ' para confirmar.',
-                'Type ' . $restore_word . ' to confirm.'
+                'La restauració és IRREVERSIBLE — escriu ' . $restore_word . ' per confirmar.',
+                'La restauración es IRREVERSIBLE — escribe ' . $restore_word . ' para confirmar.',
+                'Restore is IRREVERSIBLE — type ' . $restore_word . ' to confirm.'
             )
         ) . '</li>';
         echo '<li>' . esc_html( __( 'Only backups generated by this plugin can be restored from this screen.', 'tso-options-tables-cleaner' ) ) . '</li>';

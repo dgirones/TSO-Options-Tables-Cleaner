@@ -65,6 +65,9 @@ if ( ! defined( 'TSOOTC_DETECTION_ENGINE_V2' ) ) {
 require_once TSOOTC_PATH . 'includes/tsootc-storage.php';
 require_once TSOOTC_PATH . 'includes/tso-maps.php';
 require_once TSOOTC_PATH . 'includes/tso-core.php';
+require_once TSOOTC_PATH . 'includes/tsootc-backup.php';
+require_once TSOOTC_PATH . 'includes/tsootc-optimize.php';
+require_once TSOOTC_PATH . 'includes/tsootc-cleanup.php';
 $tsootc_autodetect_file = TSOOTC_PATH . 'includes/tso-autodetect.php';
 if ( is_readable( $tsootc_autodetect_file ) ) {
 	require_once $tsootc_autodetect_file;

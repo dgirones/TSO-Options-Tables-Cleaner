@@ -45,6 +45,78 @@
             });
     }
 
+    function applyCronLiveFilter() {
+        var hookEl = document.getElementById('tso-cron-filter-hook');
+        var schedEl = document.getElementById('tso-cron-filter-sched');
+        var qEl = document.getElementById('tso-cron-filter-q');
+        var emptyRow = document.getElementById('tso-cron-filter-empty');
+        var hook = hookEl ? String(hookEl.value || '') : '';
+        var sched = schedEl ? String(schedEl.value || '') : '';
+        var q = qEl ? String(qEl.value || '').toLowerCase().trim() : '';
+        var rows = document.querySelectorAll('#tso-cron-events-table tbody tr.tso-cron-event-row');
+        var visible = 0;
+
+        rows.forEach(function (tr) {
+            var rowHook = String(tr.getAttribute('data-hook') || '');
+            var recurring = tr.getAttribute('data-recurring') === '1';
+            var overdue = tr.getAttribute('data-overdue') === '1';
+            var ok = true;
+
+            if (hook && rowHook !== hook) {
+                ok = false;
+            }
+            if (ok && sched === 'recurring' && !recurring) {
+                ok = false;
+            }
+            if (ok && sched === 'single' && recurring) {
+                ok = false;
+            }
+            if (ok && sched === 'overdue' && !overdue) {
+                ok = false;
+            }
+            if (ok && q && rowHook.toLowerCase().indexOf(q) === -1) {
+                ok = false;
+            }
+
+            tr.style.display = ok ? '' : 'none';
+            if (ok) {
+                visible++;
+            }
+        });
+
+        if (emptyRow) {
+            if (visible === 0) {
+                emptyRow.classList.remove('tso-u-hidden');
+                emptyRow.style.display = '';
+            } else {
+                emptyRow.classList.add('tso-u-hidden');
+                emptyRow.style.display = 'none';
+            }
+        }
+    }
+
+    var cronFilterForm = document.getElementById('tso-cron-filter-form');
+    if (cronFilterForm) {
+        cronFilterForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            applyCronLiveFilter();
+        });
+    }
+    var cronHook = document.getElementById('tso-cron-filter-hook');
+    var cronSched = document.getElementById('tso-cron-filter-sched');
+    var cronQ = document.getElementById('tso-cron-filter-q');
+    if (cronHook) {
+        cronHook.addEventListener('change', applyCronLiveFilter);
+    }
+    if (cronSched) {
+        cronSched.addEventListener('change', applyCronLiveFilter);
+    }
+    if (cronQ) {
+        cronQ.addEventListener('input', applyCronLiveFilter);
+        cronQ.addEventListener('search', applyCronLiveFilter);
+    }
+    applyCronLiveFilter();
+
     document.querySelectorAll('.tso-cron-unschedule').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var tr = btn.closest('tr');

@@ -170,7 +170,7 @@ msgstr "🔇 Autoload off"
 
 #. Translation key: btn_autoload_off_tip
 msgid "Disable autoload: this option will not be loaded automatically on every page, freeing memory."
-msgstr "Desactivar l\\'autoload: aquesta opció no es carregarà automàticament en cada pàgina, alliberant memòria."
+msgstr "Desactivar l'autoload: aquesta opció no es carregarà automàticament en cada pàgina, alliberant memòria."
 
 #. Translation key: badge_manual
 msgid "manual"
@@ -538,7 +538,7 @@ msgstr "Eliminar metadades orfes de comentaris?"
 
 #. Translation key: act_orphan_usermeta_confirm
 msgid "Delete orphan user metadata?"
-msgstr "Eliminar metadades orfes d\\'usuaris?"
+msgstr "Eliminar metadades orfes d'usuaris?"
 
 #. Translation key: act_orphan_termmeta_confirm
 msgid "Delete orphan term metadata?"
@@ -702,7 +702,7 @@ msgstr "Revisar ara →"
 
 #. Translation key: map_orphan_keys
 msgid "orphan entries removed from options map"
-msgstr "entrades orfes eliminades del mapa d\\'opcions"
+msgstr "entrades orfes eliminades del mapa d'opcions"
 
 #. Translation key: map_orphan_tables
 msgid "orphan entries removed from tables map"
@@ -906,7 +906,7 @@ msgstr "Encara no hi ha cap event registrat."
 
 #. Translation key: hist_empty_desc
 msgid "From now on, every activation, deactivation, installation, update or deletion of plugins and themes will be recorded here."
-msgstr "A partir d\\'ara, cada activació, desactivació, instal·lació, actualització o eliminació de plugins i temes quedarà registrada aquí."
+msgstr "A partir d'ara, cada activació, desactivació, instal·lació, actualització o eliminació de plugins i temes quedarà registrada aquí."
 
 #. Translation key: hist_clear_btn
 msgid "🗑️ Clear history"
@@ -914,7 +914,7 @@ msgstr "🗑️ Esborrar historial"
 
 #. Translation key: hist_clear_confirm
 msgid "Clear all history? This action cannot be undone."
-msgstr "Esborrar tot l\\'historial? Aquesta acció no es pot desfer."
+msgstr "Esborrar tot l'historial? Aquesta acció no es pot desfer."
 
 #. Translation key: hist_cleared
 msgid "History cleared."
@@ -922,7 +922,7 @@ msgstr "Historial esborrat."
 
 #. Translation key: hist_section_log
 msgid "📋 Activity log"
-msgstr "📋 Registre d\\'activitat"
+msgstr "📋 Registre d'activitat"
 
 #. Translation key: hist_section_current
 msgid "🔌 Current plugin and theme status"
@@ -930,7 +930,7 @@ msgstr "🔌 Estat actual de plugins i temes"
 
 #. Translation key: hist_current_desc
 msgid "Snapshot of all installed plugins and themes, with file date as installation reference."
-msgstr "Estat instantani de tots els plugins i temes instal·lats, amb la data del fitxer com a referència d\\'instal·lació."
+msgstr "Estat instantani de tots els plugins i temes instal·lats, amb la data del fitxer com a referència d'instal·lació."
 
 #. Translation key: hist_col_status
 msgid "Status"
