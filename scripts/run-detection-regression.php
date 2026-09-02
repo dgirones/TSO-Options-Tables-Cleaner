@@ -295,6 +295,7 @@ require_once TSOOTC_PATH . 'includes/tso-table-detection.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-rules.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-generators.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-engine.php';
+require_once TSOOTC_PATH . 'includes/tsootc-cleanup.php';
 require_once TSOOTC_PATH . 'includes/tso-detection-regression.php';
 
 if ( function_exists( 'tsootc_detection_codescan_grep_allowed' ) ) {
