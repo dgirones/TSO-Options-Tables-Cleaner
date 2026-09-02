@@ -5,7 +5,7 @@ Description: Cleans wp_options, orphan metadata, revisions, and leftover plugin 
 Version:     1.3.3
 Author:      Tu Soporte Online
 Author URI:  https://www.tusoporteonline.es/blog
-Requires at least: 5.9
+Requires at least: 6.1
 Requires PHP: 8.0
 Tested up to: 7.1
 License:     GPLv2 or later
