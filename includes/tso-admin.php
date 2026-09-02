@@ -1914,6 +1914,7 @@ function tsootc_page() {
                 $size_class   = tsootc_table_kb_class( (int) $t['kb'] );
                 $row_id         = 'tbl-' . md5( $t['name'] );
                 $confirm_drop   = tsootc_ui_triple_text( $lang, 'ELIMINAR TAULA', 'ELIMINAR TABLA', 'DELETE TABLE' );
+                $core_protected_table = tsootc_is_wordpress_protected_table( (string) $t['name'] );
                 $can_delete_table = tsootc_can_delete_extra_table( $t );
                 $delete_block_reason = $can_delete_table ? '' : tsootc_get_extra_table_delete_block_reason( $t );
                 $plugin_badge   = $render_plugin_badge( $t );
@@ -1956,7 +1957,7 @@ function tsootc_page() {
                     . ( $is_custom_table ? ' manual' : '' )
                 );
 
-                echo '<tr id="' . esc_attr( $row_id ) . '" data-table="' . esc_attr( $t['name'] ) . '" data-kb="' . esc_attr( (string) (int) $t['kb'] ) . '" data-sort-table="' . esc_attr( strtolower( (string) $t['name'] ) ) . '" data-sort-plugin="' . esc_attr( strtolower( $plugin_name_plain ) ) . '" data-sort-status="' . esc_attr( (string) $status_rank_plain ) . '" data-sort-status-label="' . esc_attr( strtolower( $status_label_plain ) ) . '" data-search="' . esc_attr( $search_haystack ) . '" data-deletable="' . esc_attr( $can_delete_table ? '1' : '0' ) . '" data-delete-reason="' . esc_attr( $delete_block_reason ) . '">';
+                echo '<tr id="' . esc_attr( $row_id ) . '" data-table="' . esc_attr( $t['name'] ) . '" data-kb="' . esc_attr( (string) (int) $t['kb'] ) . '" data-sort-table="' . esc_attr( strtolower( (string) $t['name'] ) ) . '" data-sort-plugin="' . esc_attr( strtolower( $plugin_name_plain ) ) . '" data-sort-status="' . esc_attr( (string) $status_rank_plain ) . '" data-sort-status-label="' . esc_attr( strtolower( $status_label_plain ) ) . '" data-search="' . esc_attr( $search_haystack ) . '" data-deletable="' . esc_attr( $can_delete_table ? '1' : '0' ) . '" data-core-protected="' . esc_attr( $core_protected_table ? '1' : '0' ) . '" data-delete-reason="' . esc_attr( $delete_block_reason ) . '">';
                 echo '<td class="tso-stack-td-chk tso-th-center"><input type="checkbox" class="tso-table-chk" value="' . esc_attr( $t['name'] ) . '"></td>';
                 echo '<td class="tso-td-mono" data-label="' . esc_attr( $xt_td_lab_tbl ) . '"><strong>' . esc_html( $t['name'] ) . '</strong>';
                 if ( $is_custom_table ) {

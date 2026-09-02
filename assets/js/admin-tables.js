@@ -22,37 +22,15 @@
         return String(str == null ? '' : str).replace(re, replacement);
     }
 
-    var allowDeleteChk = document.getElementById('tso-allow-extra-table-delete');
-    var allowDeleteMsg = document.getElementById('tso-allow-extra-table-delete-msg');
-    if (allowDeleteChk) {
-        allowDeleteChk.addEventListener('change', function () {
-            var enabled = allowDeleteChk.checked ? '1' : '0';
-            allowDeleteChk.disabled = true;
-            if (allowDeleteMsg) {
-                allowDeleteMsg.textContent = cfg.extraTablesDeleteSaving || 'Saving…';
-            }
-            tsootcPost('tsootc_save_extra_table_delete_setting', { enabled: enabled }, function (data) {
-                if (data && data.success) {
-                    if (allowDeleteMsg && data.data && data.data.msg) {
-                        allowDeleteMsg.textContent = data.data.msg;
-                    }
-                    setTimeout(function () {
-                        location.reload();
-                    }, 350);
-                    return;
-                }
-                allowDeleteChk.disabled = false;
-                allowDeleteChk.checked = !allowDeleteChk.checked;
-                if (allowDeleteMsg) {
-                    allowDeleteMsg.textContent = (data && data.data && data.data.msg)
-                        ? data.data.msg
-                        : ((tsootcCommonJs && tsootcCommonJs.unknownLong) ? tsootcCommonJs.unknownLong : 'Error');
-                }
-            });
-        });
+    function tsootcConfigDeleteEnabled() {
+        return cfg.extraTablesDeleteEnabled === true
+            || cfg.extraTablesDeleteEnabled === 1
+            || cfg.extraTablesDeleteEnabled === '1';
     }
 
     // ---- Selecció ----
+    var allowDeleteChk = document.getElementById('tso-allow-extra-table-delete');
+    var allowDeleteMsg = document.getElementById('tso-allow-extra-table-delete-msg');
     var selectAll  = document.getElementById("tso-tables-select-all");
     var bulkBtn    = document.getElementById("tso-tables-bulk-delete");
     var exportBtn  = document.getElementById("tso-tables-bulk-export");
@@ -62,8 +40,63 @@
     var tbodyEl = document.getElementById("tso-tables-tbody");
     if (!selectAll || !bulkBtn || !exportBtn || !countSpan || !tbodyEl) return;
 
-    var deleteUnlocked = cfg.extraTablesDeleteEnabled === true;
+    var deleteUnlocked = tsootcConfigDeleteEnabled() || !!(allowDeleteChk && allowDeleteChk.checked);
     var sortState = { key: "size", dir: "desc" };
+
+    function applyExtraTableDeleteUnlock(unlocked) {
+        deleteUnlocked = !!unlocked;
+        Array.prototype.forEach.call(tbodyEl.querySelectorAll("tr[data-table]"), function (row) {
+            if (row.getAttribute("data-core-protected") === "1") {
+                return;
+            }
+            row.setAttribute("data-deletable", deleteUnlocked ? "1" : "0");
+            if (deleteUnlocked) {
+                row.removeAttribute("data-delete-reason");
+            }
+        });
+        if (deleteUnlocked) {
+            bulkBtn.removeAttribute("disabled");
+        } else {
+            bulkBtn.setAttribute("disabled", "disabled");
+        }
+        updateBulkBar();
+    }
+
+    if (allowDeleteChk) {
+        allowDeleteChk.addEventListener('change', function () {
+            var wantEnabled = allowDeleteChk.checked;
+            applyExtraTableDeleteUnlock(wantEnabled);
+            var enabled = wantEnabled ? '1' : '0';
+            allowDeleteChk.disabled = true;
+            if (allowDeleteMsg) {
+                allowDeleteMsg.textContent = cfg.extraTablesDeleteSaving || 'Saving…';
+            }
+            tsootcPost('tsootc_save_extra_table_delete_setting', { enabled: enabled }, function (data) {
+                if (data && data.success) {
+                    if (allowDeleteMsg && data.data && data.data.msg) {
+                        allowDeleteMsg.textContent = data.data.msg;
+                    }
+                    applyExtraTableDeleteUnlock(!!(data.data && data.data.enabled));
+                    setTimeout(function () {
+                        location.reload();
+                    }, 350);
+                    return;
+                }
+                allowDeleteChk.disabled = false;
+                allowDeleteChk.checked = !wantEnabled;
+                applyExtraTableDeleteUnlock(!wantEnabled);
+                if (allowDeleteMsg) {
+                    allowDeleteMsg.textContent = (data && data.data && data.data.msg)
+                        ? data.data.msg
+                        : ((tsootcCommonJs && tsootcCommonJs.unknownLong) ? tsootcCommonJs.unknownLong : 'Error');
+                }
+            });
+        });
+    }
+
+    if (deleteUnlocked) {
+        applyExtraTableDeleteUnlock(true);
+    }
 
     function downloadSqlFile(filename, sql) {
         var blob = new Blob([sql], {type: "application/sql;charset=utf-8"});

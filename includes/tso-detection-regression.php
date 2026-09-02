@@ -1427,6 +1427,32 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'extra_table_delete_active_when_unlocked',
+			'type'      => 'extra_table_can_delete',
+			'table'     => 'pluginspc_tso_link_inspector',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Link Inspector', 'tso-link-inspector/tso-link-inspector.php', true ),
+			),
+			'assert'    => array(
+				'delete_enabled'  => true,
+				'can_delete'      => true,
+				'status_key'      => 'active',
+			),
+		),
+		array(
+			'id'        => 'extra_table_delete_blocked_when_locked',
+			'type'      => 'extra_table_can_delete',
+			'table'     => 'pluginspc_tso_link_inspector',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Link Inspector', 'tso-link-inspector/tso-link-inspector.php', true ),
+			),
+			'assert'    => array(
+				'delete_enabled'  => false,
+				'can_delete'      => false,
+				'status_key'      => 'active',
+			),
+		),
+		array(
 			'id'     => 'table_needs_confirm_trusted_prefix_map',
 			'type'   => 'table_needs_confirm',
 			'row'    => array(
@@ -1802,6 +1828,73 @@ function tsootc_detection_regression_evaluate_fixture( array $fixture, array $in
 				}
 			}
 		}
+		return array(
+			'id'      => $id,
+			'pass'    => true,
+			'message' => 'ok',
+		);
+	}
+
+	if ( 'extra_table_can_delete' === $type ) {
+		if ( ! function_exists( 'tsootc_can_delete_extra_table' )
+			|| ! function_exists( 'tsootc_extra_table_delete_set_enabled' )
+			|| ! function_exists( 'tsootc_get_extra_table_status_key' )
+			|| ! function_exists( 'tsootc_detect_table_with_confidence' ) ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'extra table delete functions missing',
+			);
+		}
+
+		$table = (string) ( $fixture['table'] ?? '' );
+		if ( '' === $table ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'empty table name',
+			);
+		}
+
+		$delete_enabled = ! empty( $assert['delete_enabled'] );
+		tsootc_extra_table_delete_set_enabled( $delete_enabled );
+
+		$detected   = tsootc_detect_table_with_confidence( $table, $inventory );
+		$status_key = tsootc_get_extra_table_status_key( $detected, $inventory, $table );
+		$table_item = array(
+			'name'               => 'wp_' . $table,
+			'status_key'         => $status_key,
+			'updated'            => '',
+			'plugin_name'        => is_array( $detected ) ? (string) ( $detected['name'] ?? '' ) : '',
+			'plugin_file'        => is_array( $detected ) ? (string) ( $detected['file'] ?? '' ) : '',
+			'detect_source'      => is_array( $detected ) ? (string) ( $detected['source'] ?? '' ) : '',
+			'is_orphan_candidate' => 'orphan_candidate' === $status_key,
+		);
+		if ( function_exists( 'tsootc_get_extra_table_usage_estimate' ) ) {
+			$table_item['usage_estimate'] = tsootc_get_extra_table_usage_estimate( $table_item );
+		}
+
+		$can_delete = tsootc_can_delete_extra_table( $table_item );
+		$expect_delete = ! empty( $assert['can_delete'] );
+
+		if ( $can_delete !== $expect_delete ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => 'expected can_delete=' . ( $expect_delete ? 'true' : 'false' ) . ' got=' . ( $can_delete ? 'true' : 'false' ),
+			);
+		}
+
+		if ( ! empty( $assert['status_key'] ) && $status_key !== (string) $assert['status_key'] ) {
+			return array(
+				'id'      => $id,
+				'pass'    => false,
+				'message' => "expected status_key={$assert['status_key']} got={$status_key}",
+			);
+		}
+
+		tsootc_extra_table_delete_set_enabled( false );
+
 		return array(
 			'id'      => $id,
 			'pass'    => true,
