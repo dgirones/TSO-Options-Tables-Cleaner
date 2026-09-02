@@ -85,23 +85,46 @@
 .btn-act.search   { border-color:#90bcd8; color:#007cba; background:#f0f8ff; width:30px;
                     justify-content:center; padding:4px 6px; }
 /* ---- Detection audit panel ---- */
-.tso-audit-panel { max-width:100%; overflow:hidden; margin-bottom:20px; }
+.tso-audit-panel { max-width:100%; margin-bottom:20px; }
 .tso-audit-table-wrap {
   width:100%; max-width:100%; box-sizing:border-box;
   border:1px solid #ddd; background:#fff; border-radius:6px;
   overflow-x:auto; overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
 }
-.tso-audit-table { width:100%; table-layout:fixed; border-collapse:collapse; }
+.tso-audit-table {
+  width:100%; min-width:1120px; table-layout:auto; border-collapse:collapse;
+  margin:0; font-size:12px;
+}
 .tso-audit-table th,
 .tso-audit-table td {
-  word-break:break-word; overflow-wrap:anywhere; vertical-align:top;
+  padding:8px 10px; vertical-align:top; line-height:1.45;
+  word-break:normal; overflow-wrap:break-word;
 }
 .tso-audit-table th:nth-child(1),
-.tso-audit-table td:nth-child(1) { width:14%; }
+.tso-audit-table td:nth-child(1) { min-width:120px; max-width:200px; }
+.tso-audit-table th:nth-child(2),
+.tso-audit-table td:nth-child(2) { min-width:100px; max-width:180px; }
+.tso-audit-table th:nth-child(3),
+.tso-audit-table td:nth-child(3),
+.tso-audit-table th:nth-child(4),
+.tso-audit-table td:nth-child(4),
+.tso-audit-table th:nth-child(9),
+.tso-audit-table td:nth-child(9),
+.tso-audit-table th:nth-child(10),
+.tso-audit-table td:nth-child(10) { white-space:nowrap; width:1%; }
+.tso-audit-table th:nth-child(4),
+.tso-audit-table td:nth-child(4),
+.tso-audit-table th:nth-child(9),
+.tso-audit-table td:nth-child(9) { text-align:center; }
+.tso-audit-table th:nth-child(5),
+.tso-audit-table td:nth-child(5) { min-width:100px; max-width:150px; }
 .tso-audit-table th:nth-child(6),
-.tso-audit-table td:nth-child(6) { width:16%; }
+.tso-audit-table td:nth-child(6) { min-width:90px; max-width:140px; }
 .tso-audit-table th:nth-child(7),
-.tso-audit-table td:nth-child(7) { width:14%; }
+.tso-audit-table td:nth-child(7) { min-width:220px; }
+.tso-audit-table th:nth-child(8),
+.tso-audit-table td:nth-child(8) { min-width:200px; }
 @media screen and (max-width:782px) {
   #tso-opts-wrap { padding-bottom:8px; }
   .tso-opts-stats { flex-direction:column; gap:8px; }
@@ -165,36 +188,6 @@
   .tso-bulk-bar { flex-wrap:wrap; }
 }
 
-/* Audit panel table: fit container, no nested scroll traps */
-.tso-audit-table-wrap {
-  width:100%;
-  max-width:100%;
-  box-sizing:border-box;
-  overflow-x:auto;
-  overflow-y:visible;
-  border:1px solid #ddd;
-  background:#fff;
-  border-radius:6px;
-}
-.tso-audit-table {
-  width:100%;
-  table-layout:fixed;
-  margin:0;
-  font-size:12px;
-}
-.tso-audit-table th,
-.tso-audit-table td {
-  white-space:normal;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-  vertical-align:top;
-}
-.tso-audit-table th:nth-child(6),
-.tso-audit-table td:nth-child(6),
-.tso-audit-table th:nth-child(7),
-.tso-audit-table td:nth-child(7) {
-  word-break:break-all;
-}
 .tso-detect-badge { font-size:10px; font-weight:600; color:#555; background:#f0f0f1;
                     padding:1px 6px; border-radius:3px; margin-left:4px; vertical-align:middle; }
 .tso-detect-badge-weak { color:#a00000; background:#fff0f0; }
@@ -209,9 +202,15 @@
 .tso-audit-disk--yes { color:#2a7a2a; font-weight:600; }
 .tso-audit-disk--no { color:#c00000; font-weight:600; }
 .tso-audit-disk--na { color:#666; }
-.tso-audit-code { font-size:11px; }
+.tso-audit-code {
+  display:inline; font-size:11px; font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  word-break:break-word; overflow-wrap:break-word;
+}
 .tso-audit-evidence { font-size:11px; color:#444; }
-.tso-audit-path { font-size:11px; word-break:break-word; overflow-wrap:anywhere; max-width:200px; }
+.tso-audit-path {
+  font-size:11px; font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  word-break:break-word; overflow-wrap:break-word;
+}
 .tso-audit-warn-icon { color:#c00; font-weight:700; }
 .tso-audit-warn-reason { font-size:11px; color:#a00; }
 .tso-status-uninstalled { color:#a00000; font-weight:800; font-size:12px; line-height:1.35; }

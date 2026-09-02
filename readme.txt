@@ -3,7 +3,7 @@
 Contributors: deadko
 Donate link: https://ko-fi.com/deadko_cat
 Tags: database, cleanup, optimization, maintenance, wp-options
-Requires at least: 6.1
+Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.0
 Stable tag: 1.3.3
@@ -105,6 +105,8 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * Code: backup, cleanup, optimize, and status handlers split into dedicated include files (smaller core)
 * Cron tab: live filter by hook, type, and search text without clicking Filter
 * UI: nav width aligned to 1100px; historial title alignment; backup warning panel compacted
+* Requires at least WordPress 5.9 (was 6.1); wp_get_scheduled_event remains optional behind function_exists()
+* Detection audit table: fixed column layout (horizontal scroll, readable paths and sample options)
 
 = 1.3.2 =
 * WordPress.org Plugin Check: admin UI uses enqueued JS/CSS only (no inline onclick, onchange, or style attributes)
