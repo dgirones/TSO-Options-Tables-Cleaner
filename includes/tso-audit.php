@@ -29,6 +29,37 @@ function tsootc_audit_detection_is_synthetic( $detected ) {
 }
 
 /**
+ * Format expected disk path for the audit table (one folder segment per line).
+ *
+ * @param string $path Relative path under wp-content.
+ * @return string Safe HTML.
+ */
+function tsootc_format_audit_disk_path_html( $path ) {
+	$path = trim( (string) $path );
+	if ( '' === $path ) {
+		return '&mdash;';
+	}
+
+	$trailing_slash = str_ends_with( $path, '/' );
+	$parts          = array_values( array_filter( explode( '/', $path ), 'strlen' ) );
+	if ( empty( $parts ) ) {
+		return esc_html( $path );
+	}
+
+	$html = '';
+	$last = count( $parts ) - 1;
+	foreach ( $parts as $i => $part ) {
+		$segment = $part;
+		if ( $i < $last || $trailing_slash ) {
+			$segment .= '/';
+		}
+		$html .= '<span class="tso-audit-path-seg">' . esc_html( $segment ) . '</span>';
+	}
+
+	return $html;
+}
+
+/**
  * Infer how an option name was mapped to a plugin/theme (for the audit panel).
  *
  * @param string     $option_name       Option key.
@@ -711,7 +742,7 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 		echo '<td class="' . esc_attr( $disk_class ) . '">' . esc_html( $disk_label ) . '</td>';
 		echo '<td><code class="tso-audit-code">' . esc_html( (string) $row['method_label'] ) . '</code></td>';
 		echo '<td class="tso-audit-evidence">' . esc_html( (string) ( $row['evidence'] ?? '' ) ) . '</td>';
-		echo '<td class="tso-audit-path">' . esc_html( (string) $row['disk_path'] ) . '</td>';
+		echo '<td class="tso-audit-path">' . tsootc_format_audit_disk_path_html( (string) $row['disk_path'] ) . '</td>';
 		echo '<td><code class="tso-audit-code"><a href="' . esc_url( $jump_url ) . '">' . esc_html( $sample ) . '</a></code></td>';
 		echo '<td>';
 		if ( $mismatch ) {
