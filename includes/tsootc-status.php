@@ -439,6 +439,146 @@ function tsootc_status_history_type_label( $lang, $type ) {
 }
 
 /**
+ * Badge class + icon for a history action (status / history tables).
+ *
+ * @param string $action Event action key.
+ * @return array{class:string,icon:string}
+ */
+function tsootc_status_history_action_badge_meta( $action ) {
+	$map = array(
+		'activated'     => array( 'class' => 'tso-hist-act-activated', 'icon' => '✅' ),
+		'deactivated'   => array( 'class' => 'tso-hist-act-deactivated', 'icon' => '⚠️' ),
+		'installed'     => array( 'class' => 'tso-hist-act-installed', 'icon' => '📥' ),
+		'updated'       => array( 'class' => 'tso-hist-act-updated', 'icon' => '🔄' ),
+		'deleted'       => array( 'class' => 'tso-hist-act-deleted', 'icon' => '🗑️' ),
+		'keys_mapped'   => array( 'class' => 'tso-hist-act-keys_mapped', 'icon' => '🔑' ),
+		'tables_mapped' => array( 'class' => 'tso-hist-act-tables_mapped', 'icon' => '📊' ),
+	);
+	$action = sanitize_key( (string) $action );
+	return isset( $map[ $action ] ) ? $map[ $action ] : array( 'class' => 'tso-hist-act-default', 'icon' => '•' );
+}
+
+/**
+ * Render recent plugin/theme history rows as a compact admin table.
+ *
+ * @param string $lang   UI language.
+ * @param array  $events History events from tsootc_status_get_recent_history().
+ * @return void
+ */
+function tsootc_status_render_recent_history_table( $lang, array $events ) {
+	if ( empty( $events ) ) {
+		return;
+	}
+
+	$th_dt   = tsootc_ui_triple_text( $lang, 'Data i hora', 'Fecha y hora', 'Date and time' );
+	$th_type = tsootc_ui_triple_text( $lang, 'Tipus', 'Tipo', 'Type' );
+	$th_name = tsootc_ui_triple_text( $lang, 'Nom', 'Nombre', 'Name' );
+	$th_act  = tsootc_ui_triple_text( $lang, 'Acció', 'Acción', 'Action' );
+	$th_det  = tsootc_ui_triple_text( $lang, 'Detalls', 'Detalles', 'Details' );
+
+	echo '<div class="tso-table-scroll tso-stack-on-mobile tso-status-recent-table-wrap">';
+	echo '<table class="tso-hist-table tso-status-recent-table">';
+	echo '<thead><tr class="tso-hist-thead-row">';
+	echo '<th class="tso-hist-th tso-th-left tso-hist-th--nowrap" scope="col">' . esc_html( $th_dt ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-center" scope="col">' . esc_html( $th_type ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-left" scope="col">' . esc_html( $th_name ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-center" scope="col">' . esc_html( $th_act ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-left" scope="col">' . esc_html( $th_det ) . '</th>';
+	echo '</tr></thead><tbody>';
+
+	$idx = 0;
+	foreach ( $events as $ev ) {
+		if ( ! is_array( $ev ) ) {
+			continue;
+		}
+		$action       = sanitize_key( (string) ( $ev['action'] ?? '' ) );
+		$type         = sanitize_key( (string) ( $ev['type'] ?? 'plugin' ) );
+		$when         = ! empty( $ev['ts'] )
+			? date_i18n( get_option( 'date_format' ) . ' H:i', (int) $ev['ts'] )
+			: '—';
+		$type_label   = tsootc_status_history_type_label( $lang, $type );
+		$action_label = tsootc_status_history_action_label( $lang, $action );
+		$badge        = tsootc_status_history_action_badge_meta( $action );
+		$name         = (string) ( $ev['name'] ?? '' );
+		$detail       = tsootc_status_history_detail_summary( $lang, $ev );
+		$row_class    = $idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+
+		echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . ' tso-status-recent-row tso-status-recent-row--' . esc_attr( $action ) . '">';
+		echo '<td class="tso-hist-td tso-hist-td--dt" data-label="' . esc_attr( $th_dt ) . '">' . esc_html( $when ) . '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--type" data-label="' . esc_attr( $th_type ) . '">' . esc_html( $type_label ) . '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--name" data-label="' . esc_attr( $th_name ) . '">' . esc_html( $name ) . '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--act" data-label="' . esc_attr( $th_act ) . '">';
+		echo '<span class="tso-hist-act-badge ' . esc_attr( (string) $badge['class'] ) . '">'
+			. esc_html( (string) $badge['icon'] . ' ' . $action_label ) . '</span>';
+		echo '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--det" data-label="' . esc_attr( $th_det ) . '">';
+		if ( '' !== $detail ) {
+			echo esc_html( $detail );
+		} else {
+			echo '<span class="tso-auto-off-text">—</span>';
+		}
+		echo '</td>';
+		echo '</tr>';
+		++$idx;
+	}
+
+	echo '</tbody></table>';
+	echo '</div>';
+}
+
+/**
+ * Render recently deactivated plugins (WP core list) as a compact table.
+ *
+ * @param string $lang UI language.
+ * @param array  $rows Rows with ts, name, file keys.
+ * @return void
+ */
+function tsootc_status_render_recently_deactivated_table( $lang, array $rows ) {
+	if ( empty( $rows ) ) {
+		return;
+	}
+
+	$th_dt   = tsootc_ui_triple_text( $lang, 'Data i hora', 'Fecha y hora', 'Date and time' );
+	$th_type = tsootc_ui_triple_text( $lang, 'Tipus', 'Tipo', 'Type' );
+	$th_name = tsootc_ui_triple_text( $lang, 'Nom', 'Nombre', 'Name' );
+	$th_act  = tsootc_ui_triple_text( $lang, 'Acció', 'Acción', 'Action' );
+	$act_lbl = tsootc_ui_triple_text( $lang, 'Desactivat', 'Desactivado', 'Deactivated' );
+	$type_lbl = tsootc_ui_triple_text( $lang, 'Plugin', 'Plugin', 'Plugin' );
+	$badge   = tsootc_status_history_action_badge_meta( 'deactivated' );
+
+	echo '<div class="tso-table-scroll tso-stack-on-mobile tso-status-recent-table-wrap">';
+	echo '<table class="tso-hist-table tso-status-recent-table">';
+	echo '<thead><tr class="tso-hist-thead-row">';
+	echo '<th class="tso-hist-th tso-th-left tso-hist-th--nowrap" scope="col">' . esc_html( $th_dt ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-center" scope="col">' . esc_html( $th_type ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-left" scope="col">' . esc_html( $th_name ) . '</th>';
+	echo '<th class="tso-hist-th tso-th-center" scope="col">' . esc_html( $th_act ) . '</th>';
+	echo '</tr></thead><tbody>';
+
+	$idx = 0;
+	foreach ( $rows as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$when      = ! empty( $row['ts'] ) ? date_i18n( get_option( 'date_format' ) . ' H:i', (int) $row['ts'] ) : '—';
+		$row_class = $idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
+		echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . ' tso-status-recent-row tso-status-recent-row--deactivated">';
+		echo '<td class="tso-hist-td tso-hist-td--dt" data-label="' . esc_attr( $th_dt ) . '">' . esc_html( $when ) . '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--type" data-label="' . esc_attr( $th_type ) . '">' . esc_html( $type_lbl ) . '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--name" data-label="' . esc_attr( $th_name ) . '">' . esc_html( (string) ( $row['name'] ?? '' ) ) . '</td>';
+		echo '<td class="tso-hist-td tso-hist-td--act" data-label="' . esc_attr( $th_act ) . '">';
+		echo '<span class="tso-hist-act-badge ' . esc_attr( (string) $badge['class'] ) . '">'
+			. esc_html( (string) $badge['icon'] . ' ' . $act_lbl ) . '</span>';
+		echo '</td>';
+		echo '</tr>';
+		++$idx;
+	}
+
+	echo '</tbody></table>';
+	echo '</div>';
+}
+
+/**
  * Build automatic cleanup suggestion from current metrics.
  *
  * @param string $lang UI language.
@@ -1094,26 +1234,7 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 			)
 		) . '</p>';
 	} else {
-		echo '<ul class="tso-status-recent-list">';
-		foreach ( $recent as $ev ) {
-			$when = ! empty( $ev['ts'] )
-				? date_i18n( get_option( 'date_format' ) . ' H:i', (int) $ev['ts'] )
-				: '—';
-			$type_label   = tsootc_status_history_type_label( $lang, (string) ( $ev['type'] ?? 'plugin' ) );
-			$action_label = tsootc_status_history_action_label( $lang, (string) ( $ev['action'] ?? '' ) );
-			$name         = (string) ( $ev['name'] ?? '' );
-			echo '<li class="tso-status-recent-item tso-status-recent-item--' . esc_attr( (string) ( $ev['action'] ?? '' ) ) . '">';
-			echo '<span class="tso-status-recent-when">' . esc_html( $when ) . '</span>';
-			echo '<span class="tso-status-recent-type">' . esc_html( $type_label ) . '</span>';
-			echo '<strong class="tso-status-recent-name">' . esc_html( $name ) . '</strong>';
-			echo '<span class="tso-status-recent-action">' . esc_html( $action_label ) . '</span>';
-			$detail_summary = tsootc_status_history_detail_summary( $lang, $ev );
-			if ( '' !== $detail_summary ) {
-				echo '<span class="tso-status-recent-detail">' . esc_html( $detail_summary ) . '</span>';
-			}
-			echo '</li>';
-		}
-		echo '</ul>';
+		tsootc_status_render_recent_history_table( $lang, $recent );
 	}
 	echo '</div>';
 
@@ -1123,17 +1244,7 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 		echo '<h4 class="tso-status-findings-title">' . esc_html( tsootc_ui_triple_text( $lang, 'Desactivats recentment (WordPress)', 'Desactivados recientemente (WordPress)', 'Recently deactivated (WordPress)' ) ) . '</h4>';
 		echo '<a class="tso-status-recent-all" href="' . esc_url( $history_url ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Historial →', 'Historial →', 'History →' ) ) . '</a>';
 		echo '</div>';
-		echo '<ul class="tso-status-recent-list">';
-		foreach ( $recently_deactivated as $row ) {
-			$when = ! empty( $row['ts'] ) ? date_i18n( get_option( 'date_format' ) . ' H:i', (int) $row['ts'] ) : '—';
-			echo '<li class="tso-status-recent-item tso-status-recent-item--deactivated">';
-			echo '<span class="tso-status-recent-when">' . esc_html( $when ) . '</span>';
-			echo '<span class="tso-status-recent-type">' . esc_html( tsootc_ui_triple_text( $lang, 'Plugin', 'Plugin', 'Plugin' ) ) . '</span>';
-			echo '<strong class="tso-status-recent-name">' . esc_html( (string) ( $row['name'] ?? '' ) ) . '</strong>';
-			echo '<span class="tso-status-recent-action">' . esc_html( tsootc_ui_triple_text( $lang, 'Desactivat', 'Desactivado', 'Deactivated' ) ) . '</span>';
-			echo '</li>';
-		}
-		echo '</ul>';
+		tsootc_status_render_recently_deactivated_table( $lang, $recently_deactivated );
 		echo '</div>';
 	}
 
