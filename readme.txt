@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 6.1
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.3
+Stable tag: 1.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -96,6 +96,15 @@ No external connections: This plugin does not make any HTTP requests to external
 == Changelog ==
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+
+= 1.3.4 =
+* Extra tables: fix delete UI when «Allow table deletion» is enabled (instant unlock + sync on reload)
+* Extra tables: correct detection for TSO plugin tables named pluginstso_* (legacy pluginspc_* aliases)
+* Options tab: search matches plugin group names (e.g. «really» finds Really Simple Security); clear ✕ on search field
+* Status tab: recent plugin/theme changes shown in a compact table with action badges
+* Detection audit: path column stacks segments; table fits viewport without forced horizontal scroll
+* Email report: inline CSS only (WordPress.org Plugin Check)
+* Regression tests: auto-clean schedule includes cleanup helpers
 
 = 1.3.3 =
 * Admin: new **Current status** tab (default) with database overview and shortcuts to cleanup
