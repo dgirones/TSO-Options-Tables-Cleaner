@@ -1002,9 +1002,14 @@ function tsootc_page() {
         }
 
         // ---- Filtres live (sense recàrrega) ----
+        $txt_search_clear = tsootc_ui_triple_text( $lang, 'Esborrar cerca', 'Borrar búsqueda', 'Clear search' );
         echo '<div class="tso-filter-row">';
+        echo '<div class="tso-opts-search-wrap tso-filter-input-flex">';
         echo '<input type="text" id="tso-opts-search" placeholder="' . esc_attr( __( '🔍 Search option...', 'tso-options-tables-cleaner' ) ) . '"'
-           . ' value="' . esc_attr( $filter_search ) . '" data-tso-input="filter-opts" class="tso-filter-input-flex">';
+           . ' value="' . esc_attr( $filter_search ) . '" data-tso-input="filter-opts" class="tso-opts-search-input">';
+        echo '<button type="button" id="tso-opts-search-clear" class="tso-opts-search-clear" aria-label="' . esc_attr( $txt_search_clear ) . '" title="' . esc_attr( $txt_search_clear ) . '"'
+           . ( '' !== $filter_search ? '' : ' hidden' ) . '>&times;</button>';
+        echo '</div>';
         echo '<select id="tso-opts-autoload" data-tso-change="filter-opts" class="tso-cron-code">';
         echo '<option value="">' . esc_html( __( 'Autoload: all', 'tso-options-tables-cleaner' ) ) . '</option>';
         echo '<option value="on"' . ( $filter_autoload === 'on' ? ' selected' : '' ) . '>autoload on</option>';
@@ -1201,7 +1206,19 @@ function tsootc_page() {
             $head_class = 'tso-plugin-group-head' . ( $default_open ? ' open' : '' );
             $body_class = 'tso-plugin-group-body' . ( $default_open ? ' open' : '' );
 
-            echo '<div class="' . esc_attr( $wrapper_class ) . '" id="wrapper-' . esc_attr( $group_id ) . '">';
+            $group_search_bits = array( $display_name, $group_name );
+            if ( ! empty( $group_data['plugin_folder'] ) ) {
+                $group_search_bits[] = (string) $group_data['plugin_folder'];
+            }
+            if ( ! empty( $group_data['detected_name'] ) ) {
+                $group_search_bits[] = (string) $group_data['detected_name'];
+            }
+            if ( isset( $group_aliases[ $group_name ] ) && '' !== (string) $group_aliases[ $group_name ] ) {
+                $group_search_bits[] = (string) $group_aliases[ $group_name ];
+            }
+            $group_search_haystack = strtolower( implode( ' ', $group_search_bits ) );
+
+            echo '<div class="' . esc_attr( $wrapper_class ) . '" id="wrapper-' . esc_attr( $group_id ) . '" data-search="' . esc_attr( $group_search_haystack ) . '">';
 
             // Capçalera del grup
             echo '<div class="' . esc_attr( $head_class ) . '" data-tso-click="toggle-group">';
@@ -1483,7 +1500,18 @@ function tsootc_page() {
         $trans_fmt = array_sum( array_map( function( $t ) { return intval( $t->mida ); }, $transients ) );
         $trans_fmt = $trans_fmt > 1048576 ? number_format( $trans_fmt / 1048576, 1 ) . ' MB' : round( $trans_fmt / 1024 ) . ' KB';
 
-        echo '<div class="tso-plugin-group tso-transients-group">';
+        $transients_search_haystack = strtolower(
+            implode(
+                ' ',
+                array(
+                    __( 'Transients / Temporary', 'tso-options-tables-cleaner' ),
+                    'transients',
+                    'transient',
+                    tsootc_ui_triple_text( $lang, 'transitori', 'transitorio', 'temporary' ),
+                )
+            )
+        );
+        echo '<div class="tso-plugin-group tso-transients-group" data-search="' . esc_attr( $transients_search_haystack ) . '">';
         echo '<div class="tso-plugin-group-head" data-tso-click="toggle-group">';
         echo '<span class="tso-arrow">▶</span>';
         echo '<span class="grp-name">⏳ ' . esc_html( __( 'Transients / Temporary', 'tso-options-tables-cleaner' ) ) . '</span>';
