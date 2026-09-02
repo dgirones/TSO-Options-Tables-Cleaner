@@ -95,7 +95,7 @@ No external connections: This plugin does not make any HTTP requests to external
 
 == Changelog ==
 
-Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+Recent releases only. Older notes are in changelog.txt in the plugin folder.
 
 = 1.3.4 =
 * Extra tables: fix delete UI when «Allow table deletion» is enabled (instant unlock + sync on reload)
@@ -121,43 +121,3 @@ Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in 
 * Security: escaped admin tab and language URLs; AJAX refresh nonce requires verified nonce and manage_options
 * Uninstall: removes the plugin uploads folder (backups and options-tab cache); FAQ updated
 * Requires at least WordPress 6.1
-
-= 1.3.1 =
-* Options tab cache: no longer rebuilds on every visit when the automatic key map grows; language-aware payloads; cheaper inventory fingerprint (count + max id)
-* Auto-clean: owned daily/weekly/monthly schedules (weekly = 7 days); far-overdue runs catch up instead of only postponing
-* Extra tables list: live search, sortable columns (default size), bulk actions only on visible filtered rows
-* After plugin delete, leftover options keep ownership in the key map (same idea as leftover tables)
-* Backup restore confirmation accepts RESTORE / RESTAURAR by UI language
-* DROP TABLE reports success only after verifying the table is gone
-* Cron “Run now” consumes one-shot events and reschedules recurring ones
-* Admin JS strings follow the plugin UI language (CA / ES / EN)
-* Widgets: CPOThemes/Enclosed identification; unidentified widgets sorted first
-
-= 1.3.0 =
-* Safety: WordPress core options are locked in the UI and every delete handler
-* Detection V2 is the default (candidates, score, margin); evidence merges by owner to cut false Unconfirmed rows
-* Widgets: manual assignment and plugin_disk/history detection move rows out of the shared Widgets bucket; theme groups resolve to wp-content/themes/
-* Extra tables: activation snapshots, schema signatures (WPForms, Gravity Forms, Rank Math, WooCommerce, etc.), sibling propagation and candidate UI
-* Options tab groups by owner token; audit panel shows evidence and uncertain-row filter; History records tables_mapped with source
-* Hosting stacks (Freemius, Softaculous, WP Toolkit) show a warning but stay manually deletable
-
-= 1.2.7 =
-* Detection audit: theme vs plugin on-disk checks, synthetic hosting/SDK labels, group-flag mismatch detection, mixed-sample normalization
-* Detection: theme_mods_* never remapped to plugins via codescan; theme path hints under wp-content/themes
-* History: malformed rows filtered, safer upgrader slug resolution, Softaculous keys excluded from history index
-* Extra tables: WordPress core / multisite protected tables excluded; quoted DROP identifiers
-* General cleanup: expired transients savings fix, retention_days partial save, multisite OPTIMIZE scope
-* Backup: reliable delete check, uploads protection files, unique filenames, cache flush after restore
-* Softaculous / hosting options (softaculous_*, ai-install) stay in their own group — never merged into WP plugins
-* Options tab: Active/Inactive group status reconciled from live plugin inventory after merge
-* Options-tab cache: avoid duplicate delete_option calls after flush; fix inv_sig / cache-blob storage keys (schema 7)
-* AJAX/admin: POST reads via storage helpers; retention_days isset preserved after helper migration
-* Tested up to WordPress 7.1; Plugin Check PHPCS on DROP TABLE queries
-
-= 1.2.5 =
-* History Details: version, folder, bootstrap path, and automatic "replaces" hint when a recently deleted plugin shares the same option-prefix family
-* History: show mapped_on_delete for theme keys_mapped events; enrich older rows on display
-* Detection: shared prefixes (e.g. tsosk_) resolve to the currently installed plugin folder without manual aliases
-* Backup tab: select and delete multiple backups in bulk
-* Storage: validated admin POST helper for bulk backup filenames (Plugin Check / PHPCS)
-
