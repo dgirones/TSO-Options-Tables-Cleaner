@@ -742,7 +742,14 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 		echo '<td class="' . esc_attr( $disk_class ) . '">' . esc_html( $disk_label ) . '</td>';
 		echo '<td><code class="tso-audit-code">' . esc_html( (string) $row['method_label'] ) . '</code></td>';
 		echo '<td class="tso-audit-evidence">' . esc_html( (string) ( $row['evidence'] ?? '' ) ) . '</td>';
-		echo '<td class="tso-audit-path">' . tsootc_format_audit_disk_path_html( (string) $row['disk_path'] ) . '</td>';
+		echo '<td class="tso-audit-path">' . wp_kses(
+			tsootc_format_audit_disk_path_html( (string) $row['disk_path'] ),
+			array(
+				'span' => array(
+					'class' => true,
+				),
+			)
+		) . '</td>';
 		echo '<td><code class="tso-audit-code"><a href="' . esc_url( $jump_url ) . '">' . esc_html( $sample ) . '</a></code></td>';
 		echo '<td>';
 		if ( $mismatch ) {
