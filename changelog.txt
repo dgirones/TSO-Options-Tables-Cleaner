@@ -1,8 +1,5 @@
-TSO Options & Tables Cleaner — changelog (archive)
-Older release notes (1.2.0 through 1.0.0). Current releases are listed in readme.txt.
-
-TSO Options & Tables Cleaner — changelog (archive)
-Older release notes Current releases are listed in readme.txt.
+=== TSO Options & Tables Cleaner — older changelog ===
+Current releases are listed in readme.txt.
 
 = 1.3.1 =
 * Options tab cache: no longer rebuilds on every visit when the automatic key map grows; language-aware payloads; cheaper inventory fingerprint (count + max id)
