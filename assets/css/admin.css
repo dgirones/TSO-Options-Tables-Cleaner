@@ -265,8 +265,25 @@
 .tso-table-group-table th { padding:9px 10px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#666; border-bottom:1px solid #e5e7eb; }
 .tso-table-group-table td { padding:9px 10px; font-size:12px; border-bottom:1px solid #f0f0f1; vertical-align:top; }
 .tso-table-group-table tr:last-child td { border-bottom:none; }
+.tso-modals-root[hidden] { display:none !important; }
+.tso-overlay,
+#tso-rename-overlay,
+#tso-modal-overlay,
+#tso-assign-overlay {
+  position:fixed; top:0; left:0; right:0; bottom:0;
+  z-index:100000; display:none; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.tso-overlay[hidden],
+#tso-rename-overlay[hidden],
+#tso-modal-overlay[hidden],
+#tso-assign-overlay[hidden] { display:none !important; }
+.tso-overlay.active,
+#tso-rename-overlay.active,
+#tso-modal-overlay.active,
+#tso-assign-overlay.active { display:flex !important; }
 /* ---- Modal ---- */
-#tso-modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.55); z-index:100000; display:none; align-items:center; justify-content:center; }
+#tso-modal-overlay { background:rgba(0,0,0,.55); }
 #tso-modal-overlay.active { display:flex; }
 #tso-modal-box { background:#fff; border-radius:6px; width:min(96vw, 1200px); max-width:1200px; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 10px 40px rgba(0,0,0,.3); }
 #tso-modal-head { padding:14px 18px; border-bottom:1px solid #ddd; display:flex; align-items:center; gap:8px; }
@@ -326,7 +343,7 @@
 .tso-rename-btn { opacity:0.35; transition:opacity .15s; }
 .tso-rename-btn:hover, .tso-rename-btn.has-alias { opacity:1; }
 .tso-rename-btn.has-alias { color:#007cba !important; border-color:#007cba !important; }
-#tso-rename-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); z-index:100010; display:none; align-items:center; justify-content:center; }
+#tso-rename-overlay { background:rgba(0,0,0,.5); }
 #tso-rename-overlay.active { display:flex; }
 #tso-rename-box { background:#fff; border-radius:8px; width:90%; max-width:480px; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
 #tso-rename-box h3 { margin:0 0 6px; font-size:15px; }
@@ -338,7 +355,7 @@
 .tso-gemini-btn { display:inline-block; padding:2px 7px; background:#f0f6fc; border:1px solid #007cba; color:#007cba; border-radius:3px; font-size:11px; font-weight:600; white-space:nowrap; cursor:pointer; }
 .tso-gemini-btn:hover { background:#e3f0f8; color:#006093; border-color:#006093; }
 /* ---- Modal Assignar Opció ---- */
-#tso-assign-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); z-index:100002; display:none; align-items:center; justify-content:center; }
+#tso-assign-overlay { background:rgba(0,0,0,.6); }
 #tso-assign-overlay.active { display:flex; }
 #tso-assign-box { background:#fff; border-radius:8px; width:90%; max-width:500px; box-shadow:0 12px 40px rgba(0,0,0,.35); overflow:hidden; }
 #tso-assign-head { background:#1d2327; color:#fff; padding:14px 20px; display:flex; align-items:center; gap:10px; }
@@ -373,11 +390,6 @@
 }
 #tso-modal-save-msg { font-size:12px; color:#666; }
 .tso-assign-head-text { flex:1; }
-#tso-rename-overlay, #tso-assign-overlay {
-  position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.55);
-  z-index:100000; display:none; align-items:center; justify-content:center;
-}
-#tso-rename-overlay.active, #tso-assign-overlay.active { display:flex; }
 .tso-btn-block { width:100%; text-align:center; box-sizing:border-box; }
 .tso-m0 { margin:0; }
 .tso-fs-12 { font-size:12px; }
@@ -385,7 +397,7 @@
 .tso-text-muted { color:#666; }
 .tso-text-muted-light { color:#888; }
 .tso-text-muted-faint { color:#999; }
-.tso-page-footnote { margin:20px 0; color:#999; font-size:12px; }
+.tso-page-footnote { max-width:1100px; margin:16px auto 0; padding:0 20px; box-sizing:border-box; }
 .tso-page-footnote hr { margin:20px 0; border:0; border-top:1px solid #ddd; }
 .tso-max-w-1100 { max-width:1100px; width:100%; box-sizing:border-box; }
 .tso-flex-wrap-gap { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }

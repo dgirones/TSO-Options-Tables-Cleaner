@@ -101,28 +101,6 @@ function tsootc_pct_label_class( $pct ) {
 }
 
 /**
- * Map status hex color to a semantic CSS class.
- *
- * @param string $hex Color hex from detection status.
- * @return string
- */
-function tsootc_status_hex_class( $hex ) {
-	$map = array(
-		'#2a7a2a' => 'tso-status-active',
-		'#46b450' => 'tso-status-active',
-		'#c07000' => 'tso-status-inactive',
-		'#9a6700' => 'tso-status-hosting-warn',
-		'#0075be' => 'tso-status-core',
-		'#c00'    => 'tso-status-undetected',
-		'#c00000' => 'tso-status-removed',
-		'#999'    => 'tso-text-muted-faint',
-		'#555'    => 'tso-text-muted-dark',
-	);
-	$key = strtolower( (string) $hex );
-	return isset( $map[ $key ] ) ? $map[ $key ] : 'tso-status-default';
-}
-
-/**
  * History fill bar/text level from usage percentage.
  *
  * @param int $pct Percentage of max history entries.
@@ -182,11 +160,7 @@ function tsootc_page() {
         $tso_cleanup_flash_notice = '<div class="' . esc_attr( $msg_class ) . '"><span class="tso-notice-icon">' . esc_html( $icon ) . '</span> ' . esc_html( (string) $saved_cleanup['msg'] ) . '</div>';
     }
 
-    $tab = isset( $_GET['tab'] ) ? sanitize_key( (string) ( $_GET['tab'] ?? '' ) ) : 'status'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display parameter
-    // Validar tab
-    if ( ! in_array( $tab, array( 'status', 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' ), true ) ) {
-        $tab = 'status';
-    }
+    $tab = tsootc_get_admin_screen_tab( 'status' );
 
     $base_url = admin_url( 'tools.php?page=tso-options-tables-cleaner' );
     $auto_cfg = tsootc_auto_clean_get_settings();
@@ -255,7 +229,7 @@ function tsootc_page() {
 
     // Global admin CSS: assets/css/admin.css (enqueued via tso_admin_register_assets).
 
-    echo '<div class="wrap" id="tso-wrap">';
+    echo '<div class="wrap" id="tso-wrap" data-tsootc-build="' . esc_attr( defined( 'TSOOTC_VERSION' ) ? TSOOTC_VERSION : '' ) . '">';
 
     // Títol + TABS + idiomes dins el mateix contenidor per alinear-los
     $lang_switch_base = add_query_arg(
@@ -323,9 +297,7 @@ function tsootc_page() {
        TAB: ESTAT ACTUAL
        ==================================================================== */
     if ( 'status' === $tab ) {
-        if ( function_exists( 'tsootc_status_render_admin_tab' ) ) {
-            tsootc_status_render_admin_tab( $lang, $s, $base_url, $tso_opts_payload );
-        }
+        tsootc_status_render_admin_tab( $lang, $s, $base_url, $tso_opts_payload );
     }
 
     /* ====================================================================
@@ -616,12 +588,12 @@ function tsootc_page() {
             $options = array_merge( $options, $transients );
         }
 
-        $filter_search   = isset( $_GET['s'] )       ? sanitize_text_field( (string) wp_unslash( $_GET['s'] ) )      : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
-        $filter_autoload = isset( $_GET['autoload'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['autoload'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
-        $filter_safety   = isset( $_GET['safety'] )   ? sanitize_key( (string) ( $_GET['safety'] ?? '' ) )                      : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
-        $audit_mode      = isset( $_GET['audit'] ) && '1' === sanitize_key( (string) wp_unslash( $_GET['audit'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display toggle
-        $audit_mismatch  = isset( $_GET['audit_mismatch'] ) && '1' === sanitize_key( (string) wp_unslash( $_GET['audit_mismatch'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter
-        $filter_uncertain = isset( $_GET['opts_uncertain'] ) && '1' === sanitize_key( (string) wp_unslash( $_GET['opts_uncertain'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter
+        $filter_search    = tsootc_get_admin_screen_query_arg( 's', '' );
+        $filter_autoload  = tsootc_get_admin_screen_query_arg( 'autoload', '' );
+        $filter_safety    = tsootc_get_admin_screen_query_arg( 'safety', '', 'key' );
+        $audit_mode       = tsootc_get_admin_screen_query_arg( 'audit', '', 'bool_flag' );
+        $audit_mismatch   = tsootc_get_admin_screen_query_arg( 'audit_mismatch', '', 'bool_flag' );
+        $filter_uncertain = tsootc_get_admin_screen_query_arg( 'opts_uncertain', '', 'bool_flag' );
         $widgets_group_key = '__widgets__';
         $widgets_group_label = 'Widgets';
         $is_widget_option = static function( $option_name ) {
@@ -2141,11 +2113,11 @@ function tsootc_page() {
         $active_theme_slug = get_stylesheet();
 
         // ---- Filtre tipus ----
-        $hist_filter_type   = isset( $_GET['htype'] )   ? sanitize_key( (string) ( $_GET['htype'] ?? '' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
-        $hist_filter_action = isset( $_GET['haction'] ) ? sanitize_key( (string) ( $_GET['haction'] ?? '' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
-        $hist_search        = isset( $_GET['hsearch'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['hsearch'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter
-        $hist_date_from     = isset( $_GET['hfrom'] )   ? sanitize_text_field( (string) wp_unslash( $_GET['hfrom'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $hist_date_to       = isset( $_GET['hto'] )     ? sanitize_text_field( (string) wp_unslash( $_GET['hto'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $hist_filter_type   = tsootc_get_admin_screen_query_arg( 'htype', '', 'key' );
+        $hist_filter_action = tsootc_get_admin_screen_query_arg( 'haction', '', 'key' );
+        $hist_search        = tsootc_get_admin_screen_query_arg( 'hsearch', '' );
+        $hist_date_from     = tsootc_get_admin_screen_query_arg( 'hfrom', '' );
+        $hist_date_to       = tsootc_get_admin_screen_query_arg( 'hto', '' );
 
         // Convertir dates a timestamps per filtrar
         $ts_from = $hist_date_from ? strtotime( $hist_date_from . ' 00:00:00' ) : 0;
@@ -2882,84 +2854,8 @@ function tsootc_page() {
 
     echo '</div></div>'; // .tso-tab-inner .tso-tab-content
 
-    // Modal renombrar grup
-    $rename_title  = tsootc_ui_triple_text( $lang, 'Reanomenar grup', 'Renombrar grupo', 'Rename group' );
-    $rename_ph     = tsootc_ui_triple_text( $lang, 'Nom visible personalitzat...', 'Nombre visible personalizado...', 'Custom display name...' );
-    $rename_save   = tsootc_ui_triple_text( $lang, '💾 Desar', '💾 Guardar', '💾 Save' );
-    $rename_reset  = tsootc_ui_triple_text( $lang, '↩ Restaurar original', '↩ Restaurar original', '↩ Reset to original' );
-    $rename_cancel = tsootc_ui_triple_text( $lang, 'Cancel·lar', 'Cancelar', 'Cancel' );
-    echo '<div id="tso-rename-overlay" data-tso-overlay-dismiss="1">';
-    echo '<div id="tso-rename-box">';
-    echo '<h3>' . esc_html( $rename_title ) . '</h3>';
-    echo '<p id="tso-rename-orig-label"></p>';
-    echo '<input type="text" id="tso-rename-input" placeholder="' . esc_attr( $rename_ph ) . '" maxlength="120">';
-    echo '<div id="tso-rename-actions">';
-    echo '<button class="button button-primary" data-tso-click="rename-save">' . esc_html( $rename_save ) . '</button>';
-    echo '<button class="button" data-tso-click="rename-reset">' . esc_html( $rename_reset ) . '</button>';
-    echo '<button class="button" data-tso-click="rename-close">' . esc_html( $rename_cancel ) . '</button>';
-    echo '<span id="tso-rename-msg"></span>';
-    echo '</div>';
-    echo '</div>';
-    echo '</div>';
+    echo '<hr class="tso-page-footnote-sep"><p class="tso-hist-meta-note tso-page-footnote">' . wp_kses_post( __( 'Remember to do <strong>LiteSpeed Cache → Purge All</strong> (or clear your cache plugin) after any cleanup. Always make a <strong>backup</strong> first.', 'tso-options-tables-cleaner' ) ) . '</p>';
+    echo '</div>'; // #tso-wrap
 
-    // Modal per veure/editar el valor d'una opció
-    echo '<div id="tso-modal-overlay" data-tso-overlay-dismiss="1">';
-    echo '<div id="tso-modal-box">';
-    echo '<div id="tso-modal-head">';
-    echo '<strong id="tso-modal-name"></strong>';
-    echo '<span id="tso-modal-type-badge"></span>';
-    echo '<button id="tso-modal-edit-btn" class="button button-small tso-modal-head-btn" data-tso-click="modal-toggle-edit">✏️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Editar', 'Editar', 'Edit' ) ) . '</button>';
-    echo '<button id="tso-modal-close" data-tso-click="modal-close">✕</button>';
-    echo '</div>';
-    echo '<div id="tso-modal-body">';
-    echo '<div id="tso-modal-view-tabs">';
-    echo '<button type="button" id="tso-tab-tree" class="active" data-tso-click="modal-switch-tab" data-tso-tab="tree">🌳 ' . esc_html( tsootc_ui_triple_text( $lang, 'Arbre', 'Árbol', 'Tree' ) ) . '</button>';
-    echo '<button type="button" id="tso-tab-raw" data-tso-click="modal-switch-tab" data-tso-tab="raw">📄 ' . esc_html( tsootc_ui_triple_text( $lang, 'Raw', 'Raw', 'Raw' ) ) . '</button>';
-    echo '<button type="button" id="tso-tab-copy" data-tso-click="modal-copy">📋 ' . esc_html( tsootc_ui_triple_text( $lang, 'Copiar', 'Copiar', 'Copy' ) ) . '</button>';
-    echo '</div>';
-    echo '<pre id="tso-modal-value"></pre>';
-    echo '<div id="tso-modal-tree"></div>';
-    echo '<div id="tso-modal-table"></div>';
-    echo '<textarea id="tso-modal-editor"></textarea>';
-    echo '<div id="tso-modal-edit-bar">';
-    echo '<button id="tso-modal-save-btn" class="button button-primary" data-tso-click="modal-save">💾 ' . esc_html( tsootc_ui_triple_text( $lang, 'Desar canvi', 'Guardar cambio', 'Save change' ) ) . '</button>';
-    echo '<button class="button" data-tso-click="modal-cancel-edit">✕ ' . esc_html( tsootc_ui_triple_text( $lang, 'Cancel·lar', 'Cancelar', 'Cancel' ) ) . '</button>';
-    echo '<span id="tso-modal-save-msg" class="tso-notice-text-sm"></span>';
-    echo '</div>';
-    echo '</div>';
-    echo '</div>';
-    echo '</div>';
-
-    // Modal Assignar Opció a Plugin
-    echo '<div id="tso-assign-overlay" data-tso-overlay-dismiss="1">';
-    echo '<div id="tso-assign-box">';
-    echo '<div id="tso-assign-head">';
-    echo '<div class="tso-assign-head-text"><strong>' . esc_html( __( '➕ Assign option to a plugin', 'tso-options-tables-cleaner' ) ) . '</strong><br><span id="tso-assign-option-name"></span></div>';
-    echo '<button data-tso-click="assign-close">✕</button>';
-    echo '</div>';
-    echo '<div id="tso-assign-body">';
-
-    // Secció 1: afegir a grup existent
-    echo '<div class="tso-assign-section">';
-    echo '<label>' . esc_html( __( 'Add to existing group', 'tso-options-tables-cleaner' ) ) . '</label>';
-    echo '<select id="tso-assign-existing-select"><option value="">' . esc_html( __( '-- Select a group --', 'tso-options-tables-cleaner' ) ) . '</option></select>';
-    echo '<br><br>';
-    echo '<button class="tso-assign-btn" id="tso-assign-save-existing" data-default-label="' . esc_attr( __( 'Assign to group', 'tso-options-tables-cleaner' ) ) . '" data-tso-click="assign-confirm" data-tso-use-new="0">' . esc_html( __( 'Assign to group', 'tso-options-tables-cleaner' ) ) . '</button>';
-    echo '</div>';
-
-    // Secció 2: crear grup nou
-    echo '<div class="tso-assign-section tso-assign-new-group">';
-    echo '<label>' . esc_html( __( 'Create a new group', 'tso-options-tables-cleaner' ) ) . '</label>';
-    echo '<input type="text" id="tso-assign-new-input" placeholder="Nom del plugin o grup..." maxlength="80">';
-    echo '<br><br>';
-    echo '<button class="tso-assign-btn" id="tso-assign-save-new" data-default-label="' . esc_attr( __( 'Create and assign', 'tso-options-tables-cleaner' ) ) . '" data-tso-click="assign-confirm" data-tso-use-new="1">' . esc_html( __( 'Create and assign', 'tso-options-tables-cleaner' ) ) . '</button>';
-    echo '</div>';
-
-    echo '</div>'; // #tso-assign-body
-    echo '</div>'; // #tso-assign-box
-    echo '</div>'; // #tso-assign-overlay
-
-    echo '<hr class="tso-page-footnote-sep"><p class="tso-hist-meta-note">' . wp_kses_post( __( 'Remember to do <strong>LiteSpeed Cache → Purge All</strong> (or clear your cache plugin) after any cleanup. Always make a <strong>backup</strong> first.', 'tso-options-tables-cleaner' ) ) . '</p>';
-    echo '</div>'; // .wrap
     restore_current_locale();
 }

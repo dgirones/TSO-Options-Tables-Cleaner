@@ -56,9 +56,17 @@ function tsootc_admin_asset_file_version( $relative_path ) {
  * @return void
  */
 function tsootc_admin_register_assets( $hook_suffix ) {
+	static $registered = false;
+
+	if ( $registered ) {
+		return;
+	}
+
 	if ( 'tools_page_tso-options-tables-cleaner' !== $hook_suffix ) {
 		return;
 	}
+
+	$registered = true;
 
 	$ver_shell   = tsootc_admin_asset_file_version( 'assets/js/admin-shell.js' );
 	$ver_options = tsootc_admin_asset_file_version( 'assets/js/admin-options.js' );
@@ -104,7 +112,7 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 	);
 	wp_enqueue_script( 'tso-options-tables-cleaner-admin-ui-bindings' );
 
-	$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'status'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$tab = tsootc_get_admin_screen_tab( 'status' );
 
 	$deps = array( 'tso-options-tables-cleaner-admin-ui-bindings' );
 	if ( 'options' === $tab ) {
@@ -333,6 +341,7 @@ function tsootc_admin_get_extra_css() {
 #tso-wrap .tso-stats-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:24px;width:100%}
 #tso-wrap .tso-actions-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;width:100%}
 #tso-wrap .tso-lang-switch{display:flex;align-items:center;gap:5px}
+#tso-wrap .tso-action-card,.tso-action-card{display:flex;flex-direction:column;gap:10px}
 .tso-al-panel.tso-al-severity-high .tso-al-head{background:#fff5f5}
 .tso-al-panel.tso-al-severity-high{border-left-color:#dc3232}
 .tso-al-panel.tso-al-severity-high .tso-al-total{color:#dc3232}

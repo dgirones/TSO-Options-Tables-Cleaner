@@ -1027,6 +1027,53 @@ function tsootc_get_admin_query_arg( $canonical_key, $legacy_key ) {
 }
 
 /**
+ * Read a single admin screen query argument (display filters; caller on plugin screen only).
+ *
+ * @param string $key     Query argument name.
+ * @param string $default Default when the argument is missing.
+ * @param string $type    Sanitizer: text, key, or bool_flag (true when value is "1").
+ * @return string|bool
+ */
+function tsootc_get_admin_screen_query_arg( $key, $default = '', $type = 'text' ) {
+	$key = (string) $key;
+	if ( '' === $key || ! isset( $_GET[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filters on admin screen
+		if ( 'bool_flag' === $type ) {
+			return false;
+		}
+		return $default;
+	}
+
+	$raw = wp_unslash( $_GET[ $key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized below
+
+	if ( 'key' === $type ) {
+		return sanitize_key( (string) $raw );
+	}
+	if ( 'bool_flag' === $type ) {
+		return '1' === sanitize_key( (string) $raw );
+	}
+
+	return sanitize_text_field( (string) $raw );
+}
+
+/**
+ * Active admin tab slug for the plugin screen.
+ *
+ * @param string $default Default tab when missing or invalid.
+ * @return string
+ */
+function tsootc_get_admin_screen_tab( $default = 'status' ) {
+	$tab      = tsootc_get_admin_screen_query_arg( 'tab', $default, 'key' );
+	$allowed  = array( 'status', 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' );
+	$fallback = sanitize_key( (string) $default );
+
+	if ( ! in_array( $fallback, $allowed, true ) ) {
+		$fallback = 'status';
+	}
+
+	return in_array( $tab, $allowed, true ) ? $tab : $fallback;
+}
+
+/**
  * Legacy wp_options names owned by this plugin (for detection hint maps).
  *
  * @return string[]

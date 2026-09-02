@@ -1330,9 +1330,9 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	$paused       = tsootc_cron_get_paused_events();
 	$now          = time();
 	$disabled     = defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON;
-	$filter_hook  = isset( $_GET['cron_hook'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['cron_hook'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$filter_sched = isset( $_GET['cron_sched'] ) ? sanitize_key( (string) ( $_GET['cron_sched'] ?? '' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$search       = isset( $_GET['cron_q'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['cron_q'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$filter_hook  = tsootc_get_admin_screen_query_arg( 'cron_hook', '' );
+	$filter_sched = tsootc_get_admin_screen_query_arg( 'cron_sched', '', 'key' );
+	$search       = tsootc_get_admin_screen_query_arg( 'cron_q', '' );
 
 	// Rows are filtered live in the browser; PHP only seeds the form controls from the URL.
 	$filtered = $events;
@@ -1450,7 +1450,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			echo ' <span class="tso-badge tso-badge-core" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';
 		}
 		if ( ! $ev['has_callback'] ) {
-			echo ' <span class="tso-badge" class="tso-badge tso-cron-badge-muted" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_no_cb ) . '</span>';
+			echo ' <span class="tso-badge tso-cron-badge-muted" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_no_cb ) . '</span>';
 		}
 		echo '</td>';
 		echo '<td>';
@@ -1471,7 +1471,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		echo '<button type="button" class="button button-small tso-cron-run" title="' . esc_attr( $title_run ) . '" aria-label="' . esc_attr( $title_run ) . '">▶️</button>';
 		echo '<button type="button" class="button button-small tso-cron-postpone" title="' . esc_attr( $title_post ) . '" aria-label="' . esc_attr( $title_post ) . '">⏳</button>';
 		echo '<button type="button" class="button button-small tso-cron-pause" title="' . esc_attr( $title_pause ) . '" aria-label="' . esc_attr( $title_pause ) . '">⏸️</button>';
-		echo '<button type="button" class="button button-small tso-cron-unschedule" class="tso-cron-del-btn" title="' . esc_attr( $title_del ) . '" aria-label="' . esc_attr( $title_del ) . '">🗑️</button>';
+		echo '<button type="button" class="button button-small tso-cron-unschedule tso-cron-del-btn" title="' . esc_attr( $title_del ) . '" aria-label="' . esc_attr( $title_del ) . '">🗑️</button>';
 		echo '<button type="button" class="button button-small tso-cron-clear-hook" title="' . esc_attr( $title_clear ) . '" aria-label="' . esc_attr( $title_clear ) . '">🧹</button>';
 		echo '</div></td></tr>';
 	}
@@ -1480,7 +1480,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '</div>';
 
 	if ( ! empty( $paused ) ) {
-		echo '<div class="tso-section" class="tso-section tso-cron-section-mt">';
+		echo '<div class="tso-section tso-cron-section-mt">';
 		echo '<h3>⏸️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Esdeveniments pausats', 'Eventos pausados', 'Paused events' ) ) . '</h3>';
 		echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat"><thead><tr>';
 		echo '<th>' . esc_html( $lbl_hook ) . '</th>';
@@ -1502,7 +1502,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			$title_resume = tsootc_ui_triple_text( $lang, 'Restaurar al cron', 'Restaurar al cron', 'Restore to cron' );
 			$title_drop_p = tsootc_ui_triple_text( $lang, 'Eliminar registre de pausa', 'Eliminar registro de pausa', 'Delete pause record' );
 			echo '<button type="button" class="button button-small tso-cron-resume" title="' . esc_attr( $title_resume ) . '">▶️</button>';
-			echo '<button type="button" class="button button-small tso-cron-delete-paused" class="tso-cron-del-btn" title="' . esc_attr( $title_drop_p ) . '">🗑️</button>';
+			echo '<button type="button" class="button button-small tso-cron-delete-paused tso-cron-del-btn" title="' . esc_attr( $title_drop_p ) . '">🗑️</button>';
 			echo '</div></td></tr>';
 		}
 		echo '</tbody></table></div></div>';

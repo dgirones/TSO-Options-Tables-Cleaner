@@ -529,7 +529,14 @@ function tsootcParseAjaxJson(text) {
         if (inp) { inp.value = currentName; setTimeout(function(){ inp.focus(); inp.select(); }, 80); }
         if (msg) msg.textContent = '';
         var ov = document.getElementById('tso-rename-overlay');
-        if (ov) ov.classList.add('active');
+        if (ov) {
+            if (window.tsootcOpenOverlay) {
+                window.tsootcOpenOverlay('tso-rename-overlay');
+            } else {
+                ov.removeAttribute('hidden');
+                ov.classList.add('active');
+            }
+        }
     };
 
     window.tsootcSaveGroupAlias = function() {
@@ -550,8 +557,15 @@ function tsootcParseAjaxJson(text) {
                 }
                 if (msg) { msg.style.color = '#2e7d32'; msg.textContent = '✅'; }
                 setTimeout(function(){
-                    var ov = document.getElementById('tso-rename-overlay');
-                    if (ov) ov.classList.remove('active');
+                    if (window.tsootcCloseOverlay) {
+                        window.tsootcCloseOverlay('tso-rename-overlay');
+                    } else {
+                        var ov = document.getElementById('tso-rename-overlay');
+                        if (ov) {
+                            ov.classList.remove('active');
+                            ov.setAttribute('hidden', 'hidden');
+                        }
+                    }
                 }, 600);
             } else {
                 if (msg) { msg.style.color = '#c00'; msg.textContent = '❌ Error'; }
@@ -978,7 +992,14 @@ function tsootcParseAjaxJson(text) {
         if (badge) badge.style.display = 'none';
         if (nm)    nm.textContent = name;
         if (pre)   pre.textContent = tsootcTableInspectorI18n.loading || '…';
-        if (ov)    ov.classList.add('active');
+        if (ov) {
+            if (window.tsootcOpenOverlay) {
+                window.tsootcOpenOverlay('tso-modal-overlay');
+            } else {
+                ov.removeAttribute('hidden');
+                ov.classList.add('active');
+            }
+        }
 
         tsootcPost("tsootc_get_option_value", {option_name:name}, function(data) {
             if (!data || !data.success) {
@@ -1014,7 +1035,14 @@ function tsootcParseAjaxJson(text) {
             }
 
             var ov = document.getElementById("tso-modal-overlay");
-            if (ov) ov.classList.add("active");
+            if (ov) {
+                if (window.tsootcOpenOverlay) {
+                    window.tsootcOpenOverlay('tso-modal-overlay');
+                } else {
+                    ov.removeAttribute('hidden');
+                    ov.classList.add('active');
+                }
+            }
         });
     };
 
@@ -1226,7 +1254,12 @@ function tsootcParseAjaxJson(text) {
         if (nm)  nm.textContent = optionName;
         if (inp) inp.value = "";
         tsootcFillAssignGroupSelect(sel);
-        ov.classList.add("active");
+        if (window.tsootcOpenOverlay) {
+            window.tsootcOpenOverlay('tso-assign-overlay');
+        } else {
+            ov.removeAttribute('hidden');
+            ov.classList.add('active');
+        }
     };
 
     window.tsootcOpenTableAssign = function (tableName) {
@@ -1242,7 +1275,12 @@ function tsootcParseAjaxJson(text) {
         if (nm)  nm.textContent = tableName;
         if (inp) inp.value = "";
         tsootcFillAssignGroupSelect(sel);
-        ov.classList.add("active");
+        if (window.tsootcOpenOverlay) {
+            window.tsootcOpenOverlay('tso-assign-overlay');
+        } else {
+            ov.removeAttribute('hidden');
+            ov.classList.add('active');
+        }
     };
 
     function tsootcFillAssignGroupSelect(sel) {
@@ -1292,7 +1330,12 @@ function tsootcParseAjaxJson(text) {
             nm.textContent = summary;
         }
         tsootcFillAssignGroupSelect(sel);
-        ov.classList.add("active");
+        if (window.tsootcOpenOverlay) {
+            window.tsootcOpenOverlay('tso-assign-overlay');
+        } else {
+            ov.removeAttribute('hidden');
+            ov.classList.add('active');
+        }
     };
 
     window.tsootcReloadOptionsTab = function () {
@@ -1351,7 +1394,12 @@ function tsootcParseAjaxJson(text) {
             if (data && data.success) {
                 tsootcResetAssignModalButtons();
                 if (ov) {
-                    ov.classList.remove("active");
+                    if (window.tsootcCloseOverlay) {
+                        window.tsootcCloseOverlay('tso-assign-overlay');
+                    } else {
+                        ov.classList.remove('active');
+                        ov.setAttribute('hidden', 'hidden');
+                    }
                     delete ov.dataset.optionNames;
                     delete ov.dataset.optionName;
                     delete ov.dataset.tableName;
@@ -1397,7 +1445,12 @@ function tsootcParseAjaxJson(text) {
                 tsootcRenderTableMessage(tableInfo || tsootcTableInspectorI18n.notAvailable);
             }
         });
-        ov.classList.add("active");
+        if (window.tsootcOpenOverlay) {
+            window.tsootcOpenOverlay('tso-modal-overlay');
+        } else {
+            ov.removeAttribute('hidden');
+            ov.classList.add('active');
+        }
     };
 
     window.tsootcMarkOptionAssigned = function(optionName, pluginName) {

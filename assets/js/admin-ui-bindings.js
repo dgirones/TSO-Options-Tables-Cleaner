@@ -1,6 +1,47 @@
 (function () {
     'use strict';
 
+    function tsootcOverlayEl(id) {
+        return id ? document.getElementById(id) : null;
+    }
+
+    window.tsootcOpenOverlay = function (id) {
+        var el = tsootcOverlayEl(id);
+        if (!el) {
+            return;
+        }
+        var root = document.getElementById('tso-modals-root');
+        if (root) {
+            root.removeAttribute('hidden');
+        }
+        el.removeAttribute('hidden');
+        el.setAttribute('aria-hidden', 'false');
+        el.classList.add('active');
+    };
+
+    window.tsootcCloseOverlay = function (id) {
+        var el = tsootcOverlayEl(id);
+        if (!el) {
+            return;
+        }
+        el.classList.remove('active');
+        el.setAttribute('hidden', 'hidden');
+        el.setAttribute('aria-hidden', 'true');
+        var root = document.getElementById('tso-modals-root');
+        if (root) {
+            var anyOpen = root.querySelector('.tso-overlay.active');
+            if (!anyOpen) {
+                root.setAttribute('hidden', 'hidden');
+            }
+        }
+    };
+
+    function tsootcInitOverlays() {
+        ['tso-rename-overlay', 'tso-modal-overlay', 'tso-assign-overlay'].forEach(function (id) {
+            window.tsootcCloseOverlay(id);
+        });
+    }
+
     function closest(el, selector) {
         return el && el.closest ? el.closest(selector) : null;
     }
@@ -14,7 +55,12 @@
 
         var overlay = closest(target, '[data-tso-overlay-dismiss]');
         if (overlay && target === overlay) {
-            overlay.classList.remove('active');
+            if (window.tsootcCloseOverlay) {
+                window.tsootcCloseOverlay(overlay.id);
+            } else {
+                overlay.classList.remove('active');
+                overlay.setAttribute('hidden', 'hidden');
+            }
             if (overlay.id === 'tso-assign-overlay' && window.tsootcResetAssignModalButtons) {
                 window.tsootcResetAssignModalButtons();
             }
@@ -113,10 +159,14 @@
                 }
                 break;
             case 'rename-close':
-                document.getElementById('tso-rename-overlay').classList.remove('active');
+                if (window.tsootcCloseOverlay) {
+                    window.tsootcCloseOverlay('tso-rename-overlay');
+                }
                 break;
             case 'modal-close':
-                document.getElementById('tso-modal-overlay').classList.remove('active');
+                if (window.tsootcCloseOverlay) {
+                    window.tsootcCloseOverlay('tso-modal-overlay');
+                }
                 break;
             case 'modal-toggle-edit':
                 if (window.tsootcModalToggleEdit) {
@@ -144,7 +194,9 @@
                 }
                 break;
             case 'assign-close':
-                document.getElementById('tso-assign-overlay').classList.remove('active');
+                if (window.tsootcCloseOverlay) {
+                    window.tsootcCloseOverlay('tso-assign-overlay');
+                }
                 if (window.tsootcResetAssignModalButtons) {
                     window.tsootcResetAssignModalButtons();
                 }
@@ -231,4 +283,8 @@
             bar.style.width = w + '%';
         }
     });
+
+    if (document.body.classList.contains('tools_page_tso-options-tables-cleaner')) {
+        tsootcInitOverlays();
+    }
 })();

@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 6.1
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,7 @@ TSO Options & Tables Cleaner is a database maintenance plugin for WordPress. It 
 
 **Features:**
 
+* **Current status** — Dashboard tab with database size, options/transients summary, autoload highlights, and quick links to cleanup actions
 * **General cleanup** — Remove expired transients, post revisions, auto-drafts, trashed posts and comments, orphan post/comment/user/term metadata
 * **wp_options manager** — Browse, search and delete orphan options grouped by plugin, with autoload management and plugin detection for 300+ known plugins
 * **Extra tables** — Detect and remove tables left by uninstalled plugins (see detection limitations below)
@@ -95,6 +96,15 @@ No external connections: This plugin does not make any HTTP requests to external
 == Changelog ==
 
 Recent releases only. Older notes (1.2.0 through 1.0.0) are in changelog.txt in the plugin folder.
+
+= 1.3.3 =
+* Admin: new **Current status** tab (default) with database overview and shortcuts to cleanup
+* Admin: modal overlays (rename group, option viewer, assign) render in the footer so they no longer break page layout
+* Admin: consolidated overlay CSS/JS; single asset enqueue; shipped Catalan and Spanish `.mo` catalogs
+* Admin: screen query args centralized in storage helpers; assign modal placeholder translated
+* Code: backup, cleanup, optimize, and status handlers split into dedicated include files (smaller core)
+* Cron tab: live filter by hook, type, and search text without clicking Filter
+* UI: nav width aligned to 1100px; historial title alignment; backup warning panel compacted
 
 = 1.3.2 =
 * WordPress.org Plugin Check: admin UI uses enqueued JS/CSS only (no inline onclick, onchange, or style attributes)

@@ -1496,10 +1496,8 @@ function tsootc_codescan_maybe_warm_cache_deferred() {
 	if ( ! empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
 		return;
 	}
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
-	if ( isset( $_GET['page'] ) && 'tso-options-tables-cleaner' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) wp_unslash( $_GET['tab'] ) ) : 'cleanup'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'tso-options-tables-cleaner' === tsootc_get_admin_screen_query_arg( 'page', '', 'key' ) ) {
+		$tab = tsootc_get_admin_screen_tab( 'cleanup' );
 		if ( 'options' === $tab ) {
 			return;
 		}

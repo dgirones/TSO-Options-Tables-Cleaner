@@ -872,6 +872,28 @@ function tsootc_status_overall_health( array $findings ) {
 }
 
 /**
+ * Map status hex color to a semantic CSS class (options/table group badges).
+ *
+ * @param string $hex Color hex from detection status.
+ * @return string
+ */
+function tsootc_status_hex_class( $hex ) {
+	$map = array(
+		'#2a7a2a' => 'tso-status-active',
+		'#46b450' => 'tso-status-active',
+		'#c07000' => 'tso-status-inactive',
+		'#9a6700' => 'tso-status-hosting-warn',
+		'#0075be' => 'tso-status-core',
+		'#c00'    => 'tso-status-undetected',
+		'#c00000' => 'tso-status-removed',
+		'#999'    => 'tso-text-muted-faint',
+		'#555'    => 'tso-text-muted-dark',
+	);
+	$key = strtolower( (string) $hex );
+	return isset( $map[ $key ] ) ? $map[ $key ] : 'tso-status-default';
+}
+
+/**
  * Render the Current status admin tab.
  *
  * @param string     $lang UI language.
