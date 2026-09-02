@@ -1567,6 +1567,9 @@ function tsootc_page() {
                     : 0;
                 $table_deep_scan_done = true;
             }
+            if ( function_exists( 'tsootc_prune_stale_table_key_map_entries' ) ) {
+                tsootc_prune_stale_table_key_map_entries();
+            }
         }
 
         if ( function_exists( 'tsootc_codescan_warm_cache' ) ) {

@@ -4259,14 +4259,28 @@ function tsootc_detect_tso_branded_table( $table_without_prefix, array $installe
     }
 
     $known_tables = array(
-        'tso_link_inspector'       => 'tso-link-inspector',
-        'tsootc_link_inspector'    => 'tso-link-inspector', // legacy wp_options / table prefix
-        'pc_tso_link_inspector'    => 'tso-link-inspector', // legacy table name
-        'tso_im_history'           => array( 'tso-image-master', 'tso-image-master-pro' ),
-        'tsootc_im_history'        => array( 'tso-image-master', 'tso-image-master-pro' ), // legacy
+        'tso_link_inspector'            => 'tso-link-inspector',
+        'tso_link_inspector_history'    => 'tso-link-inspector',
+        'tsootc_link_inspector'         => 'tso-link-inspector', // legacy wp_options / table prefix
+        'pc_tso_link_inspector'         => 'tso-link-inspector', // legacy table name
+        'pc_tso_link_inspector_history' => 'tso-link-inspector', // legacy table name
+        'tso_im_history'                => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tsoimma_history'               => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tsootc_im_history'             => array( 'tso-image-master', 'tso-image-master-pro' ), // legacy
     );
-    if ( isset( $known_tables[ $lower ] ) ) {
-        $targets = is_array( $known_tables[ $lower ] ) ? $known_tables[ $lower ] : array( $known_tables[ $lower ] );
+    $lookup_keys = array_values(
+        array_unique(
+            array(
+                $lower,
+                tsootc_normalize_extra_table_suffix( $table_without_prefix ),
+            )
+        )
+    );
+    foreach ( $lookup_keys as $lookup_key ) {
+        if ( ! isset( $known_tables[ $lookup_key ] ) ) {
+            continue;
+        }
+        $targets = is_array( $known_tables[ $lookup_key ] ) ? $known_tables[ $lookup_key ] : array( $known_tables[ $lookup_key ] );
         foreach ( $targets as $target_folder ) {
             if ( function_exists( 'tsootc_build_plugin_detection_row_from_folder' ) ) {
                 $row = tsootc_build_plugin_detection_row_from_folder( (string) $target_folder, $installed_plugins );
@@ -6371,11 +6385,14 @@ function tsootc_get_option_prefix_slug_hints() {
  */
 function tsootc_get_table_prefix_slug_hints() {
     return array(
-        'tso_link_inspector'         => 'tso-link-inspector',
-        'tsootc_link_inspector'      => 'tso-link-inspector', // legacy
-        'pc_tso_link_inspector'      => 'tso-link-inspector', // legacy
-        'tso_im_history'             => array( 'tso-image-master', 'tso-image-master-pro' ),
-        'tsootc_im_history'          => array( 'tso-image-master', 'tso-image-master-pro' ), // legacy
+        'tso_link_inspector'            => 'tso-link-inspector',
+        'tso_link_inspector_history'    => 'tso-link-inspector',
+        'tsootc_link_inspector'         => 'tso-link-inspector', // legacy
+        'pc_tso_link_inspector'         => 'tso-link-inspector', // legacy
+        'pc_tso_link_inspector_history' => 'tso-link-inspector', // legacy
+        'tso_im_history'                => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tsoimma_history'               => array( 'tso-image-master', 'tso-image-master-pro' ),
+        'tsootc_im_history'             => array( 'tso-image-master', 'tso-image-master-pro' ), // legacy
         'mfm_'                    => 'wp-file-manager',
         'fm_files'                => 'wp-file-manager',
         'wp_file_manager_'        => 'wp-file-manager',
@@ -6438,6 +6455,64 @@ function tsootc_get_table_prefix_slug_hints() {
 }
 
 /**
+ * Strip TSO shared "plugins" table wrapper (pluginstso_* → tso_*).
+ *
+ * @param string $table_without_prefix Table without site DB prefix.
+ * @return string Lowercase suffix for prefix-map / branded detection.
+ */
+function tsootc_normalize_extra_table_suffix( $table_without_prefix ) {
+    $lower = strtolower( (string) $table_without_prefix );
+    if ( str_starts_with( $lower, 'plugins' ) && strlen( $lower ) > 7 ) {
+        return substr( $lower, 7 );
+    }
+
+    return $lower;
+}
+
+/**
+ * Alternate full table names for legacy TSO plugins wrapper aliases.
+ *
+ * @param string $full_table_name Full table including site prefix.
+ * @return string[]
+ */
+function tsootc_table_key_map_alias_full_names( $full_table_name ) {
+    global $wpdb;
+
+    $full = (string) $full_table_name;
+    if ( '' === $full ) {
+        return array();
+    }
+
+    $prefix = isset( $wpdb->prefix ) ? (string) $wpdb->prefix : '';
+    $suffix = $full;
+    if ( '' !== $prefix && 0 === strpos( $full, $prefix ) ) {
+        $suffix = substr( $full, strlen( $prefix ) );
+    }
+
+    $aliases = array();
+    $body    = tsootc_normalize_extra_table_suffix( $suffix );
+    if ( $body !== strtolower( $suffix ) ) {
+        $aliases[] = $prefix . 'plugins' . $body;
+    }
+    if ( str_starts_with( $body, 'tso_' ) ) {
+        $aliases[] = $prefix . 'pluginspc_' . $body;
+    } elseif ( str_starts_with( $body, 'pc_tso_' ) ) {
+        $aliases[] = $prefix . 'plugins' . substr( $body, 3 );
+    }
+
+    return array_values(
+        array_unique(
+            array_filter(
+                $aliases,
+                static function ( $name ) use ( $full ) {
+                    return '' !== $name && $name !== $full;
+                }
+            )
+        )
+    );
+}
+
+/**
  * Whether the character after a table-prefix map key is a valid boundary.
  *
  * Keys ending with _ allow WordPress plugin table bodies (mgl_gallery, eum_logs).
@@ -6474,10 +6549,12 @@ function tsootc_table_prefix_map_suffix_allows( $prefix_l, $next_char ) {
  * @return bool
  */
 function tsootc_match_table_prefix_map( $table_without_prefix, &$matched_prefix = '', &$matched_label = '' ) {
-    $lower = strtolower( (string) $table_without_prefix );
-    if ( '' === $lower ) {
-        return false;
+    $candidates = array( (string) $table_without_prefix );
+    $normalized = tsootc_normalize_extra_table_suffix( $table_without_prefix );
+    if ( $normalized !== strtolower( (string) $table_without_prefix ) ) {
+        $candidates[] = $normalized;
     }
+    $candidates = array_values( array_unique( $candidates ) );
 
     $map  = tsootc_get_table_prefix_map();
     $keys = array_keys( $map );
@@ -6488,18 +6565,25 @@ function tsootc_match_table_prefix_map( $table_without_prefix, &$matched_prefix 
         }
     );
 
-    foreach ( $keys as $prefix ) {
-        $prefix_l = strtolower( (string) $prefix );
-        if ( 0 !== strpos( $lower, $prefix_l ) ) {
+    foreach ( $candidates as $candidate ) {
+        $lower = strtolower( (string) $candidate );
+        if ( '' === $lower ) {
             continue;
         }
-        $next = $lower[ strlen( $prefix_l ) ] ?? '';
-        if ( ! tsootc_table_prefix_map_suffix_allows( $prefix_l, $next ) ) {
-            continue;
+
+        foreach ( $keys as $prefix ) {
+            $prefix_l = strtolower( (string) $prefix );
+            if ( 0 !== strpos( $lower, $prefix_l ) ) {
+                continue;
+            }
+            $next = $lower[ strlen( $prefix_l ) ] ?? '';
+            if ( ! tsootc_table_prefix_map_suffix_allows( $prefix_l, $next ) ) {
+                continue;
+            }
+            $matched_prefix = (string) $prefix;
+            $matched_label  = (string) $map[ $prefix ];
+            return true;
         }
-        $matched_prefix = (string) $prefix;
-        $matched_label  = (string) $map[ $prefix ];
-        return true;
     }
 
     return false;
@@ -7204,12 +7288,10 @@ function tsootc_detect_plugin_from_table( $table_without_prefix, $installed_plug
         }
     }
 
-    // --- FASE 0b: Mapa automàtic de taules detectades per instal·lació/actualització ---
-    global $wpdb;
-    $full_table_name = $wpdb->prefix . $table_without_prefix;
-    $table_map = tsootc_get_table_key_map();
-    if ( isset( $table_map[ $full_table_name ] ) ) {
-        $mapped_file = (string) $table_map[ $full_table_name ];
+    $mapped_file     = function_exists( 'tsootc_resolve_table_key_map_mapped_file' )
+        ? tsootc_resolve_table_key_map_mapped_file( $full_table_name )
+        : null;
+    if ( null !== $mapped_file && '' !== $mapped_file ) {
         foreach ( $installed_plugins as $pl ) {
             if ( $pl['file'] === $mapped_file ) {
                 return array( 'name' => $pl['name'], 'file' => $pl['file'], 'active' => $pl['active'] );
@@ -13203,6 +13285,9 @@ function tsootc_get_extra_table_usage_estimate( $table_item ) {
 
 function tsootc_get_orphan_tables() {
     global $wpdb;
+    if ( function_exists( 'tsootc_prune_stale_table_key_map_entries' ) ) {
+        tsootc_prune_stale_table_key_map_entries();
+    }
     $prefix            = $wpdb->prefix;
     $installed_plugins = tsootc_get_installed_plugins();
     $table_status_rows = $wpdb->get_results( 'SHOW TABLE STATUS', ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared

@@ -1035,6 +1035,78 @@ function tsootc_get_table_key_map( $force_reload = false ) {
     return $cache;
 }
 
+/**
+ * Resolve mapped plugin file for a table, including legacy TSO wrapper aliases.
+ *
+ * @param string $full_table_name Full table name including site prefix.
+ * @param bool   $migrate_alias   When true, move alias map entries to the live table name.
+ * @return string|null Plugin bootstrap relative path.
+ */
+function tsootc_resolve_table_key_map_mapped_file( $full_table_name, $migrate_alias = true ) {
+    $full_table_name = (string) $full_table_name;
+    if ( '' === $full_table_name ) {
+        return null;
+    }
+
+    $table_map = tsootc_get_table_key_map();
+    if ( isset( $table_map[ $full_table_name ] ) && '' !== (string) $table_map[ $full_table_name ] ) {
+        return (string) $table_map[ $full_table_name ];
+    }
+
+    $aliases = function_exists( 'tsootc_table_key_map_alias_full_names' )
+        ? tsootc_table_key_map_alias_full_names( $full_table_name )
+        : array();
+
+    foreach ( $aliases as $alias ) {
+        if ( ! isset( $table_map[ $alias ] ) || '' === (string) $table_map[ $alias ] ) {
+            continue;
+        }
+
+        $file = (string) $table_map[ $alias ];
+        if ( $migrate_alias
+            && function_exists( 'tsootc_database_table_exists_fresh' )
+            && tsootc_database_table_exists_fresh( $full_table_name )
+            && ! tsootc_database_table_exists_fresh( $alias ) ) {
+            $table_map[ $full_table_name ] = $file;
+            unset( $table_map[ $alias ] );
+            tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
+            tsootc_get_table_key_map( true );
+        }
+
+        return $file;
+    }
+
+    return null;
+}
+
+/**
+ * Remove table_key_map entries that no longer exist in the database.
+ *
+ * @return int Number of removed entries.
+ */
+function tsootc_prune_stale_table_key_map_entries() {
+    $map = tsootc_get_table_key_map();
+    if ( empty( $map ) ) {
+        return 0;
+    }
+
+    $existing = tsootc_snapshot_tables();
+    $removed  = 0;
+    foreach ( array_keys( $map ) as $table ) {
+        if ( ! isset( $existing[ $table ] ) ) {
+            unset( $map[ $table ] );
+            ++$removed;
+        }
+    }
+
+    if ( $removed > 0 ) {
+        tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $map, false );
+        tsootc_get_table_key_map( true );
+    }
+
+    return $removed;
+}
+
 function tsootc_snapshot_tables() {
     global $wpdb;
     $tables = $wpdb->get_col( 'SHOW TABLES' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

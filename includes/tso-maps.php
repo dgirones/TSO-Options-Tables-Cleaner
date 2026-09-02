@@ -875,8 +875,11 @@ function tsootc_get_table_prefix_map() {
         // ---- Media Cleaner (Meow Apps) ----
         'mclean_'                   => 'Media Cleaner',
         // ---- TSO Plugins (specific before generic tso_) ----
-        'tso_link_inspector'        => 'TSO Link Inspector',
-        'pc_tso_link_inspector'     => 'TSO Link Inspector', // legacy table name
+        'tso_link_inspector'            => 'TSO Link Inspector',
+        'tso_link_inspector_history'    => 'TSO Link Inspector',
+        'pc_tso_link_inspector'         => 'TSO Link Inspector', // legacy table name
+        'pc_tso_link_inspector_history' => 'TSO Link Inspector', // legacy table name
+        'tsoimma_history'               => 'TSO Image Master',
         'tsoliin_'                  => 'TSO Link Inspector',
         'tso_liin_'                 => 'TSO Link Inspector',
         'tso_im_history'            => 'TSO Image Master',

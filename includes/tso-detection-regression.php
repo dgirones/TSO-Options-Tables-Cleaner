@@ -1402,6 +1402,31 @@ function tsootc_detection_regression_fixtures() {
 			),
 		),
 		array(
+			'id'        => 'table_pluginstso_link_inspector',
+			'type'      => 'table',
+			'table'     => 'pluginstso_link_inspector',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Link Inspector', 'tso-link-inspector/tso-link-inspector.php', true ),
+			),
+			'assert'    => array(
+				'name_substring'    => 'Link Inspector',
+				'file_substring'    => 'tso-link-inspector',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
+			'id'        => 'table_pluginstsoimma_history',
+			'type'      => 'table',
+			'table'     => 'pluginstsoimma_history',
+			'inventory' => array(
+				tsootc_detection_regression_plugin_row( 'TSO Image Master', 'tso-image-master/tso-image-master.php', true ),
+			),
+			'assert'    => array(
+				'name_substring'    => 'Image Master',
+				'forbidden_sources' => array( 'unconfirmed' ),
+			),
+		),
+		array(
 			'id'     => 'table_needs_confirm_trusted_prefix_map',
 			'type'   => 'table_needs_confirm',
 			'row'    => array(

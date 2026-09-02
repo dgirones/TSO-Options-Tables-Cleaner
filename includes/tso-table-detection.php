@@ -92,12 +92,10 @@ function tsootc_resolve_detection_row_from_table_key_map( $full_table_name, arra
 	}
 
 	$table_map = tsootc_get_table_key_map();
-	if ( ! isset( $table_map[ $full_table_name ] ) ) {
-		return null;
-	}
-
-	$mapped_file = (string) $table_map[ $full_table_name ];
-	if ( '' === $mapped_file ) {
+	$mapped_file = function_exists( 'tsootc_resolve_table_key_map_mapped_file' )
+		? tsootc_resolve_table_key_map_mapped_file( $full_table_name )
+		: ( isset( $table_map[ $full_table_name ] ) ? (string) $table_map[ $full_table_name ] : null );
+	if ( null === $mapped_file || '' === $mapped_file ) {
 		return null;
 	}
 
