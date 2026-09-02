@@ -63,35 +63,7 @@ class TSOOTC_Email {
 	}
 
 	/**
-	 * CSS for the cleanup report email (embedded in HTML head; not admin UI).
-	 *
-	 * @return string
-	 */
-	private static function get_cleanup_email_styles() {
-		return 'body.tsootc-mail-body{margin:0;padding:0;background:#f0f0f1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,sans-serif}'
-			. '.tsootc-mail-outer{background:#f0f0f1;padding:24px 12px}'
-			. '.tsootc-mail-container{max-width:600px;width:100%;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #dcdcde}'
-			. '.tsootc-mail-header{background:linear-gradient(135deg,#1e40af 0%,#1d4ed8 100%);color:#fff;padding:22px 24px}'
-			. '.tsootc-mail-brand{margin:0 0 4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.9}'
-			. '.tsootc-mail-title{margin:0;font-size:22px;font-weight:700;line-height:1.3}'
-			. '.tsootc-mail-site{margin:10px 0 0;font-size:14px;opacity:.92}'
-			. '.tsootc-mail-site a{color:#fff;text-decoration:underline}'
-			. '.tsootc-mail-content{padding:24px 24px 8px}'
-			. '.tsootc-mail-intro{margin:0 0 20px;font-size:15px;line-height:1.5;color:#1d2327}'
-			. '.tsootc-mail-results{border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;width:100%}'
-			. '.tsootc-mail-row td{padding:14px 16px;border-bottom:1px solid #e5e7eb}'
-			. '.tsootc-mail-row-last td{border-bottom:0}'
-			. '.tsootc-mail-label{margin:0 0 6px;font-size:12px;font-weight:600;color:#646970;text-transform:uppercase;letter-spacing:.02em}'
-			. '.tsootc-mail-value{margin:0;font-size:14px;line-height:1.45;color:#1d2327}'
-			. '.tsootc-mail-status{margin:8px 0 0;font-size:13px;color:#50575e}'
-			. '.tsootc-mail-badge{display:inline-block;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:600}'
-			. '.tsootc-mail-cta-wrap{margin:24px 0 0;text-align:center}'
-			. '.tsootc-mail-cta{display:inline-block;background:#1d4ed8;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 22px;border-radius:6px}'
-			. '.tsootc-mail-footer{padding:16px 24px 20px;background:#f6f7f7;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#646970;text-align:center}';
-	}
-
-	/**
-	 * Build the HTML document (TSO branded layout).
+	 * Build the HTML document (TSO branded layout, inline CSS for mail clients).
 	 *
 	 * @param string   $intro    Intro paragraph.
 	 * @param string[] $results  Cleanup result lines.
@@ -130,6 +102,11 @@ class TSOOTC_Email {
 		$date_label   = tsootc_msg( 'Data:', 'Fecha:', 'Date:' );
 		$done_label   = tsootc_msg( 'Completat', 'Completado', 'Completed' );
 
+		$font_stack = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,sans-serif';
+		$row_td     = 'padding:14px 16px;border-bottom:1px solid #e5e7eb;';
+		$label_p    = 'margin:0 0 6px;font-size:12px;font-weight:600;color:#646970;text-transform:uppercase;letter-spacing:.02em;';
+		$value_p    = 'margin:0;font-size:14px;line-height:1.45;color:#1d2327;';
+
 		$rows_html = '';
 		foreach ( $results as $result ) {
 			$result = (string) $result;
@@ -137,54 +114,51 @@ class TSOOTC_Email {
 				continue;
 			}
 
-			$rows_html .= '<tr class="tsootc-mail-row"><td>'
-				. '<p class="tsootc-mail-label">'
+			$rows_html .= '<tr><td style="' . esc_attr( $row_td ) . '">'
+				. '<p style="' . esc_attr( $label_p ) . '">'
 				. esc_html( $result_label ) . '</p>'
-				. '<p class="tsootc-mail-value">'
+				. '<p style="' . esc_attr( $value_p ) . '">'
 				. esc_html( $result ) . '</p>'
-				. '<p class="tsootc-mail-status">'
-				. '<span class="tsootc-mail-badge">'
+				. '<p style="margin:8px 0 0;font-size:13px;color:#50575e;">'
+				. '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:600;">'
 				. esc_html( $done_label )
 				. '</span></p>'
 				. '</td></tr>';
 		}
 
-		$meta_html = '<tr class="tsootc-mail-row tsootc-mail-row-last"><td>'
-			. '<p class="tsootc-mail-label">'
+		$meta_html = '<tr><td style="' . esc_attr( $row_td . 'border-bottom:0;' ) . '">'
+			. '<p style="' . esc_attr( $label_p ) . '">'
 			. esc_html( $date_label ) . '</p>'
-			. '<p class="tsootc-mail-value">'
+			. '<p style="' . esc_attr( $value_p ) . '">'
 			. esc_html( (string) $datetime ) . '</p>'
 			. '</td></tr>';
 
-		$styles = self::get_cleanup_email_styles();
-
-		$html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-			. '<style type="text/css">' . $styles . '</style></head>'
-			. '<body class="tsootc-mail-body">'
-			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="tsootc-mail-outer">'
+		$html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+			. '<body style="margin:0;padding:0;background:#f0f0f1;font-family:' . esc_attr( $font_stack ) . ';">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f1;padding:24px 12px;">'
 			. '<tr><td align="center">'
-			. '<table role="presentation" width="600" cellpadding="0" cellspacing="0" class="tsootc-mail-container">'
-			. '<tr><td class="tsootc-mail-header">'
-			. '<p class="tsootc-mail-brand">'
+			. '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #dcdcde;">'
+			. '<tr><td style="background:linear-gradient(135deg,#1e40af 0%,#1d4ed8 100%);color:#fff;padding:22px 24px;">'
+			. '<p style="margin:0 0 4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.9;">'
 			. esc_html( $brand ) . '</p>'
-			. '<h1 class="tsootc-mail-title">'
+			. '<h1 style="margin:0;font-size:22px;font-weight:700;line-height:1.3;color:#fff;">'
 			. esc_html( $title ) . '</h1>'
-			. '<p class="tsootc-mail-site">'
-			. '<a href="' . esc_url( $site_url ) . '">'
+			. '<p style="margin:10px 0 0;font-size:14px;opacity:.92;">'
+			. '<a href="' . esc_url( $site_url ) . '" style="color:#fff;text-decoration:underline;">'
 			. esc_html( $site_name ) . '</a></p>'
 			. '</td></tr>'
-			. '<tr><td class="tsootc-mail-content">'
-			. '<p class="tsootc-mail-intro">'
+			. '<tr><td style="padding:24px 24px 8px;">'
+			. '<p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#1d2327;">'
 			. esc_html( (string) $intro ) . '</p>'
-			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="tsootc-mail-results">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;width:100%;">'
 			. $rows_html
 			. $meta_html
 			. '</table>'
-			. '<p class="tsootc-mail-cta-wrap">'
-			. '<a href="' . esc_url( $admin_url ) . '" class="tsootc-mail-cta">'
+			. '<p style="margin:24px 0 0;text-align:center;">'
+			. '<a href="' . esc_url( $admin_url ) . '" style="display:inline-block;background:#1d4ed8;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 22px;border-radius:6px;">'
 			. esc_html( $btn_label ) . '</a></p>'
 			. '</td></tr>'
-			. '<tr><td class="tsootc-mail-footer">'
+			. '<tr><td style="padding:16px 24px 20px;background:#f6f7f7;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#646970;text-align:center;">'
 			. esc_html( $footer_line )
 			. '</td></tr>'
 			. '</table></td></tr></table></body></html>';
