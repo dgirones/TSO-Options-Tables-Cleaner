@@ -94,7 +94,10 @@ function tsootc_get_prefix_table_fragmentation( $force_refresh = false ) {
         'preview'            => $preview,
     );
 
-    tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_TABLE_FRAG_HINT, $blog_suffix, $request_cache, 15 * MINUTE_IN_SECONDS );
+    // TTL 1 hour (was 15 min): fragmentation analysis is not time-critical, and each
+    // expired transient triggers a slow DELETE on wptm_pluginsoptions without proper indices.
+    // Longer TTL = fewer WP-Cron / init-hook deletes = faster page loads on status tab.
+    tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_TABLE_FRAG_HINT, $blog_suffix, $request_cache, HOUR_IN_SECONDS );
 
     return $request_cache;
 }
