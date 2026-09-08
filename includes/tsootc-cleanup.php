@@ -152,6 +152,14 @@ function tsootc_track_comment_trashed_timestamp( $comment_id ) {
  * @return void
  */
 function tsootc_maybe_backfill_comment_trash_timestamps() {
+    static $already_checked = false;
+    // Request-scoped memoization: on every init, this hook runs, but the flag read
+    // should not be repeated. Cache it at function level to avoid 0.08s+ slow reads.
+    if ( $already_checked ) {
+        return;
+    }
+    $already_checked = true;
+
     if ( tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_COMMENT_TRASH_META_BACKFILL_V1 ) ) {
         return;
     }
