@@ -229,7 +229,7 @@ function tsootc_page() {
 
     // Global admin CSS: assets/css/admin.css (enqueued via tso_admin_register_assets).
 
-    echo '<div class="wrap" id="tso-wrap" data-tsootc-build="' . esc_attr( defined( 'TSOOTC_VERSION' ) ? TSOOTC_VERSION : '' ) . '">';
+    echo '<div class="wrap" id="tso-wrap" data-theme="day" data-theme-pref="auto" data-tsootc-build="' . esc_attr( defined( 'TSOOTC_VERSION' ) ? TSOOTC_VERSION : '' ) . '">';
 
     // Títol + TABS + idiomes dins el mateix contenidor per alinear-los
     $lang_switch_base = add_query_arg(
@@ -261,6 +261,7 @@ function tsootc_page() {
         '☕ Support this plugin'
     );
     echo '<div class="tso-nav-meta">';
+    tsootc_render_theme_toggle( $lang );
     echo '<a class="tso-donate-btn" href="' . esc_url( tsootc_get_kofi_donate_url() ) . '" target="_blank" rel="noopener noreferrer">'
         . esc_html( $tso_donate_label ) . '</a>';
     echo '<div class="tso-lang-switch">';
@@ -1060,7 +1061,7 @@ function tsootc_page() {
             )
             . '</a>';
         if ( ! $audit_mode ) {
-            echo '<a href="' . esc_url( $audit_url ) . '" class="button button-secondary">' . esc_html(
+            echo '<a href="' . esc_url( $audit_url ) . '" class="button button-primary">' . esc_html(
                 tsootc_ui_triple_text( $lang, '🔍 Auditoria detecció', '🔍 Auditoría detección', '🔍 Detection audit' )
             ) . '</a>';
         }

@@ -2,7 +2,7 @@
 /*
 Plugin Name: TSO Options & Tables Cleaner
 Description: Cleans wp_options, orphan metadata, revisions, and leftover plugin tables. Backup and table optimizer. UI: CA / ES / EN.
-Version:     1.3.4
+Version:     1.3.5
 Author:      Tu Soporte Online
 Author URI:  https://www.tusoporteonline.es/blog
 Requires at least: 6.1
@@ -26,7 +26,7 @@ if ( ! defined( 'TSOOTC_FILE' ) ) {
 }
 
 if ( ! defined( 'TSOOTC_VERSION' ) ) {
-	define( 'TSOOTC_VERSION', '1.3.4' );
+	define( 'TSOOTC_VERSION', '1.3.5' );
 }
 
 if ( ! defined( 'TSOOTC_PATH' ) ) {
@@ -108,6 +108,7 @@ if ( is_readable( $tsootc_audit_file ) ) {
 require_once TSOOTC_PATH . 'includes/tso-tracking.php';
 require_once TSOOTC_PATH . 'includes/tso-email.php';
 require_once TSOOTC_PATH . 'includes/tso-cron.php';
+require_once TSOOTC_PATH . 'includes/tsootc-ui-theme.php';
 require_once TSOOTC_PATH . 'includes/tso-admin-assets.php';
 require_once TSOOTC_PATH . 'includes/tsootc-admin-modals.php';
 require_once TSOOTC_PATH . 'includes/tso-admin.php';

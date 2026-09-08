@@ -275,44 +275,6 @@ function tsootc_status_get_autoload_top_items( $limit = 3, $payload = null ) {
 }
 
 /**
- * Plugins recently deactivated per WordPress recently_activated option.
- *
- * @param int $limit Max rows.
- * @return array<int,array{ts:int,name:string,file:string}>
- */
-function tsootc_status_get_recently_deactivated_plugins( $limit = 5 ) {
-	$limit  = max( 1, min( 10, (int) $limit ) );
-	$recent = get_option( 'recently_activated', array() );
-	if ( ! is_array( $recent ) || empty( $recent ) ) {
-		return array();
-	}
-
-	$rows = array();
-	foreach ( $recent as $plugin_file => $ts ) {
-		if ( ! is_numeric( $ts ) ) {
-			continue;
-		}
-		$name = function_exists( 'tsootc_history_get_plugin_name' )
-			? tsootc_history_get_plugin_name( (string) $plugin_file )
-			: (string) $plugin_file;
-		$rows[] = array(
-			'ts'   => (int) $ts,
-			'name' => (string) $name,
-			'file' => sanitize_text_field( (string) $plugin_file ),
-		);
-	}
-
-	usort(
-		$rows,
-		static function ( $a, $b ) {
-			return (int) $b['ts'] <=> (int) $a['ts'];
-		}
-	);
-
-	return array_slice( $rows, 0, $limit );
-}
-
-/**
  * Last automatic cleanup run summary.
  *
  * @return array{last_run:int,results:array<int,string>}
@@ -517,58 +479,6 @@ function tsootc_status_render_recent_history_table( $lang, array $events ) {
 		} else {
 			echo '<span class="tso-auto-off-text">—</span>';
 		}
-		echo '</td>';
-		echo '</tr>';
-		++$idx;
-	}
-
-	echo '</tbody></table>';
-	echo '</div>';
-}
-
-/**
- * Render recently deactivated plugins (WP core list) as a compact table.
- *
- * @param string $lang UI language.
- * @param array  $rows Rows with ts, name, file keys.
- * @return void
- */
-function tsootc_status_render_recently_deactivated_table( $lang, array $rows ) {
-	if ( empty( $rows ) ) {
-		return;
-	}
-
-	$th_dt   = tsootc_ui_triple_text( $lang, 'Data i hora', 'Fecha y hora', 'Date and time' );
-	$th_type = tsootc_ui_triple_text( $lang, 'Tipus', 'Tipo', 'Type' );
-	$th_name = tsootc_ui_triple_text( $lang, 'Nom', 'Nombre', 'Name' );
-	$th_act  = tsootc_ui_triple_text( $lang, 'Acció', 'Acción', 'Action' );
-	$act_lbl = tsootc_ui_triple_text( $lang, 'Desactivat', 'Desactivado', 'Deactivated' );
-	$type_lbl = tsootc_ui_triple_text( $lang, 'Plugin', 'Plugin', 'Plugin' );
-	$badge   = tsootc_status_history_action_badge_meta( 'deactivated' );
-
-	echo '<div class="tso-table-scroll tso-stack-on-mobile tso-status-recent-table-wrap">';
-	echo '<table class="tso-hist-table tso-status-recent-table">';
-	echo '<thead><tr class="tso-hist-thead-row">';
-	echo '<th class="tso-hist-th tso-th-left tso-hist-th--nowrap" scope="col">' . esc_html( $th_dt ) . '</th>';
-	echo '<th class="tso-hist-th tso-th-center" scope="col">' . esc_html( $th_type ) . '</th>';
-	echo '<th class="tso-hist-th tso-th-left" scope="col">' . esc_html( $th_name ) . '</th>';
-	echo '<th class="tso-hist-th tso-th-center" scope="col">' . esc_html( $th_act ) . '</th>';
-	echo '</tr></thead><tbody>';
-
-	$idx = 0;
-	foreach ( $rows as $row ) {
-		if ( ! is_array( $row ) ) {
-			continue;
-		}
-		$when      = ! empty( $row['ts'] ) ? date_i18n( get_option( 'date_format' ) . ' H:i', (int) $row['ts'] ) : '—';
-		$row_class = $idx % 2 === 0 ? 'tso-hist-row--even' : 'tso-hist-row--odd';
-		echo '<tr class="tso-hist-row ' . esc_attr( $row_class ) . ' tso-status-recent-row tso-status-recent-row--deactivated">';
-		echo '<td class="tso-hist-td tso-hist-td--dt" data-label="' . esc_attr( $th_dt ) . '">' . esc_html( $when ) . '</td>';
-		echo '<td class="tso-hist-td tso-hist-td--type" data-label="' . esc_attr( $th_type ) . '">' . esc_html( $type_lbl ) . '</td>';
-		echo '<td class="tso-hist-td tso-hist-td--name" data-label="' . esc_attr( $th_name ) . '">' . esc_html( (string) ( $row['name'] ?? '' ) ) . '</td>';
-		echo '<td class="tso-hist-td tso-hist-td--act" data-label="' . esc_attr( $th_act ) . '">';
-		echo '<span class="tso-hist-act-badge ' . esc_attr( (string) $badge['class'] ) . '">'
-			. esc_html( (string) $badge['icon'] . ' ' . $act_lbl ) . '</span>';
 		echo '</td>';
 		echo '</tr>';
 		++$idx;
@@ -845,7 +755,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 				sprintf( '%s overdue CRON events.', number_format_i18n( $cron['overdue'] ) )
 			),
 			'action_label'  => tsootc_ui_triple_text( $lang, 'Revisar CRON', 'Revisar CRON', 'Review CRON' ),
-			'action_url'    => $tab_url( 'cron' ),
+			'action_url'    => $tab_url( 'cron' ) . '&cron_sched=overdue',
 		);
 	}
 
@@ -858,8 +768,8 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 				sprintf( '%s eventos CRON sin callback registrado (posiblemente huérfanos).', number_format_i18n( (int) $cron['orphans'] ) ),
 				sprintf( '%s CRON events have no registered callback (possibly orphaned).', number_format_i18n( (int) $cron['orphans'] ) )
 			),
-			'action_label'  => tsootc_ui_triple_text( $lang, 'Revisar CRON', 'Revisar CRON', 'Review CRON' ),
-			'action_url'    => $tab_url( 'cron' ),
+			'action_label'  => tsootc_ui_triple_text( $lang, 'Veure sense callback', 'Ver sin callback', 'Show without callback' ),
+			'action_url'    => $tab_url( 'cron' ) . '&cron_sched=nocallback',
 		);
 	}
 
@@ -880,55 +790,38 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 	$recent_history = tsootc_status_get_recent_history( 1 );
 	if ( ! empty( $recent_history[0]['action'] ) && 'deleted' === $recent_history[0]['action'] ) {
 		$deleted_ts = (int) ( $recent_history[0]['ts'] ?? 0 );
-		if ( $deleted_ts > ( time() - ( 14 * DAY_IN_SECONDS ) ) ) {
+		$has_table_residue  = $tables['orphans'] > 0;
+		$has_option_residue = $options['available'] && $options['n_uninstalled'] > 0;
+		// Skip if there is nothing actionable: recent deletes already appear under «Recent changes».
+		if ( $deleted_ts > ( time() - ( 14 * DAY_IN_SECONDS ) ) && ( $has_table_residue || $has_option_residue ) ) {
 			$deleted_name = (string) ( $recent_history[0]['name'] ?? '' );
 			$residue_bits = array();
-			if ( $tables['orphans'] > 0 ) {
+			if ( $has_table_residue ) {
 				$residue_bits[] = sprintf(
 					tsootc_ui_triple_text( $lang, '%s taules sospitoses', '%s tablas sospechosas', '%s suspect tables' ),
 					number_format_i18n( $tables['orphans'] )
 				);
 			}
-			if ( $options['available'] && $options['n_uninstalled'] > 0 ) {
+			if ( $has_option_residue ) {
 				$residue_bits[] = sprintf(
 					tsootc_ui_triple_text( $lang, '%s opcions orfes', '%s opciones huérfanas', '%s orphan options' ),
 					number_format_i18n( $options['n_uninstalled'] )
 				);
 			}
-			$residue_tail = ! empty( $residue_bits ) ? ' (' . implode( ', ', $residue_bits ) . ').' : '.';
+			$residue_tail = ' (' . implode( ', ', $residue_bits ) . ').';
+			$go_tables    = $has_table_residue;
 			$findings[]   = array(
-				'severity'      => 'warning',
-				'message'       => tsootc_ui_triple_text(
+				'severity'     => 'warning',
+				'message'      => tsootc_ui_triple_text(
 					$lang,
-					sprintf( 'Recentment s\'ha desinstal·lat «%s» — revisa taules de plugins i opcions orfes%s', $deleted_name, $residue_tail ),
-					sprintf( 'Recientemente se desinstaló «%s» — revisa tablas de plugins y opciones huérfanas%s', $deleted_name, $residue_tail ),
-					sprintf( '«%s» was uninstalled recently — review plugin tables and orphan options%s', $deleted_name, $residue_tail )
+					sprintf( 'Després de desinstal·lar «%s» queden restes a revisar%s', $deleted_name, $residue_tail ),
+					sprintf( 'Tras desinstalar «%s» quedan restos por revisar%s', $deleted_name, $residue_tail ),
+					sprintf( 'After uninstalling «%s», leftovers remain to review%s', $deleted_name, $residue_tail )
 				),
-				'action_label'  => tsootc_ui_triple_text( $lang, 'Veure historial', 'Ver historial', 'View history' ),
-				'action_url'    => $tab_url( 'history' ),
-			);
-		}
-	}
-
-	$recently_deactivated = tsootc_status_get_recently_deactivated_plugins( 3 );
-	if ( ! empty( $recently_deactivated ) ) {
-		$names = array();
-		foreach ( $recently_deactivated as $row ) {
-			if ( ! empty( $row['name'] ) ) {
-				$names[] = (string) $row['name'];
-			}
-		}
-		if ( ! empty( $names ) ) {
-			$findings[] = array(
-				'severity'      => 'info',
-				'message'       => tsootc_ui_triple_text(
-					$lang,
-					'Plugins desactivats recentment (WordPress): ' . implode( ', ', $names ) . '.',
-					'Plugins desactivados recientemente (WordPress): ' . implode( ', ', $names ) . '.',
-					'Recently deactivated plugins (WordPress): ' . implode( ', ', $names ) . '.'
-				),
-				'action_label'  => tsootc_ui_triple_text( $lang, 'Veure historial', 'Ver historial', 'View history' ),
-				'action_url'    => $tab_url( 'history' ),
+				'action_label' => $go_tables
+					? tsootc_ui_triple_text( $lang, 'Revisar taules', 'Revisar tablas', 'Review tables' )
+					: tsootc_ui_triple_text( $lang, 'Revisar opcions', 'Revisar opciones', 'Review options' ),
+				'action_url'   => $go_tables ? $tab_url( 'tables' ) : $tab_url( 'options' ),
 			);
 		}
 	}
@@ -1059,7 +952,6 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 	$inventory      = tsootc_status_get_wp_options_inventory( $options_payload );
 	$diagnostic     = tsootc_status_get_diagnostic_meta( $options_payload );
 	$autoload_top   = tsootc_status_get_autoload_top_items( 3, $options_payload );
-	$recently_deactivated = tsootc_status_get_recently_deactivated_plugins( 5 );
 	$saved_bytes    = function_exists( 'tsootc_get_saved_bytes' ) ? tsootc_get_saved_bytes() : 0;
 	$cleanup_url = $base_url . '&tab=cleanup#tso-auto-clean-panel';
 	$history_url = $base_url . '&tab=history';
@@ -1167,7 +1059,7 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 			number_format_i18n( (int) $cron['paused'] )
 		)
 	);
-	echo ' · <a href="' . esc_url( $base_url . '&tab=cron' ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Veure CRON →', 'Ver CRON →', 'View CRON →' ) ) . '</a>';
+	echo ' · <a href="' . esc_url( $base_url . '&tab=cron' . ( ! empty( $cron['orphans'] ) ? '&cron_sched=nocallback' : '' ) ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Veure CRON →', 'Ver CRON →', 'View CRON →' ) ) . '</a>';
 	echo '</p>';
 
 	if ( $saved_bytes > 0 ) {
@@ -1238,16 +1130,6 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 	}
 	echo '</div>';
 
-	if ( ! empty( $recently_deactivated ) ) {
-		echo '<div class="tso-status-recent tso-status-recent--wp">';
-		echo '<div class="tso-status-recent-head">';
-		echo '<h4 class="tso-status-findings-title">' . esc_html( tsootc_ui_triple_text( $lang, 'Desactivats recentment (WordPress)', 'Desactivados recientemente (WordPress)', 'Recently deactivated (WordPress)' ) ) . '</h4>';
-		echo '<a class="tso-status-recent-all" href="' . esc_url( $history_url ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Historial →', 'Historial →', 'History →' ) ) . '</a>';
-		echo '</div>';
-		tsootc_status_render_recently_deactivated_table( $lang, $recently_deactivated );
-		echo '</div>';
-	}
-
 	echo '<div class="tso-status-findings">';
 	echo '<h4 class="tso-status-findings-title">' . esc_html( tsootc_ui_triple_text( $lang, 'Prioritats recomanades', 'Prioridades recomendadas', 'Recommended priorities' ) ) . '</h4>';
 	echo '<ul class="tso-status-findings-list">';
@@ -1259,7 +1141,7 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 		echo '</span>';
 		echo '<span class="tso-status-finding-text">' . esc_html( (string) ( $finding['message'] ?? '' ) ) . '</span>';
 		if ( ! empty( $finding['action_url'] ) && ! empty( $finding['action_label'] ) ) {
-			echo '<a class="button button-secondary tso-status-finding-btn" href="' . esc_url( (string) $finding['action_url'] ) . '">' . esc_html( (string) $finding['action_label'] ) . '</a>';
+			echo '<a class="button button-primary tso-status-finding-btn" href="' . esc_url( (string) $finding['action_url'] ) . '">' . esc_html( (string) $finding['action_label'] ) . '</a>';
 		}
 		echo '</li>';
 	}
@@ -1321,7 +1203,7 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 			echo '</ul>';
 		}
 	}
-	echo '<a class="button button-secondary" href="' . esc_url( $cleanup_url ) . '">' . esc_html(
+	echo '<a class="button button-primary" href="' . esc_url( $cleanup_url ) . '">' . esc_html(
 		'active' === ( $autoclean['mode'] ?? '' )
 			? tsootc_ui_triple_text( $lang, 'Gestionar programació', 'Gestionar programación', 'Manage schedule' )
 			: tsootc_ui_triple_text( $lang, 'Configurar neteja automàtica', 'Configurar limpieza automática', 'Set up automatic cleanup' )

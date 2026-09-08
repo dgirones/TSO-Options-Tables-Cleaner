@@ -75,6 +75,12 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 		return;
 	}
 
+	if ( function_exists( 'tsootc_get_theme_boot_script' ) ) {
+		wp_register_script( 'tsootc-theme-boot', false, array(), defined( 'TSOOTC_VERSION' ) ? TSOOTC_VERSION : false, false );
+		wp_enqueue_script( 'tsootc-theme-boot' );
+		wp_add_inline_script( 'tsootc-theme-boot', tsootc_get_theme_boot_script() );
+	}
+
 	wp_register_style(
 		'tso-options-tables-cleaner-admin',
 		$url . 'assets/css/admin.css',
@@ -202,6 +208,14 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 	$lang      = function_exists( 'tsootc_get_ui_lang' ) ? tsootc_get_ui_lang() : 'ca';
 	$admin_cfg = tsootc_admin_get_script_config( $lang );
 
+	if ( function_exists( 'tsootc_theme_coords' ) ) {
+		$coords                 = tsootc_theme_coords();
+		$admin_cfg['timezone']  = function_exists( 'tsootc_theme_timezone_string' ) ? tsootc_theme_timezone_string() : '';
+		$admin_cfg['lat']       = isset( $coords['lat'] ) ? (float) $coords['lat'] : 41.39;
+		$admin_cfg['lng']       = isset( $coords['lng'] ) ? (float) $coords['lng'] : 2.17;
+		$admin_cfg['themeI18n'] = function_exists( 'tsootc_theme_i18n' ) ? tsootc_theme_i18n( $lang ) : array();
+	}
+
 	if ( 'options' === $tab ) {
 		$options_cfg = tsootc_admin_get_options_script_config( $lang );
 		$admin_cfg['assignGroups']            = isset( $options_cfg['assignGroups'] ) ? $options_cfg['assignGroups'] : array();
@@ -283,6 +297,21 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .notice.notice-success{display:block!important;}';
 	wp_add_inline_style( 'tso-options-tables-cleaner-admin', $guard );
 
+	// Night theme last (after tab CSS) so contrast overrides always win.
+	$night_deps = array( 'tso-options-tables-cleaner-admin-panels' );
+	if ( wp_style_is( 'tso-options-tables-cleaner-admin-options', 'enqueued' ) ) {
+		$night_deps[] = 'tso-options-tables-cleaner-admin-options';
+	}
+	if ( wp_style_is( 'tso-options-tables-cleaner-admin-autoload', 'enqueued' ) ) {
+		$night_deps[] = 'tso-options-tables-cleaner-admin-autoload';
+	}
+	wp_enqueue_style(
+		'tso-options-tables-cleaner-admin-theme-night',
+		$url . 'assets/css/admin-theme-night.css',
+		$night_deps,
+		tsootc_admin_asset_file_version( 'assets/css/admin-theme-night.css' )
+	);
+
 	$hide_foreign_notices_js = <<<'JS'
 (function () {
     if (!document.body.classList.contains('tools_page_tso-options-tables-cleaner')) {
@@ -334,8 +363,8 @@ function tsootc_admin_get_extra_css() {
 #tso-wrap .tso-nav-inner{padding:8px 20px 0}
 #tso-wrap .tso-tab-inner{padding:0 20px}
 #tso-wrap .tso-nav-top{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;margin-bottom:10px}
-#tso-wrap .tso-main-tabs{display:flex;flex-wrap:wrap;gap:8px;width:100%;max-width:100%;min-width:0;margin:0 0 4px;padding:10px;box-sizing:border-box;overflow:hidden;background:#fff;border:1px solid #e2e4e7;border-radius:12px}
-#tso-wrap .tso-main-tabs .tso-main-tab{display:inline-flex;align-items:center;flex:0 1 auto;min-width:0;max-width:100%;margin:0;border:1px solid #dcdcde;background:#fff;color:#1d2327;font-size:13px;font-weight:500;line-height:1.35;padding:10px 14px;border-radius:8px;text-decoration:none;box-sizing:border-box}
+#tso-wrap .tso-main-tabs{display:flex;flex-wrap:wrap;gap:8px;width:100%;max-width:100%;min-width:0;margin:0 0 4px;padding:10px;box-sizing:border-box;overflow:hidden;background:var(--tsootc-surface,#fff);border:1px solid var(--tsootc-border,#e2e4e7);border-radius:12px}
+#tso-wrap .tso-main-tabs .tso-main-tab{display:inline-flex;align-items:center;flex:0 1 auto;min-width:0;max-width:100%;margin:0;border:1px solid var(--tsootc-border,#dcdcde);background:var(--tsootc-surface,#fff);color:var(--tsootc-text,#1d2327);font-size:13px;font-weight:500;line-height:1.35;padding:10px 14px;border-radius:8px;text-decoration:none;box-sizing:border-box}
 #tso-wrap .tso-main-tabs .tso-main-tab.is-active{background:#2271b1!important;border-color:#2271b1!important;color:#fff!important;font-weight:700}
 #tso-wrap .tso-tab-content{clear:both;display:block;width:100%;box-sizing:border-box}
 #tso-wrap .tso-stats-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:24px;width:100%}

@@ -1,0 +1,1222 @@
+/**
+ * Night theme — loaded last so it wins over tab-specific CSS.
+ * Scope: #tso-wrap[data-theme="night"] and html[data-tsootc-theme="night"].
+ */
+
+/* Page chrome */
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpcontent,
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbody,
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbody-content {
+	background: #12141c !important;
+}
+
+#tso-wrap[data-theme="night"],
+#tso-wrap[data-theme="night"] .tso-tab-content,
+#tso-wrap[data-theme="night"] .tso-nav-inner,
+#tso-wrap[data-theme="night"] .tso-page-footnote {
+	background: var(--tsootc-bg, #12141c) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+
+/* Default text + headings — avoid blanket span (breaks badges) */
+#tso-wrap[data-theme="night"],
+#tso-wrap[data-theme="night"] h1,
+#tso-wrap[data-theme="night"] h2,
+#tso-wrap[data-theme="night"] h3,
+#tso-wrap[data-theme="night"] h4,
+#tso-wrap[data-theme="night"] p,
+#tso-wrap[data-theme="night"] label,
+#tso-wrap[data-theme="night"] li,
+#tso-wrap[data-theme="night"] strong,
+#tso-wrap[data-theme="night"] small,
+#tso-wrap[data-theme="night"] summary,
+#tso-wrap[data-theme="night"] dt,
+#tso-wrap[data-theme="night"] dd,
+#tso-wrap[data-theme="night"] th,
+#tso-wrap[data-theme="night"] td,
+#tso-wrap[data-theme="night"] code,
+#tso-wrap[data-theme="night"] .description {
+	color: var(--tsootc-text, #e8eaf0);
+}
+
+#tso-wrap[data-theme="night"] .tso-page-title {
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-version {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+/* Links */
+#tso-wrap[data-theme="night"] a:not(.button):not(.tso-main-tab):not(.tso-donate-btn):not(.tso-lang-btn):not(.btn-act) {
+	color: #8eb8e8 !important;
+}
+
+/* Surfaces that stay white in day CSS */
+#tso-wrap[data-theme="night"] .tso-section,
+#tso-wrap[data-theme="night"] .tso-stat-card,
+#tso-wrap[data-theme="night"] .tso-action-card,
+#tso-wrap[data-theme="night"] .tso-card-panel,
+#tso-wrap[data-theme="night"] .tso-panel-card,
+#tso-wrap[data-theme="night"] .tso-filter-bar,
+#tso-wrap[data-theme="night"] .tso-group-header,
+#tso-wrap[data-theme="night"] .tso-table-group,
+#tso-wrap[data-theme="night"] .tso-plugin-group,
+#tso-wrap[data-theme="night"] .tso-al-panel,
+#tso-wrap[data-theme="night"] .tso-opts-stat,
+#tso-wrap[data-theme="night"] .tso-opts-toolbar,
+#tso-wrap[data-theme="night"] .tso-tables-bulk-panel,
+#tso-wrap[data-theme="night"] .tso-auto-results-box,
+#tso-wrap[data-theme="night"] .tso-auto-label-col,
+#tso-wrap[data-theme="night"] .tso-main-tabs,
+#tso-wrap[data-theme="night"] .widefat,
+#tso-wrap[data-theme="night"] table.wp-list-table,
+#tso-wrap[data-theme="night"] .tso-modal-table-wrap {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+	box-shadow: var(--tsootc-shadow, 0 1px 4px rgba(0, 0, 0, 0.35)) !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab:hover,
+#tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab:focus {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: #4b5168 !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab.is-active,
+#tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab.is-active:hover,
+#tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab.is-active:focus {
+	background: #2271b1 !important;
+	border-color: #2271b1 !important;
+	color: #fff !important;
+}
+
+/* Titles / counts / muted copy (hardcoded dark colors in day CSS) */
+#tso-wrap[data-theme="night"] .tso-action-title,
+#tso-wrap[data-theme="night"] .tso-action-count,
+#tso-wrap[data-theme="night"] .tso-card-title,
+#tso-wrap[data-theme="night"] .tso-card-title-sm,
+#tso-wrap[data-theme="night"] .tso-section h3,
+#tso-wrap[data-theme="night"] .tso-table-group-title,
+#tso-wrap[data-theme="night"] .tso-al-head-title strong,
+#tso-wrap[data-theme="night"] .tso-al-item-name,
+#tso-wrap[data-theme="night"] .opt-name,
+#tso-wrap[data-theme="night"] .tso-td-name-strong,
+#tso-wrap[data-theme="night"] .tso-hist-header-title,
+#tso-wrap[data-theme="night"] .tso-hist-td--name,
+#tso-wrap[data-theme="night"] .tso-modal-meta-value,
+#tso-wrap[data-theme="night"] .tso-auto-results-title,
+#tso-wrap[data-theme="night"] .tso-auto-actions-title,
+#tso-wrap[data-theme="night"] .tso-auto-label-head,
+#tso-wrap[data-theme="night"] #tso-assign-body label {
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-action-count.zero {
+	color: #9aa0b4 !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-stat-label,
+#tso-wrap[data-theme="night"] .tso-action-desc,
+#tso-wrap[data-theme="night"] .tso-card-desc,
+#tso-wrap[data-theme="night"] .tso-card-desc-sm,
+#tso-wrap[data-theme="night"] .tso-text-muted,
+#tso-wrap[data-theme="night"] .tso-text-muted-light,
+#tso-wrap[data-theme="night"] .tso-text-muted-faint,
+#tso-wrap[data-theme="night"] .tso-text-muted-dark,
+#tso-wrap[data-theme="night"] .tso-text-wp-body,
+#tso-wrap[data-theme="night"] .tso-optimize-sub,
+#tso-wrap[data-theme="night"] .tso-cleanup-footnote,
+#tso-wrap[data-theme="night"] .tso-table-group-meta,
+#tso-wrap[data-theme="night"] .tso-table-muted,
+#tso-wrap[data-theme="night"] .tso-auto-meta-row,
+#tso-wrap[data-theme="night"] .tso-auto-count-sm,
+#tso-wrap[data-theme="night"] .tso-auto-retention-row,
+#tso-wrap[data-theme="night"] .tso-auto-result-li,
+#tso-wrap[data-theme="night"] .tso-auto-off-text,
+#tso-wrap[data-theme="night"] .tso-desc-sm,
+#tso-wrap[data-theme="night"] .tso-desc-sm-mb,
+#tso-wrap[data-theme="night"] .tso-notice-text-sm,
+#tso-wrap[data-theme="night"] .tso-hist-stat-label,
+#tso-wrap[data-theme="night"] .tso-hist-th,
+#tso-wrap[data-theme="night"] .tso-hist-td--dt,
+#tso-wrap[data-theme="night"] .tso-al-item-kb,
+#tso-wrap[data-theme="night"] .tso-al-rest-note,
+#tso-wrap[data-theme="night"] .tso-al-subnote,
+#tso-wrap[data-theme="night"] .tso-al-arrow,
+#tso-wrap[data-theme="night"] .grp-meta,
+#tso-wrap[data-theme="night"] .tso-audit-intro,
+#tso-wrap[data-theme="night"] .tso-audit-empty,
+#tso-wrap[data-theme="night"] .tso-empty-title--md,
+#tso-wrap[data-theme="night"] .tso-empty-desc,
+#tso-wrap[data-theme="night"] .tso-tables-selected-count,
+#tso-wrap[data-theme="night"] .tso-extra-delete-label-help,
+#tso-wrap[data-theme="night"] .tso-extra-delete-msg,
+#tso-wrap[data-theme="night"] .tso-retention-label,
+#tso-wrap[data-theme="night"] .tso-safe-unknown,
+#tso-wrap[data-theme="night"] .tso-status-default,
+#tso-wrap[data-theme="night"] .tso-status-value,
+#tso-wrap[data-theme="night"] .tso-status-timeout,
+#tso-wrap[data-theme="night"] .tso-status-theme-installed,
+#tso-wrap[data-theme="night"] .tso-sev-normal,
+#tso-wrap[data-theme="night"] .tso-sev-pct-normal,
+#tso-wrap[data-theme="night"] #tso-optimize-results .tso-opt-table,
+#tso-wrap[data-theme="night"] #tso-optimize-results .tso-opt-msg,
+#tso-wrap[data-theme="night"] .tso-lang-globe {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-stat-card.color-gray .tso-stat-value {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+/* Tables */
+#tso-wrap[data-theme="night"] .widefat th,
+#tso-wrap[data-theme="night"] .widefat td,
+#tso-wrap[data-theme="night"] .wp-list-table th,
+#tso-wrap[data-theme="night"] .wp-list-table td,
+#tso-wrap[data-theme="night"] .tso-tables-grid th,
+#tso-wrap[data-theme="night"] .tso-table-group-table th,
+#tso-wrap[data-theme="night"] .tso-hist-row--even {
+	background: transparent !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .widefat thead th,
+#tso-wrap[data-theme="night"] .widefat tfoot td,
+#tso-wrap[data-theme="night"] .wp-list-table thead th,
+#tso-wrap[data-theme="night"] .tso-tables-grid th,
+#tso-wrap[data-theme="night"] .tso-panel-head,
+#tso-wrap[data-theme="night"] .tso-plugin-group-head,
+#tso-wrap[data-theme="night"] .tso-al-head,
+#tso-wrap[data-theme="night"] .tso-table-group summary {
+	background: var(--tsootc-surface-2, #232635) !important;
+	color: #ffffff !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] .widefat tbody tr:nth-child(odd) td,
+#tso-wrap[data-theme="night"] .striped > tbody > :nth-child(odd),
+#tso-wrap[data-theme="night"] .alternate {
+	background: var(--tsootc-table-stripe, #1f2330) !important;
+}
+#tso-wrap[data-theme="night"] .widefat tbody tr:hover td {
+	background: var(--tsootc-row-hover, rgba(34, 113, 177, 0.16)) !important;
+}
+#tso-wrap[data-theme="night"] .tso-section h3 {
+	border-bottom-color: var(--tsootc-border, #2e3245) !important;
+}
+
+/* Forms */
+#tso-wrap[data-theme="night"] input[type="text"],
+#tso-wrap[data-theme="night"] input[type="search"],
+#tso-wrap[data-theme="night"] input[type="number"],
+#tso-wrap[data-theme="night"] input[type="email"],
+#tso-wrap[data-theme="night"] input[type="url"],
+#tso-wrap[data-theme="night"] input[type="date"],
+#tso-wrap[data-theme="night"] textarea,
+#tso-wrap[data-theme="night"] select,
+#tso-wrap[data-theme="night"] .tso-tables-search,
+#tso-wrap[data-theme="night"] #tso-auto-interval,
+#tso-wrap[data-theme="night"] .tso-hist-filter-select {
+	background: var(--tsootc-input-bg, #232635) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+
+/* Secondary buttons / chips — exclude semantic action classes */
+#tso-wrap[data-theme="night"] .button:not(.button-primary):not(.button-link-delete):not(.tso-btn-primary-outline):not(.tso-btn-danger-outline):not(.tso-btn-danger-outline-sm):not(.tso-btn-blue-outline):not(.tso-btn-wp-blue-outline):not(.tso-btn-warn-outline):not(.tso-btn-danger-text):not(.btn-act),
+#tso-wrap[data-theme="night"] .tso-lang-btn {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: #4b5568 !important;
+	color: var(--tsootc-text, #f3f4f6) !important;
+}
+#tso-wrap[data-theme="night"] .tso-lang-btn.is-active {
+	background: #2271b1 !important;
+	border-color: #2271b1 !important;
+	color: #fff !important;
+}
+
+/* Risk / status badges — readable on dark surfaces */
+#tso-wrap[data-theme="night"] .tso-risk-badge,
+#tso-wrap[data-theme="night"] .tso-badge {
+	border-color: transparent !important;
+}
+#tso-wrap[data-theme="night"] .tso-badge-core {
+	background: #1e2a3a !important;
+	border: 1px solid #2e4a66 !important;
+	color: #8eb8e8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-risk-green {
+	background: #1f3324 !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-risk-orange {
+	background: #3a3220 !important;
+	color: #f0c070 !important;
+}
+#tso-wrap[data-theme="night"] .tso-risk-blue {
+	background: #1e2a3a !important;
+	color: #8eb8e8 !important;
+}
+
+/* Notices / banners */
+#tso-wrap[data-theme="night"] .tso-notice-success,
+#tso-wrap[data-theme="night"] .notice.notice-success {
+	background: #1a2e22 !important;
+	border-color: #46b450 !important;
+	color: #d4edda !important;
+}
+#tso-wrap[data-theme="night"] .tso-notice-warning,
+#tso-wrap[data-theme="night"] .tso-panel-head--warm,
+#tso-wrap[data-theme="night"] .tso-extra-delete-panel,
+#tso-wrap[data-theme="night"] .tso-hist-size-card--warning,
+#tso-wrap[data-theme="night"] .tso-history-size-banner--warning {
+	background: #2e2818 !important;
+	border-color: #c07000 !important;
+	color: #f5e6c8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-history-size-banner--danger,
+#tso-wrap[data-theme="night"] .tso-orphan-safe-notice,
+#tso-wrap[data-theme="night"] .tso-audit-row--mismatch {
+	background: #3a2222 !important;
+	border-color: #c00 !important;
+	color: #f5d0d0 !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-tip {
+	background: #2e2818 !important;
+	border-color: #c07000 !important;
+	color: #f5e6c8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-history-banner-text {
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+
+/* Autoload severity heads */
+#tso-wrap[data-theme="night"] .tso-al-panel.tso-al-severity-high .tso-al-head {
+	background: #3a2222 !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-panel.tso-al-severity-medium .tso-al-head {
+	background: #3a3220 !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-panel.tso-al-severity-low .tso-al-head {
+	background: #1f3324 !important;
+}
+
+/* Keep semantic status colors readable */
+#tso-wrap[data-theme="night"] .tso-text-danger,
+#tso-wrap[data-theme="night"] .tso-sev-high,
+#tso-wrap[data-theme="night"] .tso-status-expired,
+#tso-wrap[data-theme="night"] .tso-status-removed,
+#tso-wrap[data-theme="night"] .tso-status-undetected {
+	color: #f08080 !important;
+}
+#tso-wrap[data-theme="night"] .tso-text-warning,
+#tso-wrap[data-theme="night"] .tso-sev-medium,
+#tso-wrap[data-theme="night"] .tso-status-inactive,
+#tso-wrap[data-theme="night"] .tso-status-plugin-inactive {
+	color: #f0b060 !important;
+}
+#tso-wrap[data-theme="night"] .tso-text-success,
+#tso-wrap[data-theme="night"] .tso-status-active,
+#tso-wrap[data-theme="night"] .tso-status-plugin-active {
+	color: #6dcb7a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-core,
+#tso-wrap[data-theme="night"] .tso-status-theme-active,
+#tso-wrap[data-theme="night"] .tso-safe-core {
+	color: #72aee6 !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-donate-btn {
+	background: #3a3220 !important;
+	border-color: #c07000 !important;
+	color: #f5d090 !important;
+}
+
+/* Status tab surfaces */
+#tso-wrap[data-theme="night"] .tso-status-hero--ok {
+	background: #1a2e22 !important;
+	border-color: #2e6b3a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hero--warning {
+	background: #2e2818 !important;
+	border-color: #c07000 !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hero--critical {
+	background: #3a2222 !important;
+	border-color: #c00 !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hero--ok .tso-status-hero-badge {
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hero--warning .tso-status-hero-badge {
+	color: #f0c070 !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hero--critical .tso-status-hero-badge {
+	color: #f08080 !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hero-desc,
+#tso-wrap[data-theme="night"] .tso-status-finding-text,
+#tso-wrap[data-theme="night"] .tso-status-autoclean-text,
+#tso-wrap[data-theme="night"] .tso-status-autoclean-suggest,
+#tso-wrap[data-theme="night"] .tso-status-recent-empty,
+#tso-wrap[data-theme="night"] .tso-status-autoload-kb,
+#tso-wrap[data-theme="night"] .tso-status-autoclean-results,
+#tso-wrap[data-theme="night"] .tso-hist-meta-note {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-findings,
+#tso-wrap[data-theme="night"] .tso-status-recent,
+#tso-wrap[data-theme="night"] .tso-status-inventory,
+#tso-wrap[data-theme="night"] .tso-status-autoload,
+#tso-wrap[data-theme="night"] .tso-status-autoclean,
+#tso-wrap[data-theme="night"] .tso-status-saved {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-saved {
+	background: #1a2e22 !important;
+	border-color: #2e6b3a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-saved-value {
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-findings-title,
+#tso-wrap[data-theme="night"] .tso-status-autoload-name,
+#tso-wrap[data-theme="night"] .tso-status-autoload-name code {
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-finding,
+#tso-wrap[data-theme="night"] .tso-status-autoload-item,
+#tso-wrap[data-theme="night"] .tso-status-recent-table-wrap {
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-autoclean--active {
+	background: #1a2e22 !important;
+	border-color: #2e6b3a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-autoclean--suggest,
+#tso-wrap[data-theme="night"] .tso-status-recent--wp {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+
+/* Options / history extras */
+#tso-wrap[data-theme="night"] .tso-opts-search-clear,
+#tso-wrap[data-theme="night"] .tso-detect-badge,
+#tso-wrap[data-theme="night"] .tso-cron-badge-muted,
+#tso-wrap[data-theme="night"] .tso-hist-detail-code,
+#tso-wrap[data-theme="night"] .tso-hist-detail-chip {
+	background: var(--tsootc-surface-2, #232635) !important;
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-restore-row,
+#tso-wrap[data-theme="night"] .tso-hist-detail-code--warm {
+	background: #2e2818 !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-detail-line,
+#tso-wrap[data-theme="night"] .tso-hist-detail-head,
+#tso-wrap[data-theme="night"] .tso-cron-meta {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+/* Plugin / table group heads (options + tables tabs) */
+#tso-wrap[data-theme="night"] .tso-plugin-group-head,
+#tso-wrap[data-theme="night"] .tso-plugin-group-head:hover,
+#tso-wrap[data-theme="night"] .tso-plugin-group-head.open,
+#tso-wrap[data-theme="night"] .tso-group-header,
+#tso-wrap[data-theme="night"] .tso-table-group summary,
+#tso-wrap[data-theme="night"] .tso-filter-row,
+#tso-wrap[data-theme="night"] .tso-opts-stat {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group-head.open {
+	background: var(--tsootc-surface-2, #232635) !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group-head .grp-name {
+	color: #ffd28a !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.01em !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-stat .stat-lbl,
+#tso-wrap[data-theme="night"] .tso-opts-stat strong {
+	color: var(--tsootc-text, #f3f4f6) !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group-head .grp-meta,
+#tso-wrap[data-theme="night"] .tso-opts-stat .stat-sub,
+#tso-wrap[data-theme="night"] .tso-plugin-group-head .tso-arrow {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-stat.unknown,
+#tso-wrap[data-theme="night"] .tso-opts-stat.inactive,
+#tso-wrap[data-theme="night"] .tso-opts-stat.uninstalled {
+	background: var(--tsootc-surface, #1a1d27) !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-stat.unknown strong { color: #f08080 !important; }
+#tso-wrap[data-theme="night"] .tso-opts-stat.inactive strong { color: #f0b060 !important; }
+#tso-wrap[data-theme="night"] .tso-opts-stat.uninstalled strong { color: #f08080 !important; }
+
+/* Status badges (keep readable contrast) */
+#tso-wrap[data-theme="night"] .tso-plugin-badge,
+#tso-wrap[data-theme="night"] .tso-table-status-badge,
+#tso-wrap[data-theme="night"] .tso-usage-badge,
+#tso-wrap[data-theme="night"] .tso-cron-badge-muted {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-badge.active,
+#tso-wrap[data-theme="night"] .tso-table-status-active {
+	background: #1f3324 !important;
+	border-color: #2e6b3a !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-badge.inactive,
+#tso-wrap[data-theme="night"] .tso-table-status-inactive {
+	background: #3a3220 !important;
+	border-color: #c07000 !important;
+	color: #f0c070 !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-badge.orphan,
+#tso-wrap[data-theme="night"] .tso-table-status-orphan_candidate {
+	background: #3a2222 !important;
+	border-color: #c00 !important;
+	color: #f08080 !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-badge.unknown,
+#tso-wrap[data-theme="night"] .tso-table-status-unknown {
+	background: var(--tsootc-surface-3, #2a2e3d) !important;
+	color: #c5c9d6 !important;
+}
+#tso-wrap[data-theme="night"] .tso-table-status-active_component {
+	background: #1e2a3a !important;
+	border-color: #2e4a66 !important;
+	color: #8eb8e8 !important;
+}
+
+/* Options action chips — superseded below; keep assign green early */
+#tso-wrap[data-theme="night"] .btn-act.view,
+#tso-wrap[data-theme="night"] .btn-act.search {
+	background: #1e2a3a !important;
+	border-color: #2e4a66 !important;
+	color: #8eb8e8 !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.assign,
+#tso-wrap[data-theme="night"] .btn-act.autoload.on,
+#tso-wrap[data-theme="night"] .btn-act.confirm {
+	background: #1f3324 !important;
+	border-color: #46b450 !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.autoload {
+	background: #3a3220 !important;
+	border-color: #c07000 !important;
+	color: #f0c070 !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.delete,
+#tso-wrap[data-theme="night"] .btn-act.delete.danger {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: #6b3a3a !important;
+	color: #f08080 !important;
+}
+
+/* Optimize results panel */
+#tso-wrap[data-theme="night"] #tso-optimize-results {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] #tso-optimize-header {
+	background: var(--tsootc-surface-2, #232635) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] #tso-optimize-summary {
+	background: #1a2e22 !important;
+	border-color: #2e6b3a !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] #tso-optimize-results .tso-opt-row {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] #tso-optimize-results .tso-opt-table,
+#tso-wrap[data-theme="night"] #tso-optimize-results .tso-opt-msg {
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] #tso-optimize-results .tso-opt-kb {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+/* History table */
+#tso-wrap[data-theme="night"] .tso-hist-thead-row,
+#tso-wrap[data-theme="night"] .tso-hist-row--even,
+#tso-wrap[data-theme="night"] .tso-hist-row--odd,
+#tso-wrap[data-theme="night"] .tso-status-recent-table-wrap,
+#tso-wrap[data-theme="night"] .tso-status-recent-table {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-thead-row {
+	background: var(--tsootc-surface-2, #232635) !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-row--odd {
+	background: var(--tsootc-table-stripe, #1f2330) !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-th,
+#tso-wrap[data-theme="night"] .tso-hist-td,
+#tso-wrap[data-theme="night"] .tso-hist-td--name,
+#tso-wrap[data-theme="night"] .tso-hist-td--det,
+#tso-wrap[data-theme="night"] .tso-hist-td--file {
+	color: var(--tsootc-text, #e8eaf0) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-act-activated {
+	background: #1f3324 !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-act-deactivated {
+	background: #3a3220 !important;
+	color: #f0c070 !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-act-deleted {
+	background: #3a2222 !important;
+	color: #f08080 !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-act-updated,
+#tso-wrap[data-theme="night"] .tso-hist-act-tables_mapped {
+	background: #2a2040 !important;
+	color: #d0b0f0 !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-act-installed,
+#tso-wrap[data-theme="night"] .tso-hist-act-keys_mapped {
+	background: #1e2a3a !important;
+	color: #8eb8e8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-act-default {
+	background: var(--tsootc-surface-2, #232635) !important;
+	color: #c5c9d6 !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-stat-card--events,
+#tso-wrap[data-theme="night"] .tso-hist-size-card--ok,
+#tso-wrap[data-theme="night"] .tso-hist-size-card--warning,
+#tso-wrap[data-theme="night"] .tso-hist-size-card--danger {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+
+/* Backup tab */
+#tso-wrap[data-theme="night"] .tso-backup-bulk-bar,
+#tso-wrap[data-theme="night"] .tso-backup-list-head,
+#tso-wrap[data-theme="night"] .tso-tables-bulk-panel {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-warn-panel {
+	background: #1e2130 !important;
+	border: 1px solid #4a4558 !important;
+	color: #c5c9d6 !important;
+	box-shadow: none !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-warn-title {
+	color: #e0b060 !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-warn-list,
+#tso-wrap[data-theme="night"] .tso-backup-warn-list li {
+	color: #b8becc !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-warn-list li strong {
+	color: #ffd28a !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-th,
+#tso-wrap[data-theme="night"] .tso-backup-td,
+#tso-wrap[data-theme="night"] .tso-backup-td-file,
+#tso-wrap[data-theme="night"] .tso-backup-list-title,
+#tso-wrap[data-theme="night"] .tso-backup-list-meta,
+#tso-wrap[data-theme="night"] .tso-backup-footnote,
+#tso-wrap[data-theme="night"] .tso-backup-empty {
+	color: var(--tsootc-text, #e8eaf0) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-list-meta,
+#tso-wrap[data-theme="night"] .tso-backup-footnote,
+#tso-wrap[data-theme="night"] .tso-backup-empty {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-restore-box {
+	background: #2e2818 !important;
+	border-color: #c07000 !important;
+	color: #f5e6c8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-table thead th {
+	background: var(--tsootc-surface-2, #232635) !important;
+}
+
+/* Usage badges / cron pills */
+#tso-wrap[data-theme="night"] .tso-usage-recent_writes {
+	background: #3a3220 !important;
+	color: #f0c070 !important;
+	border-color: #c07000 !important;
+}
+#tso-wrap[data-theme="night"] .tso-usage-in_use {
+	background: #1e2a3a !important;
+	color: #8eb8e8 !important;
+	border-color: #2e4a66 !important;
+}
+#tso-wrap[data-theme="night"] .tso-usage-not_in_use {
+	background: var(--tsootc-surface-2, #232635) !important;
+	color: #c5c9d6 !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+
+/* ---- Fixes: white thead / hover / autoload / history filter ---- */
+#tso-wrap[data-theme="night"] .tso-opts-table,
+#tso-wrap[data-theme="night"] .tso-opts-table tbody,
+#tso-wrap[data-theme="night"] .tso-plugin-group-body,
+#tso-wrap[data-theme="night"] .tso-bulk-bar,
+#tso-wrap[data-theme="night"] .tso-al-body,
+#tso-wrap[data-theme="night"] .tso-al-items,
+#tso-wrap[data-theme="night"] .tso-al-item,
+#tso-wrap[data-theme="night"] .tso-al-rest-note,
+#tso-wrap[data-theme="night"] .tso-panel-filter-row,
+#tso-wrap[data-theme="night"] .tso-hist-filter-row,
+#tso-wrap[data-theme="night"] .tso-audit-table-wrap {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-opts-table th,
+#tso-wrap[data-theme="night"] .tso-bulk-bar,
+#tso-wrap[data-theme="night"] .tso-tables-grid th,
+#tso-wrap[data-theme="night"] .tso-panel-filter-row,
+#tso-wrap[data-theme="night"] .tso-hist-filter-row,
+#tso-wrap[data-theme="night"] .tso-panel-head {
+	background: var(--tsootc-surface-2, #232635) !important;
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-opts-table td,
+#tso-wrap[data-theme="night"] .tso-opts-table .col-name,
+#tso-wrap[data-theme="night"] .tso-opts-table .col-size,
+#tso-wrap[data-theme="night"] .tso-bulk-bar label,
+#tso-wrap[data-theme="night"] .tso-al-item-name,
+#tso-wrap[data-theme="night"] .tso-al-item-kb,
+#tso-wrap[data-theme="night"] .tso-al-item-pct,
+#tso-wrap[data-theme="night"] .tso-al-rest-note,
+#tso-wrap[data-theme="night"] .tso-al-group-kb,
+#tso-wrap[data-theme="night"] .tso-al-group-pct,
+#tso-wrap[data-theme="night"] .tso-al-head-title strong,
+#tso-wrap[data-theme="night"] .tso-al-head-title span {
+	color: var(--tsootc-text, #e8eaf0) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-group-name {
+	color: #ffd28a !important;
+	font-size: 14px !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-table .col-name {
+	color: #b8becc !important;
+	font-weight: 500 !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-table .col-name small,
+#tso-wrap[data-theme="night"] .tso-al-item-pct,
+#tso-wrap[data-theme="night"] .tso-al-group-pct,
+#tso-wrap[data-theme="night"] .tso-al-head-title span {
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+/* Hover must stay dark (day CSS forces light blue/white) */
+#tso-wrap[data-theme="night"] .widefat tr:hover td,
+#tso-wrap[data-theme="night"] .widefat tbody tr:hover td,
+#tso-wrap[data-theme="night"] .wp-list-table tbody tr:hover td,
+#tso-wrap[data-theme="night"] .tso-opts-table tr:hover td,
+#tso-wrap[data-theme="night"] .tso-tables-grid tr:hover td,
+#tso-wrap[data-theme="night"] .tso-table-group tr:hover td,
+#tso-wrap[data-theme="night"] .tso-hist-row:hover td,
+#tso-wrap[data-theme="night"] .tso-backup-table tr:hover td,
+#tso-wrap[data-theme="night"] .tso-group-header:hover,
+#tso-wrap[data-theme="night"] .tso-plugin-group-head:hover,
+#tso-wrap[data-theme="night"] .tso-table-group summary:hover,
+#tso-wrap[data-theme="night"] .tso-table-group[open] summary {
+	background: var(--tsootc-row-hover, rgba(34, 113, 177, 0.22)) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-table tr:hover td,
+#tso-wrap[data-theme="night"] .tso-tables-grid tr:hover td,
+#tso-wrap[data-theme="night"] .widefat tr:hover td {
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+/* Do not force colour on buttons/badges inside hovered rows */
+#tso-wrap[data-theme="night"] .tso-opts-table tr:hover td .btn-act.assign,
+#tso-wrap[data-theme="night"] .tso-tables-grid tr:hover td .btn-act.assign,
+#tso-wrap[data-theme="night"] .tso-opts-table tr:hover td .tso-btn-primary-outline,
+#tso-wrap[data-theme="night"] .tso-plugin-group-head .tso-btn-primary-outline {
+	background: #1f3324 !important;
+	border-color: #46b450 !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-tables-grid tr:hover .tso-plugin-badge.active,
+#tso-wrap[data-theme="night"] .tso-tables-grid tr:hover .tso-table-status-active {
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-tables-grid tr:hover .tso-usage-in_use {
+	color: #8eb8e8 !important;
+}
+
+#tso-wrap[data-theme="night"] .tso-al-bar-wrap,
+#tso-wrap[data-theme="night"] .tso-al-item-bar-wrap {
+	background: #2a2e3d !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-items {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-item {
+	border-bottom-color: var(--tsootc-border, #2e3245) !important;
+}
+#tso-wrap[data-theme="night"] .tso-al-rest-note {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-bottom-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text-muted, #c5c9d6) !important;
+}
+
+/* Autoload on/off pills */
+#tso-wrap[data-theme="night"] .tso-badge-on,
+#tso-wrap[data-theme="night"] .tso-badge-yes,
+#tso-wrap[data-theme="night"] .tso-badge-auto {
+	background: #3a2222 !important;
+	border-color: #c00 !important;
+	color: #f08080 !important;
+}
+#tso-wrap[data-theme="night"] .tso-badge-off,
+#tso-wrap[data-theme="night"] .tso-badge-no {
+	background: #1f3324 !important;
+	border-color: #2e6b3a !important;
+	color: #8fd19a !important;
+}
+
+/* Outline bulk buttons readable on dark */
+#tso-wrap[data-theme="night"] .tso-btn-primary-outline {
+	background: #1f3324 !important;
+	border-color: #46b450 !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .tso-btn-blue-outline,
+#tso-wrap[data-theme="night"] .tso-btn-wp-blue-outline {
+	background: #1e2a3a !important;
+	border-color: #2271b1 !important;
+	color: #8eb8e8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-btn-danger-outline,
+#tso-wrap[data-theme="night"] .tso-btn-danger-outline-sm {
+	background: #3a2222 !important;
+	border-color: #c00 !important;
+	color: #f08080 !important;
+}
+#tso-wrap[data-theme="night"] .tso-btn-warn-outline {
+	background: #3a3220 !important;
+	border-color: #c07000 !important;
+	color: #f0c070 !important;
+}
+
+/* Filter row: selects look like dropdowns ONLY on real <select> */
+#tso-wrap[data-theme="night"] select,
+#tso-wrap[data-theme="night"] select.tso-hist-filter-select,
+#tso-wrap[data-theme="night"] select.tso-cron-code,
+#tso-wrap[data-theme="night"] select#tso-auto-interval,
+#tso-wrap[data-theme="night"] select.tso-cron-select,
+html[data-tsootc-theme="night"] #tso-assign-body select {
+	-webkit-appearance: none !important;
+	-moz-appearance: none !important;
+	appearance: none !important;
+	padding-right: 2.25rem !important;
+	background-color: var(--tsootc-input-bg, #232635) !important;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23f3f4f6' d='M4.2 6.2a.75.75 0 0 1 1.06 0L8 8.94l2.74-2.74a.75.75 0 1 1 1.06 1.06l-3.27 3.27a.75.75 0 0 1-1.06 0L4.2 7.26a.75.75 0 0 1 0-1.06z'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 0.5rem center !important;
+	background-size: 16px 16px !important;
+	border: 1px solid #6b7280 !important;
+	color: #f3f4f6 !important;
+	border-radius: 4px !important;
+	cursor: pointer !important;
+}
+/* code.tso-cron-code is NOT a dropdown — strip any accidental chevron */
+#tso-wrap[data-theme="night"] code.tso-cron-code,
+#tso-wrap[data-theme="night"] code.tso-cron-code-sm {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	background-image: none !important;
+	padding-right: 0.35em !important;
+	cursor: text !important;
+	border: none !important;
+	background-color: transparent !important;
+}
+#tso-wrap[data-theme="night"] code.tso-cron-code {
+	color: #ffd28a !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] code.tso-cron-code-sm {
+	color: #aeb4c4 !important;
+	font-weight: 500 !important;
+}
+#tso-wrap[data-theme="night"] input[type="date"],
+#tso-wrap[data-theme="night"] input[type="text"],
+#tso-wrap[data-theme="night"] input[type="search"],
+#tso-wrap[data-theme="night"] .tso-hist-date-input {
+	background-image: none !important;
+	border-color: #6b7280 !important;
+	color: #f3f4f6 !important;
+}
+#tso-wrap[data-theme="night"] .tso-filter-row .button-secondary,
+#tso-wrap[data-theme="night"] .tso-filter-row a.button:not(.button-primary) {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: #6b7280 !important;
+	color: #f3f4f6 !important;
+}
+#tso-wrap[data-theme="night"] .tso-filter-row .button-primary,
+#tso-wrap[data-theme="night"] .tso-audit-actions .button-primary {
+	background: #c07000 !important;
+	border-color: #c07000 !important;
+	color: #fff !important;
+}
+
+/* Options action chips — assign stays green */
+#tso-wrap[data-theme="night"] .btn-act {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: #4b5568 !important;
+	color: #f3f4f6 !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.view,
+#tso-wrap[data-theme="night"] .btn-act.search {
+	background: #1e2a3a !important;
+	border-color: #2e4a66 !important;
+	color: #8eb8e8 !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.assign,
+#tso-wrap[data-theme="night"] .button.btn-act.assign,
+#tso-wrap[data-theme="night"] .button-small.btn-act.assign,
+#tso-wrap[data-theme="night"] .btn-act.autoload.on,
+#tso-wrap[data-theme="night"] .btn-act.confirm {
+	background: #1f3324 !important;
+	border-color: #46b450 !important;
+	color: #8fd19a !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.autoload {
+	background: #3a3220 !important;
+	border-color: #c07000 !important;
+	color: #f0c070 !important;
+}
+#tso-wrap[data-theme="night"] .btn-act.delete,
+#tso-wrap[data-theme="night"] .btn-act.delete.danger,
+#tso-wrap[data-theme="night"] .button.tso-cron-del-btn,
+#tso-wrap[data-theme="night"] .tso-cron-del-btn,
+#tso-wrap[data-theme="night"] .tso-btn-danger-outline-sm,
+#tso-wrap[data-theme="night"] button.btn-act.delete {
+	background: #3a2222 !important;
+	border-color: #e07070 !important;
+	color: #ffb3b3 !important;
+	font-size: 16px !important;
+	line-height: 1.2 !important;
+	min-width: 34px !important;
+	min-height: 30px !important;
+	padding: 4px 8px !important;
+}
+
+/* Mobile stacked cards */
+#tso-wrap[data-theme="night"] .tso-stack-on-mobile tbody tr {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+	color: var(--tsootc-text, #e8eaf0) !important;
+}
+
+/* History progress track */
+#tso-wrap[data-theme="night"] .tso-hist-progress-track {
+	background: #2a2e3d !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-stat-card,
+#tso-wrap[data-theme="night"] .tso-hist-size-card {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+
+/* JSON / tree editor (modal) */
+html[data-tsootc-theme="night"] .tso-tree-key {
+	color: #e8b4ff !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-str {
+	color: #7ddea0 !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-num {
+	color: #f0b060 !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-bool {
+	color: #72aee6 !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-null {
+	color: #9aa0b4 !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-toggle {
+	color: #8eb8e8 !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-toggle:hover {
+	background: #1e2a3a !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-children {
+	border-left-color: #4b5568 !important;
+}
+html[data-tsootc-theme="night"] .tso-tree-type-badge {
+	background: #2a2e3d !important;
+	color: #c5c9d6 !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-value,
+html[data-tsootc-theme="night"] #tso-modal-editor {
+	color: #e8eaf0 !important;
+	caret-color: #e8eaf0 !important;
+}
+
+/* Assign modal body (outside wrap) */
+html[data-tsootc-theme="night"] #tso-assign-body {
+	background: #1a1d27 !important;
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] #tso-assign-body .tso-assign-section {
+	border-bottom-color: #2e3245 !important;
+}
+html[data-tsootc-theme="night"] #tso-assign-body select,
+html[data-tsootc-theme="night"] #tso-assign-body input[type="text"] {
+	background: #232635 !important;
+	border-color: #5b6a85 !important;
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] .tso-assign-new-group {
+	background: #1e2a3a !important;
+	border-color: #2271b1 !important;
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] .tso-assign-new-group label {
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] .tso-assign-btn {
+	background: #2e7d32 !important;
+	color: #fff !important;
+	border: none !important;
+}
+html[data-tsootc-theme="night"] .tso-assign-btn:hover {
+	background: #256b2a !important;
+}
+html[data-tsootc-theme="night"] .tso-assign-btn-sec {
+	background: #1e2a3a !important;
+	border-color: #2271b1 !important;
+	color: #8eb8e8 !important;
+}
+
+/* Modals (admin_footer, outside wrap) */
+html[data-tsootc-theme="night"] #tso-modal-box,
+html[data-tsootc-theme="night"] #tso-rename-box,
+html[data-tsootc-theme="night"] #tso-assign-box {
+	background: #1a1d27 !important;
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-head,
+html[data-tsootc-theme="night"] #tso-assign-head {
+	border-color: #2e3245 !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-head strong,
+html[data-tsootc-theme="night"] #tso-modal-close,
+html[data-tsootc-theme="night"] #tso-rename-box p,
+html[data-tsootc-theme="night"] #tso-assign-body label {
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-value,
+html[data-tsootc-theme="night"] #tso-modal-tree,
+html[data-tsootc-theme="night"] #tso-modal-editor,
+html[data-tsootc-theme="night"] #tso-rename-box p {
+	background: #232635 !important;
+	border-color: #2e3245 !important;
+	color: #e8eaf0 !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-view-tabs button,
+html[data-tsootc-theme="night"] .tso-assign-btn-sec {
+	background: #232635 !important;
+	border-color: #2e3245 !important;
+	color: #c5c9d6 !important;
+}
+
+/* ---- Round-2 night polish (contrast, badges, trash, headers, backup) ---- */
+#tso-wrap[data-theme="night"] .tso-hist-th,
+#tso-wrap[data-theme="night"] .tso-backup-th,
+#tso-wrap[data-theme="night"] .tso-cron-table thead th,
+#tso-wrap[data-theme="night"] .tso-audit-table thead th,
+#tso-wrap[data-theme="night"] table.widefat thead th,
+#tso-wrap[data-theme="night"] .tso-hist-thead-row th {
+	color: #ffffff !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.03em !important;
+	opacity: 1 !important;
+}
+#tso-wrap[data-theme="night"] .tso-btn-danger-text,
+#tso-wrap[data-theme="night"] .button.tso-btn-danger-text,
+#tso-wrap[data-theme="night"] .tso-tables-actions-rowicons .tso-cron-del-btn,
+#tso-wrap[data-theme="night"] .tso-tables-actions-rowicons .tso-cron-unschedule {
+	background: #3a2222 !important;
+	border: 1px solid #e07070 !important;
+	color: #ffc9c9 !important;
+	font-size: 16px !important;
+	line-height: 1.2 !important;
+	min-width: 34px !important;
+	min-height: 30px !important;
+	padding: 4px 8px !important;
+	opacity: 1 !important;
+	filter: none !important;
+}
+#tso-wrap[data-theme="night"] .tso-btn-warn-outline,
+#tso-wrap[data-theme="night"] .button.tso-btn-warn-outline {
+	background: #3a3220 !important;
+	border-color: #e09020 !important;
+	color: #ffd28a !important;
+}
+#tso-wrap[data-theme="night"] .tso-filter-row .button-primary,
+#tso-wrap[data-theme="night"] .tso-filter-row a.button-primary,
+#tso-wrap[data-theme="night"] .tso-audit-actions .button-primary,
+#tso-wrap[data-theme="night"] .tso-audit-actions a.button-primary,
+#tso-wrap[data-theme="night"] .tso-status-finding-btn,
+#tso-wrap[data-theme="night"] a.tso-status-finding-btn.button-primary {
+	background: #c07000 !important;
+	border-color: #c07000 !important;
+	color: #ffffff !important;
+	text-shadow: none !important;
+	box-shadow: none !important;
+}
+#tso-wrap[data-theme="night"] .tso-filter-row .button-primary:hover,
+#tso-wrap[data-theme="night"] .tso-audit-actions .button-primary:hover,
+#tso-wrap[data-theme="night"] .tso-status-finding-btn:hover {
+	background: #a85f00 !important;
+	border-color: #a85f00 !important;
+	color: #ffffff !important;
+}
+#tso-wrap[data-theme="night"] select#tso-auto-interval {
+	min-width: 11rem !important;
+	font-weight: 600 !important;
+	border-color: #c07000 !important;
+}
+#tso-wrap[data-theme="night"] input[type="date"] {
+	color-scheme: dark;
+}
+#tso-wrap[data-theme="night"] .tso-backup-bulk-bar {
+	margin: 0 !important;
+	border-radius: 0 !important;
+	border: none !important;
+	border-bottom: 1px solid var(--tsootc-border, #2e3245) !important;
+	padding-left: 16px !important;
+	padding-right: 16px !important;
+}
+#tso-wrap[data-theme="night"] .tso-backup-list-outer .tso-hist-thead-row th:first-child,
+#tso-wrap[data-theme="night"] .tso-backup-list-outer .tso-hist-th:first-child {
+	padding-left: 16px !important;
+}
+#tso-wrap[data-theme="night"] .tso-cron-badge-orphan {
+	background: #3a3220 !important;
+	border: 1px solid #c07000 !important;
+	color: #ffd28a !important;
+}
+#tso-wrap[data-theme="night"] .tso-cron-event-row--nocallback td {
+	background: #2a2418 !important;
+	border-color: #4a3f28 !important;
+}
+#tso-wrap[data-theme="night"] .tso-cron-orphan-notice {
+	background: #1e2130 !important;
+	border-color: #4a4558 !important;
+	color: #c5c9d6 !important;
+}
+#tso-wrap[data-theme="night"] .tso-cron-orphan-notice strong {
+	color: #ffd28a !important;
+}
+
+/* Intro / info boxes (e.g. Widgets Generics) — no white panels */
+#tso-wrap[data-theme="night"] .tso-intro-box,
+#tso-wrap[data-theme="night"] .tso-widgets-intro {
+	background: #1e2a3a !important;
+	border-color: #3d5a80 !important;
+	color: #d7e4f5 !important;
+}
+#tso-wrap[data-theme="night"] .tso-intro-box-title {
+	color: #8eb8e8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-intro-box p,
+#tso-wrap[data-theme="night"] .tso-intro-box strong,
+#tso-wrap[data-theme="night"] .tso-widgets-intro p,
+#tso-wrap[data-theme="night"] .tso-widgets-intro strong {
+	color: #d7e4f5 !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group {
+	background: var(--tsootc-surface, #1a1d27) !important;
+	border-color: var(--tsootc-border, #2e3245) !important;
+}
+
+/* Plugin group names stand out above option keys */
+#tso-wrap[data-theme="night"] .tso-plugin-group-head {
+	border-left: 3px solid #c07000 !important;
+	background: #1e2130 !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group-head.open {
+	background: #242838 !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group-head .grp-name,
+#tso-wrap[data-theme="night"] .grp-name,
+#tso-wrap[data-theme="night"] .tso-al-group-name {
+	color: #ffd28a !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] .tso-plugin-group-head .tso-arrow {
+	color: #ffd28a !important;
+}
+#tso-wrap[data-theme="night"] .tso-opts-table .col-name,
+#tso-wrap[data-theme="night"] .opt-name,
+#tso-wrap[data-theme="night"] .tso-al-item-name {
+	color: #aeb4c4 !important;
+	font-weight: 500 !important;
+}
+
+/* Extra tables: table names stand out from Motor / Updated / Files */
+#tso-wrap[data-theme="night"] .tso-td-mono > strong,
+#tso-wrap[data-theme="night"] .tso-td-name-strong,
+#tso-wrap[data-theme="night"] .tso-tables-grid .tso-td-mono strong {
+	color: #ffd28a !important;
+	font-weight: 700 !important;
+	font-size: 13px !important;
+}
+#tso-wrap[data-theme="night"] .tso-table-muted,
+#tso-wrap[data-theme="night"] .tso-td-mono .tso-table-muted {
+	color: #9aa0b4 !important;
+	font-weight: 400 !important;
+}
+
+/* History + CRON: names / hooks in amber like other primary labels */
+#tso-wrap[data-theme="night"] .tso-hist-td--name,
+#tso-wrap[data-theme="night"] .tso-cur-td-name,
+#tso-wrap[data-theme="night"] .tso-status-recent-table .tso-hist-td--name {
+	color: #ffd28a !important;
+	font-weight: 700 !important;
+}
+#tso-wrap[data-theme="night"] td code.tso-cron-code {
+	color: #ffd28a !important;
+	font-weight: 700 !important;
+}

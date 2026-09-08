@@ -1350,6 +1350,15 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	$lbl_overdue  = tsootc_ui_triple_text( $lang, 'Endarrerit', 'Atrasado', 'Overdue' );
 	$lbl_core     = tsootc_ui_triple_text( $lang, 'Nucli WP', 'Núcleo WP', 'WP core' );
 	$lbl_no_cb    = tsootc_ui_triple_text( $lang, 'Sense callback', 'Sin callback', 'No callback' );
+	$lbl_orphan   = tsootc_ui_triple_text( $lang, 'Possiblement orfe', 'Posiblemente huérfano', 'Possibly orphaned' );
+
+	$no_callback_count = 0;
+	foreach ( $events as $ev_count ) {
+		if ( empty( $ev_count['has_callback'] ) ) {
+			++$no_callback_count;
+		}
+	}
+	$filter_nocallback = ( 'nocallback' === $filter_sched );
 
 	$title_run    = tsootc_ui_triple_text( $lang, 'Executar ara', 'Ejecutar ahora', 'Run now' );
 	$title_post   = tsootc_ui_triple_text( $lang, 'Ajornar 1 hora', 'Aplazar 1 hora', 'Postpone 1 hour' );
@@ -1373,6 +1382,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 
 	echo '<div class="tso-stats-grid tso-stats-grid-compact">';
 	echo '<div class="tso-stat-card color-blue"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Esdeveniments actius', 'Eventos activos', 'Active events' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) count( $events ) ) . '</div></div>';
+	echo '<div class="tso-stat-card ' . ( $no_callback_count > 0 ? 'color-orange' : 'color-gray' ) . '"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Sense callback', 'Sin callback', 'No callback' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) $no_callback_count ) . '</div></div>';
 	echo '<div class="tso-stat-card color-orange"><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Pausats', 'Pausados', 'Paused' ) ) . '</div><div class="tso-stat-value">' . esc_html( (string) count( $paused ) ) . '</div></div>';
 	echo '<div class="tso-stat-card color-gray"><div class="tso-stat-label">WP-Cron</div><div class="tso-stat-value tso-cron-stat-value">';
 	echo $disabled
@@ -1394,6 +1404,44 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		echo '</div>';
 	}
 
+	if ( $no_callback_count > 0 ) {
+		echo '<div class="tso-notice-warning tso-cron-orphan-notice">';
+		echo '<span class="tso-notice-icon">⚠️</span><div class="tso-notice-text">';
+		echo '<strong>' . esc_html(
+			sprintf(
+				tsootc_ui_triple_text(
+					$lang,
+					'%s esdeveniment(s) sense callback registrat (possiblement orfes).',
+					'%s evento(s) sin callback registrado (posiblemente huérfanos).',
+					'%s event(s) with no registered callback (possibly orphaned).'
+				),
+				number_format_i18n( $no_callback_count )
+			)
+		) . '</strong> ';
+		echo esc_html(
+			tsootc_ui_triple_text(
+				$lang,
+				'No hi ha cap funció PHP que escolti aquest hook ara mateix (sovint residus de plugins eliminats). Revisa cada fila marcada, després elimina la instància (🗑️) o totes les d\'aquest hook (🧹). No esborris hooks del nucli WP.',
+				'No hay ninguna función PHP escuchando este hook ahora (a menudo restos de plugins eliminados). Revisa cada fila marcada y elimina la instancia (🗑️) o todas las de ese hook (🧹). No borres hooks del núcleo WP.',
+				'No PHP function is listening for this hook right now (often leftovers from removed plugins). Review each marked row, then delete the instance (🗑️) or all instances of that hook (🧹). Do not delete WP core hooks.'
+			)
+		);
+		if ( ! $filter_nocallback ) {
+			$nocb_url = add_query_arg(
+				array(
+					'page'       => 'tso-options-tables-cleaner',
+					'tab'        => 'cron',
+					'cron_sched' => 'nocallback',
+				),
+				admin_url( 'tools.php' )
+			);
+			echo ' <a class="button button-primary" href="' . esc_url( $nocb_url ) . '">' . esc_html(
+				tsootc_ui_triple_text( $lang, 'Mostrar només aquests', 'Mostrar solo estos', 'Show only these' )
+			) . '</a>';
+		}
+		echo '</div></div>';
+	}
+
 	echo '<form method="get" class="tso-filter-bar" id="tso-cron-filter-form">';
 	echo '<input type="hidden" name="page" value="tso-options-tables-cleaner">';
 	echo '<input type="hidden" name="tab" value="cron">';
@@ -1410,6 +1458,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '<option value="recurring"' . selected( $filter_sched, 'recurring', false ) . '>' . esc_html( tsootc_ui_triple_text( $lang, 'Recurrent', 'Recurrente', 'Recurring' ) ) . '</option>';
 	echo '<option value="single"' . selected( $filter_sched, 'single', false ) . '>' . esc_html( $lbl_once ) . '</option>';
 	echo '<option value="overdue"' . selected( $filter_sched, 'overdue', false ) . '>' . esc_html( $lbl_overdue ) . '</option>';
+	echo '<option value="nocallback"' . selected( $filter_sched, 'nocallback', false ) . '>' . esc_html( $lbl_orphan ) . '</option>';
 	echo '</select>';
 	echo '<input type="search" name="cron_q" id="tso-cron-filter-q" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr( tsootc_ui_triple_text( $lang, 'Cercar hook…', 'Buscar hook…', 'Search hook…' ) ) . '" class="tso-cron-search" autocomplete="off">';
 	echo '<button type="submit" class="button tso-u-hidden" tabindex="-1" aria-hidden="true">' . esc_html( tsootc_ui_triple_text( $lang, 'Filtrar', 'Filtrar', 'Filter' ) ) . '</button>';
@@ -1438,19 +1487,22 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			$args_show = substr( $args_show, 0, 117 ) . '…';
 		}
 		$source = tsootc_cron_detect_hook_source( $hook );
-		$row_id = 'tso-cron-row-' . esc_attr( $ev['event_id'] );
+		$has_cb    = ! empty( $ev['has_callback'] );
+		$row_class = 'tso-cron-event-row' . ( $has_cb ? '' : ' tso-cron-event-row--nocallback' );
+		$row_id    = 'tso-cron-row-' . esc_attr( $ev['event_id'] );
 
-		echo '<tr id="' . esc_attr( $row_id ) . '" class="tso-cron-event-row" data-hook="' . esc_attr( $hook ) . '" data-ts="' . esc_attr( (string) $ts ) . '"';
+		echo '<tr id="' . esc_attr( $row_id ) . '" class="' . esc_attr( $row_class ) . '" data-hook="' . esc_attr( $hook ) . '" data-ts="' . esc_attr( (string) $ts ) . '"';
 		echo ' data-args="' . esc_attr( $ev['args_json'] ) . '" data-schedule="' . esc_attr( $sched_key ) . '" data-interval="' . esc_attr( (string) $ev['interval'] ) . '"';
 		echo ' data-core="' . ( $ev['is_core'] ? '1' : '0' ) . '"';
 		echo ' data-recurring="' . ( ! empty( $ev['is_recurring'] ) ? '1' : '0' ) . '"';
-		echo ' data-overdue="' . ( ! empty( $ev['is_overdue'] ) ? '1' : '0' ) . '">';
+		echo ' data-overdue="' . ( ! empty( $ev['is_overdue'] ) ? '1' : '0' ) . '"';
+		echo ' data-callback="' . ( $has_cb ? '1' : '0' ) . '">';
 		echo '<td><code class="tso-cron-code">' . esc_html( $hook ) . '</code>';
 		if ( $ev['is_core'] ) {
 			echo ' <span class="tso-badge tso-badge-core" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';
 		}
-		if ( ! $ev['has_callback'] ) {
-			echo ' <span class="tso-badge tso-cron-badge-muted" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_no_cb ) . '</span>';
+		if ( ! $has_cb ) {
+			echo ' <span class="tso-badge tso-cron-badge-orphan" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_orphan ) . '</span>';
 		}
 		echo '</td>';
 		echo '<td>';

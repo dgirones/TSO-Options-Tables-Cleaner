@@ -56,7 +56,7 @@
 .tso-card-panel--mt24 { margin-top:24px; }
 .tso-auto-col { display:flex; flex-direction:column; gap:12px; }
 .tso-auto-label-row { display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; }
-.tso-auto-label-col { display:flex; align-items:flex-start; gap:8px; font-size:12px; cursor:pointer; border:1px solid #e2e4e7; border-radius:6px; padding:8px 10px; background:#fafafa; }
+.tso-auto-label-col { display:flex; align-items:flex-start; gap:8px; font-size:12px; cursor:pointer; border:1px solid var(--tsootc-border-soft, #e2e4e7); border-radius:6px; padding:8px 10px; background:var(--tsootc-surface-2, #fafafa); color:var(--tsootc-text, #1d2327); }
 .tso-auto-label-col input[type=checkbox] { margin-top:2px; }
 .tso-auto-label-inner { display:flex; flex-direction:column; gap:4px; flex:1; }
 .tso-auto-label-head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -206,7 +206,7 @@
 .tso-backup-list-title { margin:0; font-size:15px; }
 .tso-backup-list-meta { color:#999; font-size:12px; }
 .tso-backup-empty { padding:40px; text-align:center; color:#999; }
-.tso-backup-bulk-bar { margin:12px 16px; padding:10px 14px; background:#fff; border:1px solid #ddd; border-radius:6px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.tso-backup-bulk-bar { margin:0; padding:10px 16px; background:#fff; border:none; border-bottom:1px solid #ddd; border-radius:0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .tso-backup-table { width:100%; border-collapse:collapse; }
 .tso-backup-th { padding:10px 16px; text-align:left; font-size:11px; color:#666; font-weight:700; text-transform:uppercase; }
 .tso-backup-th-chk { width:32px; padding:10px 12px; text-align:center; }
@@ -238,6 +238,11 @@
 .tso-cron-code { font-size:12px; }
 .tso-cron-code-sm { font-size:11px; word-break:break-all; }
 .tso-cron-badge-muted { background:#f6f7f7; color:#666; }
+.tso-cron-badge-orphan { background:#fff6ea; color:#9a5200; border:1px solid #f0d0a3; }
+.tso-cron-event-row--nocallback td { background:#fffbf5; }
+.tso-cron-orphan-notice { margin:12px 0 16px; align-items:flex-start; }
+.tso-cron-orphan-notice .tso-notice-text { flex:1; }
+.tso-cron-orphan-notice .button { margin-top:8px; margin-left:0; }
 .tso-status-wrap { max-width:1100px; }
 .tso-status-hero { border-radius:10px; padding:14px 16px; margin:0 0 16px; border:1px solid #dcdcde; }
 .tso-status-hero--ok { background:#f5fff6; border-color:#b8e6bc; }

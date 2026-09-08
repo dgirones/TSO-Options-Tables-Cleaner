@@ -74,6 +74,9 @@
             if (ok && sched === 'overdue' && !overdue) {
                 ok = false;
             }
+            if (ok && sched === 'nocallback' && tr.getAttribute('data-callback') !== '0') {
+                ok = false;
+            }
             if (ok && q && rowHook.toLowerCase().indexOf(q) === -1) {
                 ok = false;
             }

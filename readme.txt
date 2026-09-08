@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 6.1
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -96,6 +96,9 @@ No external connections: This plugin does not make any HTTP requests to external
 == Changelog ==
 
 Recent releases only. Older notes are in changelog.txt in the plugin folder.
+
+= 1.3.5 =
+* Admin: day / night / auto UI theme
 
 = 1.3.4 =
 * Extra tables: fix delete UI when «Allow table deletion» is enabled (instant unlock + sync on reload)

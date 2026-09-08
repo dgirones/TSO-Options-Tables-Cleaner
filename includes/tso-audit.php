@@ -688,7 +688,7 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 		) . '</strong></p>';
 	}
 	echo '<p class="tso-audit-actions">';
-	echo '<a class="button" href="' . esc_url( $off_url ) . '">' . esc_html( $txt_off ) . '</a>';
+	echo '<a class="button button-primary" href="' . esc_url( $off_url ) . '">' . esc_html( $txt_off ) . '</a>';
 	if ( $only_mismatch ) {
 		echo '<a class="button button-secondary" href="' . esc_url( $all_url ) . '">' . esc_html( $txt_all ) . '</a>';
 	} elseif ( $mismatch_count > 0 ) {
@@ -763,7 +763,7 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 		echo '</td>';
 		echo '<td>';
 		if ( '' !== $sample && '__core__' !== $row['group_key'] ) {
-			echo '<button type="button" class="button button-small btn-act assign" data-tso-act="option-assign" data-option-name="' . esc_attr( $sample ) . '">' . esc_html( $txt_assign ) . '</button>';
+			echo '<button type="button" class="button button-small btn-act assign" data-tso-act="option-assign" data-option-name="' . esc_attr( $sample ) . '">➕ ' . esc_html( $txt_assign ) . '</button>';
 		} else {
 			echo '—';
 		}

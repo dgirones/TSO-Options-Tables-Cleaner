@@ -1522,4 +1522,233 @@ function tsootcParseAjaxJson(text) {
             }
         }
     };
+
+    /* ---- Theme switcher (auto by sunrise/sunset / day / night) ---- */
+    var tsootcTheme = {
+        _autoTimer: null,
+        _dayMs: 86400000,
+        _j1970: 2440588,
+        _j2000: 2451545,
+        _rad: Math.PI / 180,
+        _e: (Math.PI / 180) * 23.4397,
+        _tzCoords: {
+            'Europe/Madrid': [40.42, -3.70],
+            'Europe/Andorra': [42.51, 1.52],
+            'Atlantic/Canary': [28.29, -16.63],
+            'Europe/London': [51.51, -0.13],
+            'Europe/Paris': [48.86, 2.35],
+            'Europe/Berlin': [52.52, 13.41],
+            'Europe/Rome': [41.90, 12.50],
+            'Europe/Lisbon': [38.72, -9.14],
+            'Europe/Brussels': [50.85, 4.35],
+            'Europe/Amsterdam': [52.37, 4.90],
+            'America/Mexico_City': [19.43, -99.13],
+            'America/New_York': [40.71, -74.01],
+            'America/Chicago': [41.88, -87.63],
+            'America/Denver': [39.74, -104.99],
+            'America/Los_Angeles': [34.05, -118.24],
+            'America/Argentina/Buenos_Aires': [-34.60, -58.38],
+            'America/Sao_Paulo': [-23.55, -46.63],
+            'America/Bogota': [4.71, -74.07],
+            'America/Lima': [-12.05, -77.04],
+            'America/Santiago': [-33.45, -70.67],
+            'America/Caracas': [10.48, -66.90],
+            'Asia/Tokyo': [35.68, 139.69],
+            'Australia/Sydney': [-33.87, 151.21],
+            'UTC': [0, 0]
+        },
+        readPref: function () {
+            var theme = '';
+            try { theme = localStorage.getItem('tsootc_ui_theme') || ''; } catch (e) { theme = ''; }
+            if (theme === 'day' || theme === 'night' || theme === 'auto') {
+                return theme;
+            }
+            return 'auto';
+        },
+        getCoords: function () {
+            var wpLat = parseFloat(cfg.lat);
+            var wpLng = parseFloat(cfg.lng);
+            if (!isNaN(wpLat) && !isNaN(wpLng)) {
+                return { lat: wpLat, lng: wpLng };
+            }
+            var tz = cfg.timezone ? String(cfg.timezone) : '';
+            if (!tz && typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+                try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e2) { /* ignore */ }
+            }
+            if (tz && this._tzCoords[tz]) {
+                return { lat: this._tzCoords[tz][0], lng: this._tzCoords[tz][1] };
+            }
+            return { lat: 41.39, lng: 2.17 };
+        },
+        toJulian: function (date) { return date.valueOf() / this._dayMs - 0.5 + this._j1970; },
+        fromJulian: function (j) { return new Date((j + 0.5 - this._j1970) * this._dayMs); },
+        toDays: function (date) { return this.toJulian(date) - this._j2000; },
+        rightAscension: function (l, b) {
+            return Math.atan2(Math.sin(l) * Math.cos(this._e) - Math.tan(b) * Math.sin(this._e), Math.cos(l));
+        },
+        declination: function (l, b) {
+            return Math.asin(Math.sin(b) * Math.cos(this._e) + Math.cos(b) * Math.sin(this._e) * Math.sin(l));
+        },
+        solarMeanAnomaly: function (d) { return this._rad * (357.5291 + 0.98560028 * d); },
+        eclipticLongitude: function (M) {
+            var C = this._rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+            return M + C + this._rad * 102.9372 + Math.PI;
+        },
+        sunCoords: function (d) {
+            var M = this.solarMeanAnomaly(d);
+            var L = this.eclipticLongitude(M);
+            return { dec: this.declination(L, 0), ra: this.rightAscension(L, 0) };
+        },
+        julianCycle: function (d, lw) { return Math.round(d - 0.0009 - lw / (2 * Math.PI)); },
+        approxTransit: function (Ht, lw, n) { return 0.0009 + (Ht + lw) / (2 * Math.PI) + n; },
+        solarTransitJ: function (ds, M, L) {
+            return this._j2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+        },
+        hourAngle: function (h, phi, d) {
+            return Math.acos((Math.sin(h) - Math.sin(phi) * Math.sin(d)) / (Math.cos(phi) * Math.cos(d)));
+        },
+        getSetJ: function (h, lw, phi, dec, n, M, L) {
+            var w = this.hourAngle(h, phi, dec);
+            var a = this.approxTransit(w, lw, n);
+            return this.solarTransitJ(a, M, L);
+        },
+        getSunTimes: function (date, lat, lng) {
+            try {
+                var lw = this._rad * -lng;
+                var phi = this._rad * lat;
+                var d = this.toDays(date);
+                var n = this.julianCycle(d, lw);
+                var ds = this.approxTransit(0, lw, n);
+                var M = this.solarMeanAnomaly(ds);
+                var L = this.eclipticLongitude(M);
+                var dec = this.sunCoords(ds).dec;
+                var Jnoon = this.solarTransitJ(ds, M, L);
+                var Jset = this.getSetJ(-0.833 * this._rad, lw, phi, dec, n, M, L);
+                var Jrise = Jnoon - (Jset - Jnoon);
+                var sunrise = this.fromJulian(Jrise);
+                var sunset = this.fromJulian(Jset);
+                if (isNaN(sunrise.getTime()) || isNaN(sunset.getTime())) {
+                    return null;
+                }
+                return { sunrise: sunrise, sunset: sunset };
+            } catch (e) {
+                return null;
+            }
+        },
+        formatClock: function (date) {
+            try {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                var h = date.getHours();
+                var m = date.getMinutes();
+                return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+            }
+        },
+        fromSolar: function () {
+            var coords = this.getCoords();
+            var now = new Date();
+            var times = this.getSunTimes(now, coords.lat, coords.lng);
+            if (!times) {
+                var hour = now.getHours();
+                return (hour >= 7 && hour < 20) ? 'day' : 'night';
+            }
+            return (now >= times.sunrise && now < times.sunset) ? 'day' : 'night';
+        },
+        resolve: function (preference) {
+            if (preference === 'day' || preference === 'night') {
+                return preference;
+            }
+            return this.fromSolar();
+        },
+        uiText: function (key, fallback) {
+            var i18n = cfg.themeI18n || {};
+            if (i18n[key]) {
+                return i18n[key];
+            }
+            return fallback;
+        },
+        apply: function (preference) {
+            var self = this;
+            if (preference !== 'day' && preference !== 'night' && preference !== 'auto') {
+                preference = 'auto';
+            }
+            try { localStorage.setItem('tsootc_ui_theme', preference); } catch (e) { /* ignore */ }
+
+            var resolved = this.resolve(preference);
+            var wrap = document.getElementById('tso-wrap');
+            if (wrap) {
+                wrap.setAttribute('data-theme', resolved);
+                wrap.setAttribute('data-theme-pref', preference);
+            }
+            try {
+                document.documentElement.setAttribute('data-tsootc-theme', resolved);
+                document.documentElement.setAttribute('data-tsootc-theme-pref', preference);
+                if (document.body) {
+                    document.body.setAttribute('data-tsootc-theme', resolved);
+                }
+            } catch (e2) { /* ignore */ }
+
+            var btn = document.getElementById('tsootc-theme-toggle');
+            if (btn) {
+                var labelKey = preference === 'auto' ? 'themeAuto' : (preference === 'day' ? 'themeDay' : 'themeNight');
+                var labelFallback = preference === 'auto' ? 'Auto mode' : (preference === 'day' ? 'Day mode' : 'Night mode');
+                var icon = preference === 'auto' ? '🌓' : (resolved === 'night' ? '🌙' : '☀️');
+                var label = this.uiText(labelKey, labelFallback);
+                var title = label;
+                if (preference === 'auto') {
+                    title = label + ' — ' + this.uiText('themeAutoHint', 'Follows sunrise and sunset (changes with the seasons)');
+                    var coords = this.getCoords();
+                    var times = this.getSunTimes(new Date(), coords.lat, coords.lng);
+                    if (times) {
+                        title += ' · ' + this.formatClock(times.sunrise) + '–' + this.formatClock(times.sunset);
+                    }
+                }
+                btn.setAttribute('aria-pressed', preference === 'auto' ? 'mixed' : (resolved === 'night' ? 'true' : 'false'));
+                btn.setAttribute('title', title);
+                var iconEl = btn.querySelector('.tsootc-theme-icon');
+                var labelEl = btn.querySelector('.tsootc-theme-label');
+                if (iconEl) { iconEl.textContent = icon; }
+                if (labelEl) { labelEl.textContent = label; }
+            }
+
+            if (this._autoTimer) {
+                clearInterval(this._autoTimer);
+                this._autoTimer = null;
+            }
+            if (preference === 'auto') {
+                this._autoTimer = setInterval(function () {
+                    if (self.readPref() !== 'auto') {
+                        return;
+                    }
+                    var next = self.fromSolar();
+                    var currentWrap = document.getElementById('tso-wrap');
+                    if (currentWrap && currentWrap.getAttribute('data-theme') !== next) {
+                        self.apply('auto');
+                    }
+                }, 60000);
+            }
+        },
+        next: function (current) {
+            if (current === 'auto') { return 'day'; }
+            if (current === 'day') { return 'night'; }
+            return 'auto';
+        },
+        init: function () {
+            var self = this;
+            this.apply(this.readPref());
+            var btn = document.getElementById('tsootc-theme-toggle');
+            if (btn && !btn.getAttribute('data-tsootc-theme-bound')) {
+                btn.setAttribute('data-tsootc-theme-bound', '1');
+                btn.addEventListener('click', function () {
+                    self.apply(self.next(self.readPref()));
+                });
+            }
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { tsootcTheme.init(); });
+    } else {
+        tsootcTheme.init();
+    }
 })();
