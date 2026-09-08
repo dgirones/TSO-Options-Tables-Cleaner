@@ -44,12 +44,32 @@ function tsootc_option_key_map_reload() {
     tsootc_get_option_key_map( true );
 }
 
-function tsootc_snapshot_option_keys() {
-    global $wpdb;
-    $keys = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        "SELECT option_name FROM {$wpdb->options} WHERE option_name NOT LIKE '_transient_%' AND option_name NOT LIKE '_site_transient_%'"
-    );
-    return array_flip( $keys ?: array() );
+/**
+ * Snapshot current wp_options keys (minus transients).
+ *
+ * Memoized per request: within a single 'activated_plugin' dispatch, several
+ * hooked callbacks (map_keys at priority 20, deep_codescan/remap at priority 25)
+ * read this back-to-back with no option writes in between, which previously
+ * meant one full wp_options scan per callback (2x per activated plugin — 229
+ * queries on a bulk-activate of ~115 plugins). Callers that need a guaranteed
+ * fresh read of the *current* DB state (baseline "before" snapshots taken right
+ * before a mutation, or "after" snapshots taken right after one) must pass
+ * $force_reload = true. Callers that just need "the state as of a moment ago
+ * in this same request, nothing has written since" can rely on the cache.
+ *
+ * @param bool $force_reload Bypass the static cache and re-query wp_options.
+ * @return array<string,int> option_name => 1
+ */
+function tsootc_snapshot_option_keys( $force_reload = false ) {
+    static $cache = null;
+    if ( $force_reload || null === $cache ) {
+        global $wpdb;
+        $keys = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            "SELECT option_name FROM {$wpdb->options} WHERE option_name NOT LIKE '_transient_%' AND option_name NOT LIKE '_site_transient_%'"
+        );
+        $cache = array_flip( $keys ?: array() );
+    }
+    return $cache;
 }
 
 /**
@@ -128,7 +148,7 @@ function tsootc_assign_new_option_keys_from_diff( array $before_keys, $owner_fil
         );
     }
 
-    $after    = tsootc_snapshot_option_keys();
+    $after    = tsootc_snapshot_option_keys( true ); // fresh: options just written by this activation/switch
     $new_keys = array_diff_key( $after, $before_keys );
     if ( empty( $new_keys ) ) {
         return array(
@@ -240,6 +260,9 @@ function tsootc_remap_existing_options_to_plugin_file( $plugin_file, $rebuild_co
     $assigned_keys     = array();
     $candidate_total   = 0;
 
+    // Reuses the request cache: for the same $plugin_file this runs right after
+    // tsootc_assign_new_option_keys_from_diff() already forced a fresh read
+    // (activated_plugin priority 20 vs 25), and nothing writes wp_options in between.
     foreach ( array_keys( tsootc_snapshot_option_keys() ) as $key ) {
         $key = (string) $key;
         if ( tsootc_is_wp_core_option( $key ) || tsootc_starts_with_legacy_wp_options_prefix( $key ) ) {
@@ -316,7 +339,7 @@ function tsootc_pre_switch_theme_snapshot() {
     if ( ! is_admin() ) {
         return;
     }
-    tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_SWITCH_THEME_SNAPSHOT, tsootc_snapshot_option_keys(), 120 );
+    tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_SWITCH_THEME_SNAPSHOT, tsootc_snapshot_option_keys( true ), 120 );
 }
 add_action( 'admin_init', 'tsootc_pre_switch_theme_snapshot', 1 );
 
@@ -359,7 +382,7 @@ add_action( 'switch_theme', 'tsootc_post_switch_theme_map_keys', 25, 3 );
 
 // Hook PRE-activació: guardar snapshot de claus actuals
 function tsootc_pre_activate_snapshot( $plugin_file ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Hook signature.
-    tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_SNAPSHOT, tsootc_snapshot_option_keys(), 30 );
+    tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_SNAPSHOT, tsootc_snapshot_option_keys( true ), 30 );
 }
 add_action( 'activate_plugin', 'tsootc_pre_activate_snapshot', 1, 1 );
 
@@ -628,9 +651,9 @@ function tsootc_pre_install_snapshot( $upgrader, $options ) {
     }
     if ( 'plugin' === $options['type'] ) {
         // TTL 300s per actualitzacions massives (múltiples plugins)
-        tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT, tsootc_snapshot_option_keys(), 300 );
+        tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT, tsootc_snapshot_option_keys( true ), 300 );
     } elseif ( 'theme' === $options['type'] ) {
-        tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT_THEME, tsootc_snapshot_option_keys(), 300 );
+        tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT_THEME, tsootc_snapshot_option_keys( true ), 300 );
     }
 }
 add_action( 'upgrader_pre_install', 'tsootc_pre_install_snapshot', 10, 2 );
@@ -817,7 +840,7 @@ function tsootc_post_upgrade_map_keys_deferred( $upgrader, $options ) {
 
     $before = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT );
     if ( ! is_array( $before ) ) return;
-    $after    = tsootc_snapshot_option_keys();
+    $after    = tsootc_snapshot_option_keys( true ); // fresh: full bulk-update batch just finished writing options
     $new_keys = array_diff_key( $after, $before );
     if ( empty( $new_keys ) ) return;
 
@@ -2787,7 +2810,8 @@ function tsootc_refresh_option_key_map_from_codescan( array $installed_plugins =
     $scanned  = 0;
     $max_assign = (int) $max_assign;
 
-    foreach ( array_keys( tsootc_snapshot_option_keys() ) as $key ) {
+    // Standalone maintenance run (not part of the activation hook chain) — force fresh.
+    foreach ( array_keys( tsootc_snapshot_option_keys( true ) ) as $key ) {
         $key = (string) $key;
         if ( isset( $map[ $key ] ) ) {
             continue;
@@ -3379,7 +3403,7 @@ function tsootc_pre_delete_theme_snapshot( $stylesheet ) {
     if ( '' === $stylesheet ) {
         return;
     }
-    tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_PRE_DELETE_THEME, $stylesheet, tsootc_snapshot_option_keys(), 300 );
+    tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_PRE_DELETE_THEME, $stylesheet, tsootc_snapshot_option_keys( true ), 300 );
 }
 add_action( 'delete_theme', 'tsootc_pre_delete_theme_snapshot', 1, 1 );
 
