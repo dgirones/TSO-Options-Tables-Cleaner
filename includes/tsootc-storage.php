@@ -32,6 +32,7 @@ define( 'TSOOTC_STORED_OPTION_UNSAFE_MAP_CLEANUP_DONE', 'unsafe_map_cleanup_done
 define( 'TSOOTC_STORED_OPTION_THEME_PREFIX_MAP_VERSION', 'theme_prefix_map_version' );
 define( 'TSOOTC_STORED_OPTION_COMMENT_TRASH_META_BACKFILL_V1', 'comment_trash_meta_backfill_v1' );
 define( 'TSOOTC_STORED_OPTION_ALLOW_EXTRA_TABLE_DELETE', 'allow_extra_table_delete' );
+define( 'TSOOTC_STORED_OPTION_DISMISSED_FINDINGS', 'status_dismissed_findings' );
 
 // Stored transient symbolic ids (not transient names).
 define( 'TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD', 'options_tab_payload' );
@@ -70,6 +71,7 @@ define( 'TSOOTC_ADMIN_QUERY_DOWNLOAD', 'tsootc_download' );
 define( 'TSOOTC_ADMIN_QUERY_DOWNLOAD_LEGACY', 'tso_download' );
 define( 'TSOOTC_ADMIN_QUERY_REFRESH', 'tsootc_refresh' );
 define( 'TSOOTC_ADMIN_QUERY_REFRESH_LEGACY', 'tso_refresh' );
+define( 'TSOOTC_ADMIN_QUERY_DISMISS_FINDING', 'tsootc_dismiss_finding' );
 
 /**
  * Verify AJAX nonce (canonical action, then legacy during rollout).
@@ -966,7 +968,48 @@ function tsootc_get_user_ui_lang( $user_id = 0 ) {
 	if ( 'en' === $saved ) {
 		return 'en';
 	}
-	return 'ca';
+	if ( 'ca' === $saved ) {
+		return 'ca';
+	}
+
+	// No explicit choice saved yet ("automatic" mode: fresh install, or a user who has
+	// never opened the language switcher). Follow the WordPress language installed for
+	// this user (falls back to the site locale), mapped to ca/es/en — English when the
+	// detected language isn't one of the three we support. Intentionally not persisted,
+	// so it keeps following the WP language until the user picks one explicitly.
+	return tsootc_detect_ui_lang_from_wp_locale( $user_id );
+}
+
+/**
+ * Map a WordPress locale string to one of our supported UI languages.
+ *
+ * @param string $locale WordPress locale (e.g. ca, ca_ES, es_ES, en_US, fr_FR).
+ * @return string ca|es|en — defaults to en when there is no match.
+ */
+function tsootc_map_wp_locale_to_ui_lang( $locale ) {
+	$prefix = strtolower( substr( (string) $locale, 0, 2 ) );
+	if ( in_array( $prefix, array( 'ca', 'es', 'en' ), true ) ) {
+		return $prefix;
+	}
+	return 'en';
+}
+
+/**
+ * Detect the UI language to use before the user has made an explicit choice: the
+ * WordPress language installed for this user, falling back to the site's own locale.
+ *
+ * @param int $user_id User ID; 0 = current user.
+ * @return string ca|es|en
+ */
+function tsootc_detect_ui_lang_from_wp_locale( $user_id = 0 ) {
+	$locale = '';
+	if ( function_exists( 'get_user_locale' ) ) {
+		$locale = $user_id ? get_user_locale( (int) $user_id ) : get_user_locale();
+	}
+	if ( '' === $locale && function_exists( 'get_locale' ) ) {
+		$locale = get_locale();
+	}
+	return tsootc_map_wp_locale_to_ui_lang( $locale );
 }
 
 /**
@@ -1394,6 +1437,12 @@ function tsootc_migrate_auto_clean_cron_hook() {
  * @return void
  */
 function tsootc_maybe_run_storage_migration() {
+	// Schema migration is maintenance work, not something every logged-in backend
+	// visitor needs to trigger a DB read for.
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
 	$current = (int) get_option( 'tso_options_tables_cleaner_db_schema', 0 );
 	if ( $current >= TSOOTC_DB_SCHEMA ) {
 		return;
@@ -1436,7 +1485,9 @@ function tsootc_maybe_run_storage_migration() {
 		tsootc_migrate_auto_clean_owned_schedules();
 	}
 
-	update_option( 'tso_options_tables_cleaner_db_schema', TSOOTC_DB_SCHEMA, false );
+	// Small scalar checked on every admin_init — autoload it so it rides the options
+	// cache WordPress already loads each request, instead of a standalone query.
+	update_option( 'tso_options_tables_cleaner_db_schema', TSOOTC_DB_SCHEMA, true );
 }
 
 /**

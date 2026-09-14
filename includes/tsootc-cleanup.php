@@ -152,9 +152,15 @@ function tsootc_track_comment_trashed_timestamp( $comment_id ) {
  * @return void
  */
 function tsootc_maybe_backfill_comment_trash_timestamps() {
+    // The backfilled data is only ever read by this plugin's admin-side cleanup stats,
+    // so skip the DB hit entirely on public front-end requests (the previous per-request
+    // static memoization only avoided repeats within one request, not the non-autoloaded
+    // get_option() read on every request forever after the migration finished).
+    if ( ! is_admin() ) {
+        return;
+    }
+
     static $already_checked = false;
-    // Request-scoped memoization: on every init, this hook runs, but the flag read
-    // should not be repeated. Cache it at function level to avoid 0.08s+ slow reads.
     if ( $already_checked ) {
         return;
     }
@@ -2246,6 +2252,11 @@ function tsootc_auto_clean_ensure_schedule() {
  * @return void
  */
 function tsootc_maybe_migrate_auto_clean_monthly_cron() {
+    // Admin-only one-time migration guard: no reason to hit the DB for this flag on
+    // every public front-end request. Cron rescheduling is only relevant to admin flows.
+    if ( ! is_admin() ) {
+        return;
+    }
     if ( tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_MIGRATED_CRON_MONTHLY_V1 ) ) {
         return;
     }
@@ -2402,18 +2413,24 @@ add_action( 'admin_init', 'tsootc_cleanup_handler', 5 );
 /**
  * Fresh per-action counts for cleanup UI refresh (manual AJAX / retention preview).
  *
+ * Reads from {@see tsootc_get_stats()} (memoized per request/retention profile) instead of
+ * calling {@see tsootc_get_cleanup_remaining_count()} per action — that helper's named cases
+ * duplicate the exact same COUNT queries tsootc_get_stats() already runs, so looping it here
+ * doubled the DB hits on every manual cleanup run and every retention-days keystroke.
+ *
  * @param array $retention_days Normalized age thresholds.
  * @return array<string,int>
  */
 function tsootc_get_cleanup_action_counts_for_ui( array $retention_days = array() ) {
     $retention_days = tsootc_normalize_age_cleanup_days( $retention_days );
+    $stats          = tsootc_get_stats( $retention_days );
     $counts         = array();
 
     foreach ( tsootc_get_cleanup_action_keys() as $action ) {
         if ( 'optimize_fragmented_tables' === $action ) {
             continue;
         }
-        $counts[ $action ] = tsootc_get_cleanup_remaining_count( $action, $retention_days );
+        $counts[ $action ] = isset( $stats[ $action ] ) ? (int) $stats[ $action ] : 0;
     }
 
     return $counts;

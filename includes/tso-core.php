@@ -4580,6 +4580,12 @@ function tsootc_cleanup_unsafe_persisted_option_maps() {
     if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
         return;
     }
+    // This migration only touches data read by this plugin's own tabs — no need to hit
+    // the (non-autoloaded) version-flag option on every unrelated wp-admin screen.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check.
+    if ( ! isset( $_GET['page'] ) || 'tso-options-tables-cleaner' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        return;
+    }
 
     $cleanup_version = 9;
     if ( (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_UNSAFE_MAP_CLEANUP_DONE, 0 ) >= $cleanup_version ) {
@@ -4700,6 +4706,12 @@ add_action( 'admin_init', 'tsootc_cleanup_unsafe_persisted_option_maps', 20 );
  */
 function tsootc_maybe_remap_history_theme_option_keys() {
     if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+    // Same reasoning as tsootc_cleanup_unsafe_persisted_option_maps() above: this only
+    // matters for this plugin's own History/Theme tabs.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check.
+    if ( ! isset( $_GET['page'] ) || 'tso-options-tables-cleaner' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         return;
     }
     $done_version = (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_THEME_PREFIX_MAP_VERSION, 0 );
@@ -11352,6 +11364,14 @@ function tsootc_options_tab_sync_invalidation_sig() {
         return;
     }
 
+    // Only recompute the signature (wp_get_themes()/get_plugins() scan) on this
+    // plugin's own admin page — running it on every admin_init hit every wp-admin
+    // page load and produced a slow theme_roots transient query network-wide.
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check.
+    if ( ! isset( $_GET['page'] ) || 'tso-options-tables-cleaner' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        return;
+    }
+
     $sig    = tsootc_get_options_tab_invalidation_sig( true );
     $stored = tsootc_get_stored_transient( tsootc_options_tab_invalidation_sig_transient_key() );
 
@@ -14264,7 +14284,10 @@ function tsootc_ajax_get_option_value() {
     $is_serialized = ( is_serialized( $val_str ) );
     $parsed        = null;
     if ( $is_serialized ) {
-        $unserialized = @unserialize( $val_str ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+        // 'allowed_classes' => false: this is the raw value of an arbitrary wp_options row (any
+        // installed plugin could own it), so unserializing it for the read-only viewer must not
+        // instantiate objects — defends against PHP object-injection gadgets in other plugins' data.
+        $unserialized = @unserialize( $val_str, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
         if ( $unserialized !== false || $val_str === 'b:0;' ) {
             $parsed = $unserialized;
         }

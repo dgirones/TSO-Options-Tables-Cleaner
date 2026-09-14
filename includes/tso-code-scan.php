@@ -31,6 +31,30 @@ if ( ! defined( 'TSOOTC_CODESCAN_MAX_FILES_DEEP' ) ) {
 }
 
 /**
+ * Wall-clock budget (seconds) for one full index build (all installed plugins + themes).
+ *
+ * On hosts with a low max_execution_time (some shared hosting defaults to 30s) and slow
+ * disk I/O, scanning every installed plugin/theme with no aggregate cap could exceed the
+ * host's limit and fatal out mid-scan — leaving no cache saved, so it retries (and fails)
+ * on every admin page load. Bailing out early keeps a real timeout from ever being hit and
+ * still persists whatever was indexed so far. Kept low because tsootc_codescan_warm_cache()
+ * can run this budget twice in the same request (option index + table index).
+ */
+if ( ! defined( 'TSOOTC_CODESCAN_TIME_BUDGET_SECONDS' ) ) {
+	define( 'TSOOTC_CODESCAN_TIME_BUDGET_SECONDS', 8 );
+}
+
+/**
+ * Whether an index build has run past its wall-clock safety budget.
+ *
+ * @param float $start_time microtime(true) captured when the build started.
+ * @return bool
+ */
+function tsootc_codescan_time_budget_exceeded( $start_time ) {
+	return ( microtime( true ) - (float) $start_time ) > (float) TSOOTC_CODESCAN_TIME_BUDGET_SECONDS;
+}
+
+/**
  * Plugin directory slug for this plugin (exclude from scanning other plugins).
  *
  * @return string
@@ -1250,8 +1274,12 @@ function tsootc_codescan_build_option_index( $deep = false ) {
 	}
 
 	$files_fn = $deep ? 'tsootc_codescan_plugin_files_to_read_deep' : 'tsootc_codescan_plugin_files_to_read';
+	$start    = microtime( true );
 
 	foreach ( get_plugins() as $plugin_file => $data ) {
+		if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+			break;
+		}
 		$folder = strtolower( dirname( $plugin_file ) );
 		if ( tsootc_codescan_is_self_plugin_folder( $folder ) ) {
 			continue;
@@ -1262,8 +1290,11 @@ function tsootc_codescan_build_option_index( $deep = false ) {
 		}
 	}
 
-	if ( function_exists( 'wp_get_themes' ) ) {
+	if ( ! tsootc_codescan_time_budget_exceeded( $start ) && function_exists( 'wp_get_themes' ) ) {
 		foreach ( wp_get_themes( array( 'errors' => false ) ) as $slug => $theme ) {
+			if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+				break;
+			}
 			if ( ! ( $theme instanceof WP_Theme ) || ! $theme->exists() ) {
 				continue;
 			}
@@ -1475,6 +1506,11 @@ function tsootc_codescan_warm_cache() {
 		return;
 	}
 
+	if ( function_exists( 'set_time_limit' ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- best-effort only; the microtime() budget below is what actually protects against a fatal timeout on hosts where this is disabled.
+		@set_time_limit( 60 );
+	}
+
 	$sig = tsootc_codescan_build_inventory_sig();
 	if ( ! is_array( tsootc_codescan_load_index_file( tsootc_codescan_option_index_file_path(), $sig ) ) ) {
 		tsootc_codescan_get_option_index( false );
@@ -1496,11 +1532,17 @@ function tsootc_codescan_maybe_warm_cache_deferred() {
 	if ( ! empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
 		return;
 	}
-	if ( 'tso-options-tables-cleaner' === tsootc_get_admin_screen_query_arg( 'page', '', 'key' ) ) {
-		$tab = tsootc_get_admin_screen_tab( 'cleanup' );
-		if ( 'options' === $tab ) {
-			return;
-		}
+	// Only warm on this plugin's own screen (any tab except "options", which already
+	// triggers a fresh scan itself). tsootc_codescan_build_inventory_sig() walks every
+	// installed plugin/theme file with filemtime() — running it on every unrelated
+	// wp-admin screen (posts, media, plugins list, etc.) for every admin user was pure
+	// overhead with no benefit, since the cache it warms is only read by this plugin.
+	if ( 'tso-options-tables-cleaner' !== tsootc_get_admin_screen_query_arg( 'page', '', 'key' ) ) {
+		return;
+	}
+	$tab = tsootc_get_admin_screen_tab( 'cleanup' );
+	if ( 'options' === $tab ) {
+		return;
 	}
 	tsootc_codescan_warm_cache();
 }
@@ -1706,7 +1748,12 @@ function tsootc_codescan_build_table_index( $deep = false ) {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 	}
 
+	$start = microtime( true );
+
 	foreach ( get_plugins() as $plugin_file => $data ) {
+		if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+			break;
+		}
 		$folder = strtolower( dirname( $plugin_file ) );
 		if ( false !== strpos( $folder, 'tso-options-tables-cleaner' ) || false !== strpos( $folder, 'tso-neteja-options' ) ) {
 			continue;
@@ -1718,8 +1765,11 @@ function tsootc_codescan_build_table_index( $deep = false ) {
 		}
 	}
 
-	if ( function_exists( 'wp_get_themes' ) ) {
+	if ( ! tsootc_codescan_time_budget_exceeded( $start ) && function_exists( 'wp_get_themes' ) ) {
 		foreach ( wp_get_themes( array( 'errors' => false ) ) as $slug => $theme ) {
+			if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+				break;
+			}
 			if ( ! ( $theme instanceof WP_Theme ) || ! $theme->exists() ) {
 				continue;
 			}

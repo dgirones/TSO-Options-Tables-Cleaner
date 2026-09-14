@@ -6,7 +6,7 @@ Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 6.1
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.5
+Stable tag: 1.3.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -97,8 +97,16 @@ No external connections: This plugin does not make any HTTP requests to external
 
 Recent releases only. Older notes are in changelog.txt in the plugin folder.
 
+= 1.3.6 =
+* Security hardening: the wp_options value viewer no longer instantiates PHP objects when unserializing a stored option's raw value (allowed_classes disabled), reducing object-injection exposure from other plugins' data
+* Fix: code-scan index build (option/table detection across installed plugins and themes) could hit "Maximum execution time exceeded" and fatal out on hosts with a low time limit or slow disk; it now stops within a safe time budget instead of running until the host kills it
+
 = 1.3.5 =
 * Admin: day / night / auto UI theme
+* Language: first use now follows the WordPress language installed for that user (Catalan/Spanish/English) instead of always defaulting to Catalan; falls back to English when unsupported
+* Performance: several admin_init/init hooks (options-tab signature, pre-theme-switch snapshot, code-scan cache warm-up, one-time storage/option-map migrations, comment-trash backfill, auto-clean cron migration) now only run on the relevant screen instead of on every wp-admin page or, in two cases, every front-end request
+* Current status tab: new DB size and persistent object-cache indicators, total KB shown for top autoload options, one-click wp_options refresh, and a 7-day "hide this notice" link on non-urgent findings; fixed a duplicate history read on every load
+* General cleanup tab: removed duplicate COUNT queries — refreshing action counts after a manual run or a retention-days change now reuses the already-computed stats instead of re-querying each action separately
 
 = 1.3.4 =
 * Extra tables: fix delete UI when «Allow table deletion» is enabled (instant unlock + sync on reload)
@@ -109,18 +117,3 @@ Recent releases only. Older notes are in changelog.txt in the plugin folder.
 * Email report: inline CSS only (WordPress.org Plugin Check)
 * Regression tests: auto-clean schedule includes cleanup helpers
 
-= 1.3.3 =
-* Admin: new **Current status** tab (default) with database overview and shortcuts to cleanup
-* Admin: modal overlays (rename group, option viewer, assign) render in the footer so they no longer break page layout
-* Admin: consolidated overlay CSS/JS; single asset enqueue; shipped Catalan and Spanish `.mo` catalogs
-* Admin: screen query args centralized in storage helpers; assign modal placeholder translated
-* Code: backup, cleanup, optimize, and status handlers split into dedicated include files (smaller core)
-* Cron tab: live filter by hook, type, and search text without clicking Filter
-* UI: nav width aligned to 1100px; historial title alignment; backup warning panel compacted
-* Detection audit table: fixed column layout (horizontal scroll, readable paths and sample options)
-
-= 1.3.2 =
-* WordPress.org Plugin Check: admin UI uses enqueued JS/CSS only (no inline onclick, onchange, or style attributes)
-* Security: escaped admin tab and language URLs; AJAX refresh nonce requires verified nonce and manage_options
-* Uninstall: removes the plugin uploads folder (backups and options-tab cache); FAQ updated
-* Requires at least WordPress 6.1

@@ -57,6 +57,110 @@ function tsootc_status_get_backup_summary() {
 }
 
 /**
+ * Total database size (all tables in the current schema), in bytes.
+ *
+ * Read-only metadata query against information_schema — cheap regardless of
+ * table row counts. Memoized per request; this tab already only runs on this
+ * plugin's own admin screen.
+ *
+ * @return int Bytes.
+ */
+function tsootc_status_get_db_total_size_bytes() {
+	static $memo = null;
+	if ( null !== $memo ) {
+		return $memo;
+	}
+	global $wpdb;
+	$bytes = $wpdb->get_var( "SELECT SUM(data_length + index_length) FROM information_schema.TABLES WHERE table_schema = DATABASE()" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- read-only metadata query, no user input
+	$memo = (int) round( (float) $bytes );
+	return $memo;
+}
+
+/**
+ * Whether a persistent external object cache (Redis, Memcached, APCu drop-in…)
+ * is active. When it isn't, every request re-reads options/transients from the
+ * DB instead of an in-memory cache.
+ *
+ * @return bool
+ */
+function tsootc_status_has_persistent_object_cache() {
+	return function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache();
+}
+
+/**
+ * Findings the admin has temporarily hidden (finding key => expiry timestamp).
+ * Expired entries are pruned on read.
+ *
+ * @return array<string,int>
+ */
+function tsootc_status_get_dismissed_findings() {
+	$raw = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_DISMISSED_FINDINGS, array() );
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	$now     = time();
+	$active  = array();
+	$changed = false;
+	foreach ( $raw as $key => $until ) {
+		if ( (int) $until > $now ) {
+			$active[ sanitize_key( (string) $key ) ] = (int) $until;
+		} else {
+			$changed = true;
+		}
+	}
+	if ( $changed ) {
+		tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_DISMISSED_FINDINGS, $active, false );
+	}
+	return $active;
+}
+
+/**
+ * Temporarily hide one status finding.
+ *
+ * @param string $key  Finding key (see tsootc_status_build_findings()).
+ * @param int    $days How many days to hide it for.
+ * @return void
+ */
+function tsootc_status_dismiss_finding( $key, $days = 7 ) {
+	$key = sanitize_key( (string) $key );
+	if ( '' === $key ) {
+		return;
+	}
+	$active            = tsootc_status_get_dismissed_findings();
+	$active[ $key ]    = time() + ( max( 1, (int) $days ) * DAY_IN_SECONDS );
+	tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_DISMISSED_FINDINGS, $active, false );
+}
+
+/**
+ * Handle the "hide this finding" link from the status tab (admin-only, this
+ * plugin's own screen). Verifies nonce + capability, then redirects to strip
+ * the query args so a page refresh cannot re-trigger it.
+ *
+ * @return void
+ */
+function tsootc_status_handle_dismiss_finding() {
+	if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only page check.
+	if ( ! isset( $_GET['page'] ) || 'tso-options-tables-cleaner' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return;
+	}
+	if ( ! isset( $_GET[ TSOOTC_ADMIN_QUERY_DISMISS_FINDING ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce verified below
+		return;
+	}
+	$key   = sanitize_key( wp_unslash( $_GET[ TSOOTC_ADMIN_QUERY_DISMISS_FINDING ] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.NonceVerification.Recommended -- nonce verified below
+	$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- this line reads the nonce itself
+	if ( '' === $key || ! wp_verify_nonce( $nonce, TSOOTC_ADMIN_QUERY_DISMISS_FINDING ) ) {
+		return;
+	}
+	tsootc_status_dismiss_finding( $key, 7 );
+	wp_safe_redirect( remove_query_arg( array( TSOOTC_ADMIN_QUERY_DISMISS_FINDING, '_wpnonce' ) ) );
+	exit;
+}
+add_action( 'admin_init', 'tsootc_status_handle_dismiss_finding', 15 );
+
+/**
  * CRON summary for the status tab.
  *
  * @return array{active:int,paused:int,overdue:int,disabled:bool}
@@ -595,9 +699,11 @@ function tsootc_status_autoclean_action_titles( array $stats, array $action_keys
  * @param array                $backup Backup summary.
  * @param array                $frag Fragmentation snapshot.
  * @param string               $base_url Admin page base URL.
- * @return array<int,array{severity:string,message:string,action_label:string,action_url:string}>
+ * @param array|null           $latest_history Most recent history event (from
+ *                                              tsootc_status_get_recent_history()), or null.
+ * @return array<int,array{key:string,severity:string,message:string,action_label:string,action_url:string}>
  */
-function tsootc_status_build_findings( $lang, array $stats, array $tables, array $options, array $cron, array $backup, array $frag, $base_url ) {
+function tsootc_status_build_findings( $lang, array $stats, array $tables, array $options, array $cron, array $backup, array $frag, $base_url, $latest_history = null ) {
 	$findings = array();
 	$tab_url  = static function ( $tab ) use ( $base_url ) {
 		return $base_url . '&tab=' . rawurlencode( (string) $tab );
@@ -606,6 +712,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 	$autoload_kb = isset( $stats['autoload_kb'] ) ? (float) $stats['autoload_kb'] : 0.0;
 	if ( $autoload_kb > 1024 ) {
 		$findings[] = array(
+			'key'           => 'autoload_high',
 			'severity'      => 'critical',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -618,6 +725,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		);
 	} elseif ( $autoload_kb > 512 ) {
 		$findings[] = array(
+			'key'           => 'autoload_elevated',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -633,6 +741,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 	$expired = isset( $stats['expired_transients'] ) ? (int) $stats['expired_transients'] : 0;
 	if ( $expired > 0 ) {
 		$findings[] = array(
+			'key'           => 'expired_transients',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -651,6 +760,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		+ (int) ( $stats['orphan_termmeta'] ?? 0 );
 	if ( $orphan_meta > 0 ) {
 		$findings[] = array(
+			'key'           => 'orphan_metadata',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -666,6 +776,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 	if ( $options['available'] ) {
 		if ( $options['n_uninstalled'] > 0 ) {
 			$findings[] = array(
+				'key'           => 'options_uninstalled',
 				'severity'      => 'warning',
 				'message'       => tsootc_ui_triple_text(
 					$lang,
@@ -679,6 +790,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		}
 		if ( $options['n_unknown'] > 0 ) {
 			$findings[] = array(
+				'key'           => 'options_unknown',
 				'severity'      => 'warning',
 				'message'       => tsootc_ui_triple_text(
 					$lang,
@@ -692,6 +804,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		}
 	} else {
 		$findings[] = array(
+			'key'           => 'options_cache_missing',
 			'severity'      => 'info',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -699,13 +812,15 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 				'Aún no hay inventario de opciones en caché — abre wp_options para completar el diagnóstico.',
 				'Options inventory cache is not ready yet — open wp_options once to complete the diagnosis.'
 			),
-			'action_label'  => tsootc_ui_triple_text( $lang, 'Obrir wp_options', 'Abrir wp_options', 'Open wp_options' ),
-			'action_url'    => $tab_url( 'options' ),
+			'action_label'  => tsootc_ui_triple_text( $lang, 'Actualitza ara', 'Actualizar ahora', 'Refresh now' ),
+			// Forces a rebuild instead of just opening the tab, so this is a real one-click refresh.
+			'action_url'    => $tab_url( 'options' ) . '&' . TSOOTC_ADMIN_QUERY_REFRESH . '=1',
 		);
 	}
 
 	if ( $tables['orphans'] > 0 ) {
 		$findings[] = array(
+			'key'           => 'tables_orphans',
 			'severity'      => 'critical',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -718,6 +833,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		);
 	} elseif ( $tables['total'] > 0 ) {
 		$findings[] = array(
+			'key'           => 'tables_present',
 			'severity'      => 'info',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -733,6 +849,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 	$free_kb = isset( $frag['free_kb'] ) ? (int) $frag['free_kb'] : 0;
 	if ( $free_kb > 1024 ) {
 		$findings[] = array(
+			'key'           => 'fragmentation',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -747,6 +864,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 
 	if ( $cron['overdue'] > 0 ) {
 		$findings[] = array(
+			'key'           => 'cron_overdue',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -761,6 +879,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 
 	if ( ! empty( $cron['orphans'] ) ) {
 		$findings[] = array(
+			'key'           => 'cron_orphans',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -775,6 +894,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 
 	if ( ! empty( $cron['disabled'] ) ) {
 		$findings[] = array(
+			'key'           => 'cron_disabled',
 			'severity'      => 'info',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -787,14 +907,28 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		);
 	}
 
-	$recent_history = tsootc_status_get_recent_history( 1 );
-	if ( ! empty( $recent_history[0]['action'] ) && 'deleted' === $recent_history[0]['action'] ) {
-		$deleted_ts = (int) ( $recent_history[0]['ts'] ?? 0 );
+	if ( ! tsootc_status_has_persistent_object_cache() ) {
+		$findings[] = array(
+			'key'           => 'no_object_cache',
+			'severity'      => 'info',
+			'message'       => tsootc_ui_triple_text(
+				$lang,
+				'No s\'ha detectat cap cache d\'objectes persistent (Redis, Memcached…) — cada petició torna a llegir wp_options de la base de dades.',
+				'No se ha detectado ninguna caché de objetos persistente (Redis, Memcached…) — cada petición vuelve a leer wp_options desde la base de datos.',
+				'No persistent object cache detected (Redis, Memcached…) — every request re-reads wp_options from the database.'
+			),
+			'action_label'  => '',
+			'action_url'    => '',
+		);
+	}
+
+	if ( ! empty( $latest_history['action'] ) && 'deleted' === $latest_history['action'] ) {
+		$deleted_ts = (int) ( $latest_history['ts'] ?? 0 );
 		$has_table_residue  = $tables['orphans'] > 0;
 		$has_option_residue = $options['available'] && $options['n_uninstalled'] > 0;
 		// Skip if there is nothing actionable: recent deletes already appear under «Recent changes».
 		if ( $deleted_ts > ( time() - ( 14 * DAY_IN_SECONDS ) ) && ( $has_table_residue || $has_option_residue ) ) {
-			$deleted_name = (string) ( $recent_history[0]['name'] ?? '' );
+			$deleted_name = (string) ( $latest_history['name'] ?? '' );
 			$residue_bits = array();
 			if ( $has_table_residue ) {
 				$residue_bits[] = sprintf(
@@ -811,6 +945,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 			$residue_tail = ' (' . implode( ', ', $residue_bits ) . ').';
 			$go_tables    = $has_table_residue;
 			$findings[]   = array(
+				'key'          => 'recent_delete_residue',
 				'severity'     => 'warning',
 				'message'      => tsootc_ui_triple_text(
 					$lang,
@@ -828,6 +963,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 
 	if ( 0 === (int) $backup['count'] ) {
 		$findings[] = array(
+			'key'           => 'backup_missing',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -840,6 +976,7 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		);
 	} elseif ( null !== $backup['age_days'] && $backup['age_days'] > 14 ) {
 		$findings[] = array(
+			'key'           => 'backup_stale',
 			'severity'      => 'warning',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -852,8 +989,24 @@ function tsootc_status_build_findings( $lang, array $stats, array $tables, array
 		);
 	}
 
+	// Apply user-hidden findings before deciding whether the list is "empty" —
+	// dismissing everything should fall back to the "all clear" message below.
+	$dismissed = tsootc_status_get_dismissed_findings();
+	if ( ! empty( $dismissed ) ) {
+		$findings = array_values(
+			array_filter(
+				$findings,
+				static function ( $finding ) use ( $dismissed ) {
+					$key = isset( $finding['key'] ) ? (string) $finding['key'] : '';
+					return '' === $key || ! isset( $dismissed[ $key ] );
+				}
+			)
+		);
+	}
+
 	if ( empty( $findings ) ) {
 		$findings[] = array(
+			'key'           => 'all_clear',
 			'severity'      => 'ok',
 			'message'       => tsootc_ui_triple_text(
 				$lang,
@@ -943,16 +1096,21 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 		? tsootc_get_prefix_table_fragmentation()
 		: array( 'free_kb' => 0 );
 
-	$findings = tsootc_status_build_findings( $lang, $stats, $tables, $options, $cron, $backup, $frag, $base_url );
-	$overall  = tsootc_status_overall_health( $findings );
+	// Computed once and reused for both the findings pass (recent-uninstall residue
+	// check) and the "Recent changes" table below — avoids reading/sorting the
+	// history option twice on every load of this tab.
 	$recent   = tsootc_status_get_recent_history( 5 );
+	$findings = tsootc_status_build_findings( $lang, $stats, $tables, $options, $cron, $backup, $frag, $base_url, isset( $recent[0] ) ? $recent[0] : null );
+	$overall  = tsootc_status_overall_health( $findings );
 	$auto_cfg = function_exists( 'tsootc_auto_clean_get_settings' ) ? tsootc_auto_clean_get_settings() : array( 'enabled' => false );
 	$autoclean = tsootc_status_build_autoclean_suggestion( $lang, $stats, $frag, $auto_cfg );
 	$autoclean_last = tsootc_status_get_autoclean_last_summary();
 	$inventory      = tsootc_status_get_wp_options_inventory( $options_payload );
 	$diagnostic     = tsootc_status_get_diagnostic_meta( $options_payload );
 	$autoload_top   = tsootc_status_get_autoload_top_items( 3, $options_payload );
+	$autoload_top_sum_kb = array_sum( array_column( $autoload_top, 'kb' ) );
 	$saved_bytes    = function_exists( 'tsootc_get_saved_bytes' ) ? tsootc_get_saved_bytes() : 0;
+	$db_total_bytes = tsootc_status_get_db_total_size_bytes();
 	$cleanup_url = $base_url . '&tab=cleanup#tso-auto-clean-panel';
 	$history_url = $base_url . '&tab=history';
 	$options_url = $base_url . '&tab=options';
@@ -1024,6 +1182,7 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 	echo '<div class="tso-stat-card ' . esc_attr( 0 === (int) $backup['count'] ? 'color-orange' : 'color-blue' ) . '"><div class="tso-stat-value tso-status-stat-sm">' . esc_html( $backup_label ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Darrer backup', 'Último backup', 'Latest backup' ) ) . '</div></div>';
 	echo '<div class="tso-stat-card ' . esc_attr( $cron['overdue'] > 0 ? 'color-orange' : 'color-gray' ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( $cron['overdue'] ) ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'CRON endarrerit', 'CRON atrasado', 'Overdue CRON' ) ) . '</div></div>';
 	echo '<div class="tso-stat-card ' . esc_attr( ( (int) ( $frag['free_kb'] ?? 0 ) ) > 1024 ? 'color-orange' : 'color-green' ) . '"><div class="tso-stat-value">' . esc_html( number_format_i18n( (int) ( $frag['free_kb'] ?? 0 ) ) ) . ' KB</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Fragmentació', 'Fragmentación', 'Fragmentation' ) ) . '</div></div>';
+	echo '<div class="tso-stat-card color-blue"><div class="tso-stat-value tso-status-stat-sm">' . esc_html( function_exists( 'tsootc_format_bytes' ) ? tsootc_format_bytes( $db_total_bytes ) : number_format_i18n( $db_total_bytes ) . ' B' ) . '</div><div class="tso-stat-label">' . esc_html( tsootc_ui_triple_text( $lang, 'Mida BD', 'Tamaño BD', 'DB size' ) ) . '</div></div>';
 	echo '</div>';
 	echo '<p class="tso-hist-meta-note tso-status-metrics-note">' . esc_html(
 		tsootc_ui_triple_text(
@@ -1086,7 +1245,13 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 	if ( ! empty( $autoload_top ) ) {
 		echo '<div class="tso-status-autoload">';
 		echo '<div class="tso-status-recent-head">';
-		echo '<h4 class="tso-status-findings-title">' . esc_html( tsootc_ui_triple_text( $lang, 'Top autoload (opcions més pesades)', 'Top autoload (opciones más pesadas)', 'Top autoload (heaviest options)' ) ) . '</h4>';
+		$autoload_top_heading = tsootc_ui_triple_text( $lang, 'Top autoload (opcions més pesades)', 'Top autoload (opciones más pesadas)', 'Top autoload (heaviest options)' )
+			. ' — ' . sprintf(
+				/* translators: %s: formatted KB total of the items listed below. */
+				tsootc_ui_triple_text( $lang, 'total %s KB', 'total %s KB', 'total %s KB' ),
+				number_format( (float) $autoload_top_sum_kb, 1 )
+			);
+		echo '<h4 class="tso-status-findings-title">' . esc_html( $autoload_top_heading ) . '</h4>';
 		echo '<a class="tso-status-recent-all" href="' . esc_url( $options_url ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Diagnòstic complet →', 'Diagnóstico completo →', 'Full diagnosis →' ) ) . '</a>';
 		echo '</div>';
 		echo '<ul class="tso-status-autoload-list">';
@@ -1142,6 +1307,16 @@ function tsootc_status_render_admin_tab( $lang, array $stats, $base_url, $option
 		echo '<span class="tso-status-finding-text">' . esc_html( (string) ( $finding['message'] ?? '' ) ) . '</span>';
 		if ( ! empty( $finding['action_url'] ) && ! empty( $finding['action_label'] ) ) {
 			echo '<a class="button button-primary tso-status-finding-btn" href="' . esc_url( (string) $finding['action_url'] ) . '">' . esc_html( (string) $finding['action_label'] ) . '</a>';
+		}
+		$finding_key = isset( $finding['key'] ) ? (string) $finding['key'] : '';
+		// Urgent items and the "all clear" placeholder are not dismissible — everything
+		// else can be hidden for a week (it comes back on its own if still true then).
+		if ( '' !== $finding_key && ! in_array( $severity, array( 'critical', 'ok' ), true ) ) {
+			$dismiss_url = wp_nonce_url(
+				add_query_arg( array( TSOOTC_ADMIN_QUERY_DISMISS_FINDING => $finding_key ), $base_url . '&tab=status' ),
+				TSOOTC_ADMIN_QUERY_DISMISS_FINDING
+			);
+			echo '<a class="tso-status-finding-dismiss" href="' . esc_url( $dismiss_url ) . '" title="' . esc_attr( tsootc_ui_triple_text( $lang, 'Amagar aquest avís durant 7 dies', 'Ocultar este aviso durante 7 días', 'Hide this notice for 7 days' ) ) . '">' . esc_html( tsootc_ui_triple_text( $lang, 'Amaga 7 dies', 'Ocultar 7 días', 'Hide 7 days' ) ) . '</a>';
 		}
 		echo '</li>';
 	}

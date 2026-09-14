@@ -339,6 +339,15 @@ function tsootc_pre_switch_theme_snapshot() {
     if ( ! is_admin() ) {
         return;
     }
+
+    // Only the screens where a theme switch can actually happen (Appearance > Themes,
+    // the Customizer). Running the full wp_options key scan + transient write on every
+    // admin_init hit every wp-admin page load for no benefit.
+    global $pagenow;
+    if ( ! in_array( $pagenow, array( 'themes.php', 'customize.php' ), true ) ) {
+        return;
+    }
+
     tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_SWITCH_THEME_SNAPSHOT, tsootc_snapshot_option_keys( true ), 120 );
 }
 add_action( 'admin_init', 'tsootc_pre_switch_theme_snapshot', 1 );

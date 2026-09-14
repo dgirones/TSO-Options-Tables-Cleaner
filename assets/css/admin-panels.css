@@ -263,6 +263,9 @@
 .tso-status-finding-icon { flex:0 0 auto; font-size:14px; line-height:1; }
 .tso-status-finding-text { flex:1 1 220px; min-width:0; font-size:13px; color:#3c434a; line-height:1.4; }
 .tso-status-finding-btn { flex:0 0 auto; margin-left:auto !important; }
+.tso-status-finding-dismiss { flex:0 0 auto; font-size:12px; color:#787c82; text-decoration:none; white-space:nowrap; }
+.tso-status-finding-dismiss:hover { color:#d63638; text-decoration:underline; }
+.tso-status-finding-btn + .tso-status-finding-dismiss { margin-left:0; }
 .tso-status-footnote { margin-top:4px; }
 .tso-status-metrics-note { margin:-6px 0 14px; text-align:center; max-width:720px; margin-left:auto; margin-right:auto; line-height:1.4; }
 .tso-status-recent { background:#fff; border:1px solid #e2e4e7; border-radius:10px; padding:12px 14px 10px; margin-bottom:14px; }
