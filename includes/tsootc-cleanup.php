@@ -951,10 +951,6 @@ function tsootc_purge_all_transients() {
  * @return string[]
  */
 function tsootc_map_meta_cap_allow_cleanup( $caps, $cap, $user_id, $args ) {
-    if ( ! user_can( $user_id, 'manage_options' ) ) {
-        return $caps;
-    }
-
     $cleanup_caps = array(
         'delete_post',
         'delete_page',
@@ -968,11 +964,17 @@ function tsootc_map_meta_cap_allow_cleanup( $caps, $cap, $user_id, $args ) {
         'moderate_comments',
     );
 
-    if ( in_array( (string) $cap, $cleanup_caps, true ) ) {
-        return array( 'manage_options' );
+    // Check the requested cap first: calling user_can() before this made the filter re-enter itself infinitely.
+    if ( ! in_array( (string) $cap, $cleanup_caps, true ) ) {
+        return $caps;
     }
 
-    return $caps;
+    // 'manage_options' is not in $cleanup_caps, so this nested check cannot re-enter this branch.
+    if ( ! user_can( $user_id, 'manage_options' ) ) {
+        return $caps;
+    }
+
+    return array( 'manage_options' );
 }
 
 /**
@@ -984,9 +986,11 @@ function tsootc_map_meta_cap_allow_cleanup( $caps, $cap, $user_id, $args ) {
 function tsootc_with_cleanup_capability_bypass( $callback ) {
     add_filter( 'map_meta_cap', 'tsootc_map_meta_cap_allow_cleanup', 10, 4 );
 
-    $result = (int) call_user_func( $callback );
-
-    remove_filter( 'map_meta_cap', 'tsootc_map_meta_cap_allow_cleanup', 10 );
+    try {
+        $result = (int) call_user_func( $callback );
+    } finally {
+        remove_filter( 'map_meta_cap', 'tsootc_map_meta_cap_allow_cleanup', 10 );
+    }
 
     return $result;
 }
@@ -1181,6 +1185,11 @@ function tsootc_count_posts_by_status( $status, $post_types = null ) {
         return 0;
     }
 
+    if ( 'auto-draft' === $status ) {
+        // Only auto-drafts older than one day: a fresh one belongs to an editor screen that may still be open.
+        return tsootc_count_posts_by_status_modified_before( $status, gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ), $post_types );
+    }
+
     $types = $post_types;
     if ( null === $types && in_array( $status, array( 'trash', 'auto-draft' ), true ) ) {
         $types = tsootc_get_cleanup_content_post_type_slugs();
@@ -1332,12 +1341,26 @@ function tsootc_delete_posts_by_status( $status ) {
         return 0;
     }
 
+    $date_sql  = '';
+    $date_args = array();
+    if ( 'auto-draft' === $status ) {
+        // Keep in sync with tsootc_count_posts_by_status(): never delete auto-drafts younger than one day.
+        $date_sql  = ' AND post_modified_gmt < %s';
+        $date_args = array( gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
+    }
+
     if ( is_array( $types ) && ! empty( $types ) ) {
         $types        = tsootc_sanitize_post_type_slug_list( $types );
         $placeholders = tsootc_posts_in_types_placeholder( $types );
         // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPlaceholder -- one %s per post type slug
-        $sql = "SELECT ID FROM {$wpdb->posts} WHERE post_status = %s AND post_type IN ($placeholders)";
-        $ids = $wpdb->get_col( $wpdb->prepare( $sql, array_merge( array( $status ), $types ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- post type slugs sanitized above
+        $sql = "SELECT ID FROM {$wpdb->posts} WHERE post_status = %s{$date_sql} AND post_type IN ($placeholders)";
+        $ids = $wpdb->get_col( $wpdb->prepare( $sql, array_merge( array( $status ), $date_args, $types ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- post type slugs sanitized above
+    } elseif ( 'auto-draft' === $status ) {
+        $ids = $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            "SELECT ID FROM {$wpdb->posts} WHERE post_status = %s AND post_modified_gmt < %s",
+            $status,
+            $date_args[0]
+        ) );
     } else {
         $ids = $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             "SELECT ID FROM {$wpdb->posts} WHERE post_status = %s",
@@ -2093,10 +2116,11 @@ function tsootc_auto_clean_unschedule() {
  * First run is interval seconds from now (not immediate) so "Next" matches the
  * selected frequency after save.
  *
- * @param string $interval daily|weekly|monthly.
+ * @param string $interval           daily|weekly|monthly.
+ * @param bool   $anchor_to_last_run When true, the next run is last run + interval (never later), or soon when that is already past.
  * @return bool True when WordPress accepted the schedule.
  */
-function tsootc_auto_clean_schedule( $interval ) {
+function tsootc_auto_clean_schedule( $interval, $anchor_to_last_run = false ) {
     tsootc_auto_clean_unschedule();
 
     $interval = in_array( (string) $interval, array( 'daily', 'weekly', 'monthly' ), true )
@@ -2105,6 +2129,13 @@ function tsootc_auto_clean_schedule( $interval ) {
     $slug     = tsootc_auto_clean_cron_schedule_slug( $interval );
     $seconds  = tsootc_auto_clean_interval_seconds( $interval );
     $first    = time() + max( 60, $seconds );
+
+    if ( $anchor_to_last_run ) {
+        $last_run = (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RUN, 0 );
+        if ( $last_run > 0 ) {
+            $first = max( time() + 60, $last_run + $seconds );
+        }
+    }
 
     $result = wp_schedule_event( $first, $slug, 'tsootc_auto_clean_cron_hook' );
     return false !== $result;
@@ -2224,15 +2255,20 @@ function tsootc_auto_clean_ensure_schedule() {
         return;
     }
 
-    $actual = isset( $event->schedule ) ? (string) $event->schedule : '';
-    $ts     = isset( $event->timestamp ) ? (int) $event->timestamp : 0;
-    $now    = time();
-    $needs  = false;
+    $actual   = isset( $event->schedule ) ? (string) $event->schedule : '';
+    $ts       = isset( $event->timestamp ) ? (int) $event->timestamp : 0;
+    $now      = time();
+    $last_run = (int) tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_LAST_RUN, 0 );
+    $needs    = false;
 
     if ( $actual !== $expected ) {
         $needs = true;
-    } elseif ( $ts > 0 && $ts < ( $now - ( 2 * $seconds ) ) ) {
-        // Far overdue (WP-Cron never spawned): run catch-up once, then the runner reschedules.
+    } elseif ( $last_run > 0 && $ts > ( max( $now, $last_run + $seconds ) + HOUR_IN_SECONDS ) ) {
+        // Next run is later than last run + interval (e.g. pushed out by a re-save): realign to the frequency.
+        // An already-overdue schedule is left alone (max with $now) so it is not pushed forward on every admin load.
+        $needs = true;
+    } elseif ( $ts > 0 && $ts < ( $now - $seconds ) ) {
+        // Overdue by more than one interval (WP-Cron never spawned): run catch-up once, then the runner reschedules.
         static $tsootc_auto_clean_catchup_done = false;
         if ( ! $tsootc_auto_clean_catchup_done && function_exists( 'tsootc_auto_clean_run' ) ) {
             $tsootc_auto_clean_catchup_done = true;
@@ -2242,7 +2278,7 @@ function tsootc_auto_clean_ensure_schedule() {
     }
 
     if ( $needs ) {
-        tsootc_auto_clean_schedule( $interval );
+        tsootc_auto_clean_schedule( $interval, true );
     }
 }
 
@@ -2324,7 +2360,13 @@ function tsootc_ajax_save_auto_clean() {
 
     tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_AUTO_CLEAN_SETTINGS, $cfg, false );
     if ( $enabled && ! empty( $actions ) ) {
-        tsootc_auto_clean_schedule( $cfg['interval'] );
+        $existing = tsootc_auto_clean_get_scheduled_event();
+        $keep     = $existing
+            && isset( $existing->schedule )
+            && tsootc_auto_clean_cron_schedule_slug( $cfg['interval'] ) === (string) $existing->schedule;
+        if ( ! $keep ) {
+            tsootc_auto_clean_schedule( $cfg['interval'] );
+        }
     } else {
         tsootc_auto_clean_unschedule();
     }

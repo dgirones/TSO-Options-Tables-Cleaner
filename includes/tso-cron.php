@@ -1464,7 +1464,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '<button type="submit" class="button tso-u-hidden" tabindex="-1" aria-hidden="true">' . esc_html( tsootc_ui_triple_text( $lang, 'Filtrar', 'Filtrar', 'Filter' ) ) . '</button>';
 	echo '</form>';
 
-	echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat" id="tso-cron-events-table"><thead><tr>';
+	echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat" id="tso-cron-events-table" data-now="' . esc_attr( (string) $now ) . '"><thead><tr>';
 	echo '<th>' . esc_html( $lbl_hook ) . '</th>';
 	echo '<th>' . esc_html( $lbl_next ) . '</th>';
 	echo '<th>' . esc_html( $lbl_sched ) . '</th>';

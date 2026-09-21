@@ -98,6 +98,10 @@ No external connections: This plugin does not make any HTTP requests to external
 Recent releases only. Older notes are in changelog.txt in the plugin folder.
 
 = 1.3.6 =
+* Fix: the auto-drafts cleanup no longer deletes auto-drafts younger than one day, so a post editor left open no longer breaks when its draft is removed
+* Improvement: the Cron tab now refreshes itself when scheduled events run or change (checked every 20 seconds while the tab is open)
+* Fix: automatic cleanup "Next run" could show a date far beyond the selected frequency (e.g. 20 days on weekly) because every save pushed it out; saving no longer moves an existing schedule and the next run is realigned to last run + interval
+* Fix: cleaning post revisions / old revisions (and other post deletions) crashed with a critical error caused by an infinite recursion in the cleanup capability filter
 * Security hardening: the wp_options value viewer no longer instantiates PHP objects when unserializing a stored option's raw value (allowed_classes disabled), reducing object-injection exposure from other plugins' data
 * Fix: code-scan index build (option/table detection across installed plugins and themes) could hit "Maximum execution time exceeded" and fatal out on hosts with a low time limit or slow disk; it now stops within a safe time budget instead of running until the host kills it
 
