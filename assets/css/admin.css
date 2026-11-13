@@ -1,3 +1,10 @@
+/* Keep the vertical scrollbar space reserved on the plugin screen so the centered layout
+   does not slide sideways when a tab is shorter or taller than the window. */
+html:has(body.tools_page_tso-options-tables-cleaner) { overflow-y:scroll; scrollbar-gutter:stable; }
+
+#tso-wrap .tso-main-tab .tso-tab-ico { display:inline-block; flex:0 0 auto; width:1.4em; margin-right:.4em; text-align:center; line-height:1; }
+#tso-wrap .tso-main-tab .tso-tab-ico img.emoji { margin:0 !important; vertical-align:-0.15em; }
+
 /* ---- Theme tokens (day / night) ---- */
 #tso-wrap[data-theme="day"] {
   --tsootc-bg: #f0f0f1;
@@ -29,7 +36,19 @@ html[data-tsootc-theme="night"] #tso-wrap {
   --tsootc-row-hover: rgba(34,113,177,.16);
 }
 /* ---- Layout ---- */
+/* Accent tokens on body so modals in admin_footer also inherit the WP colour scheme. */
+body.tools_page_tso-options-tables-cleaner {
+  --tsootc-accent: var(--wp-admin-theme-color, #2271b1);
+  --tsootc-accent-rgb: var(--wp-admin-theme-color--rgb, 34, 113, 177);
+  --tsootc-accent-dark: var(--wp-admin-theme-color-darker-10, #135e96);
+  --tsootc-accent-darker: var(--wp-admin-theme-color-darker-20, #0a4b78);
+}
 #tso-wrap {
+  /* Follow WordPress admin colour scheme (Sunrise, Ocean, Ectoplasm, …) — same idea as Link Inspector. */
+  --tsootc-accent: var(--wp-admin-theme-color, #2271b1);
+  --tsootc-accent-rgb: var(--wp-admin-theme-color--rgb, 34, 113, 177);
+  --tsootc-accent-dark: var(--wp-admin-theme-color-darker-10, #135e96);
+  --tsootc-accent-darker: var(--wp-admin-theme-color-darker-20, #0a4b78);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   max-width:100%;
   box-sizing:border-box;
@@ -100,11 +119,11 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
   font-weight:500;
   line-height:1.35;
   padding:10px 14px;
-  border-radius:8px;
+  border-radius:10px;
   text-decoration:none;
   box-sizing:border-box;
-  box-shadow:0 1px 2px rgba(0,0,0,.03);
-  transition:background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  box-shadow:0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
+  transition:background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .12s ease;
 }
 #tso-wrap .tso-main-tabs .tso-main-tab:hover,
 #tso-wrap .tso-main-tabs .tso-main-tab:focus {
@@ -115,37 +134,46 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
   outline:none;
 }
 #tso-wrap .tso-main-tabs .tso-main-tab:focus-visible {
-  box-shadow:0 0 0 2px #fff, 0 0 0 4px #2271b1;
+  box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--tsootc-accent, #2271b1);
 }
 #tso-wrap .tso-main-tabs .tso-main-tab.is-active,
 #tso-wrap .tso-main-tabs .tso-main-tab.is-active:hover,
 #tso-wrap .tso-main-tabs .tso-main-tab.is-active:focus {
-  background:#2271b1 !important;
-  border-color:#2271b1 !important;
+  background:var(--tsootc-accent, #2271b1) !important;
+  border-color:var(--tsootc-accent, #2271b1) !important;
   color:#fff !important;
   font-weight:700;
-  box-shadow:0 2px 8px rgba(34,113,177,.32);
+  box-shadow:0 2px 8px rgba(var(--tsootc-accent-rgb, 34, 113, 177), .32);
 }
 #tso-wrap .tso-tab-content {
   background:var(--tsootc-bg, #f0f0f1);
-  padding:20px 0;
+  padding:10px 0 12px;
   min-height:calc(100vh - 200px);
   clear:both;
   display:block;
   width:100%;
   box-sizing:border-box;
 }
+/* Stack rhythm: 12px between major blocks (tabs → notice → cards → filters…). */
+#tso-wrap .tso-tab-inner > .tso-notice-info:first-child,
+#tso-wrap .tso-tab-inner > .tso-notice-flex:first-child,
+#tso-wrap .tso-tab-inner > .tso-notice-success:first-child,
+#tso-wrap .tso-tab-inner > .tso-notice-warning:first-child {
+  margin-top:0;
+  margin-bottom:12px;
+}
 /* ---- Notice ---- */
-.tso-notice-success { background:#fff; border-left:4px solid #46b450; padding:12px 16px; margin-bottom:20px; border-radius:0 4px 4px 0; display:flex; align-items:center; gap:10px; font-size:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
-.tso-notice-warning { background:#fff; border-left:4px solid #f56e28; padding:12px 16px; margin-bottom:20px; border-radius:0 4px 4px 0; display:flex; align-items:center; gap:10px; font-size:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.tso-notice-success { background:#fff; border-left:4px solid #46b450; padding:12px 16px; margin-bottom:12px; border-radius:0 4px 4px 0; display:flex; align-items:center; gap:10px; font-size:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); color:#1d2327; }
+.tso-notice-warning { background:#fff; border-left:4px solid #f56e28; padding:12px 16px; margin-bottom:12px; border-radius:0 4px 4px 0; display:flex; align-items:center; gap:10px; font-size:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); color:#1d2327; }
+.tso-notice-info { background:#fff; border-left:4px solid var(--tsootc-accent, #2271b1); padding:12px 16px; margin-bottom:12px; border-radius:0 4px 4px 0; display:flex; align-items:center; gap:10px; font-size:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); color:#1d2327; }
 .tso-notice-icon { font-size:18px; }
 /* ---- Stats Cards ---- (responsive grid; avoid nowrap crush on mid widths) ---- */
 #tso-wrap .tso-stats-grid,
 .tso-stats-grid {
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
-  gap:10px;
-  margin-bottom:24px;
+  gap:12px;
+  margin-bottom:12px;
   min-width:0;
   width:100%;
 }
@@ -155,14 +183,14 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-stat-card.color-red    { border-top-color:#dc3232; }
 .tso-stat-card.color-orange { border-top-color:#f56e28; }
 .tso-stat-card.color-green  { border-top-color:#46b450; }
-.tso-stat-card.color-blue   { border-top-color:#007cba; }
+.tso-stat-card.color-blue   { border-top-color:var(--tsootc-accent, #007cba); }
 .tso-stat-card.color-gray   { border-top-color:#999; }
 .tso-stat-value { font-size:26px; font-weight:700; margin:8px 0 4px; line-height:1.1; }
 .tso-stat-label { color:var(--tsootc-text-muted, #666); font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
 .tso-stat-card.color-red    .tso-stat-value { color:#dc3232; }
 .tso-stat-card.color-orange .tso-stat-value { color:#f56e28; }
 .tso-stat-card.color-green  .tso-stat-value { color:#46b450; }
-.tso-stat-card.color-blue   .tso-stat-value { color:#007cba; }
+.tso-stat-card.color-blue   .tso-stat-value { color:var(--tsootc-accent, #007cba); }
 .tso-stat-card.color-gray   .tso-stat-value { color:#555; }
 /* Compact centered row (Extra tables / CRON summary — fewer cards, less vertical space) */
 #tso-wrap .tso-stats-grid.tso-stats-grid-compact,
@@ -171,7 +199,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   max-width: 720px;
   margin-left: auto;
   margin-right: auto;
@@ -229,16 +257,13 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-optimize-results .tso-opt-kb { color:#888; font-size:11px; white-space:nowrap; }
 #tso-optimize-header { background:#f9f9f9; padding:10px 14px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:8px; }
 /* ---- Section boxes ---- */
-.tso-section { background:var(--tsootc-surface, #fff); border:1px solid var(--tsootc-border, #ddd); border-radius:6px; padding:20px 22px; margin-bottom:20px; box-shadow:var(--tsootc-shadow, 0 1px 3px rgba(0,0,0,.05)); color:var(--tsootc-text, #1d2327); }
+.tso-section { background:var(--tsootc-surface, #fff); border:1px solid var(--tsootc-border, #ddd); border-radius:6px; padding:20px 22px; margin-bottom:12px; box-shadow:var(--tsootc-shadow, 0 1px 3px rgba(0,0,0,.05)); color:var(--tsootc-text, #1d2327); }
 .tso-section h3 { margin:0 0 14px; font-size:14px; color:var(--tsootc-text, #1d2327); display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--tsootc-border-soft, #eee); padding-bottom:10px; }
 /* ---- wp_options table ---- */
 #tso-wrap .widefat { border:none !important; }
 #tso-wrap .widefat th { background:#f9f9f9; color:#333; font-weight:600; font-size:12px; padding:8px 12px; border-bottom:2px solid #ddd; }
 #tso-wrap .widefat td { padding:7px 12px; border-bottom:1px solid #eee; color:#333; font-size:12px; }
 #tso-wrap .widefat tr:hover td { background:#f5f9ff !important; }
-.tso-group-header { background:#fff; border:1px solid #ddd; border-radius:4px; padding:9px 14px; display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
-.tso-group-header:hover { background:#f5f9ff; }
-.tso-group-body { border:1px solid #ddd; border-top:none; border-radius:0 0 4px 4px; margin-bottom:10px; overflow:hidden; }
 .tso-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
 .tso-badge-yes  { background:#fde8e8; color:#c00; border:1px solid #f5c0c0; }
 .tso-badge-no   { background:#e8f5e9; color:#2a7a2a; border:1px solid #b0d8b0; }
@@ -249,13 +274,19 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-badge-0    { background:#e8f5e9; color:#2a7a2a; border:1px solid #b0d8b0; }
 /* ---- Safety badges ---- */
 .tso-safe-core     { color:#0075be; font-size:11px; }
-.tso-safe-active   { color:#8a4a00; font-size:11px; }
-.tso-safe-inactive { color:#2a6b2a; font-size:11px; }
-.tso-safe-unknown  { color:#555; font-size:11px; }
 /* ---- Tables tab ---- */
-.tso-tables-grid { width:100%; border-collapse:collapse; table-layout:auto; }
-.tso-tables-grid th { background:#f0f6fc; padding:10px 14px; text-align:left; font-size:12px; font-weight:600; color:#333; border-bottom:2px solid #d0e8f5; }
-.tso-tables-grid td { padding:10px 12px; border-bottom:1px solid #eee; font-size:13px; vertical-align:middle; }
+/* Fixed layout + wrapping so the extra-tables list fits its container without a horizontal
+   scrollbar (a long detected-plugin name used to force the row past the available width). */
+.tso-tables-grid { width:100%; border-collapse:collapse; table-layout:fixed; }
+.tso-tables-grid col.tso-col-chk    { width:34px; }
+.tso-tables-grid col.tso-col-table  { width:23%; }
+.tso-tables-grid col.tso-col-plugin { width:21%; }
+.tso-tables-grid col.tso-col-status { width:12%; }
+.tso-tables-grid col.tso-col-size   { width:13%; }
+.tso-tables-grid col.tso-col-usage  { width:11%; }
+.tso-tables-grid col.tso-col-action { width:190px; }
+.tso-tables-grid th { background:#f0f6fc; padding:10px 14px; text-align:left; font-size:12px; font-weight:600; color:#333; border-bottom:2px solid #d0e8f5; overflow-wrap:anywhere; }
+.tso-tables-grid td { padding:10px 12px; border-bottom:1px solid #eee; font-size:13px; vertical-align:middle; overflow-wrap:anywhere; word-break:break-word; white-space:normal; }
 .tso-tables-grid td.tso-stack-td-chk { vertical-align: middle; }
 .tso-tables-grid tr:hover td { background:#f5f9ff; }
 .tso-plugin-badge { display:inline-flex; align-items:center; gap:5px; background:#f0f6fc; border:1px solid #d0e8f5; border-radius:3px; padding:3px 8px; font-size:12px; }
@@ -264,7 +295,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-plugin-badge.inactive { background:#fff6ea; border-color:#f0d0a3; color:#9a5200; }
 .tso-plugin-badge.orphan { background:#fff1f0; border-color:#efb4af; color:#b42318; }
 .tso-size-chip { font-weight:700; font-size:13px; }
-.tso-filter-bar { background:#fff; border:1px solid #ddd; border-radius:4px; padding:12px 16px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.tso-filter-bar { background:#fff; border:1px solid #ddd; border-radius:4px; padding:12px 16px; margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .tso-table-status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }
 .tso-table-status-active { background:#edf9ef; color:#256b32; border:1px solid #b7dec0; }
 .tso-table-status-inactive { background:#fff6ea; color:#9a5200; border:1px solid #f0d0a3; }
@@ -277,15 +308,15 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-usage-not_in_use { background:#f6f7f7; color:#666; border:1px solid #dcdcde; }
 .tso-tables-grid .tso-plugin-badge,
 .tso-tables-grid .tso-table-status-badge,
-.tso-tables-grid .tso-usage-badge { vertical-align: middle; }
-.tso-tables-actions-td { vertical-align: middle; text-align: right; }
+.tso-tables-grid .tso-usage-badge { vertical-align: middle; max-width:100%; white-space:normal; word-break:break-word; }
+.tso-tables-actions-td { vertical-align: middle; text-align: right; padding-left:6px !important; padding-right:8px !important; }
 .tso-tables-detect-actions {
-  display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; margin-bottom: 6px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; justify-content: flex-end; margin-bottom: 6px;
 }
 .tso-tables-grid .tso-detect-badge { vertical-align: middle; }
 .tso-tables-actions-rowicons {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
@@ -330,11 +361,11 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-modal-head strong { flex:1; font-size:13px; font-family:monospace; word-break:break-all; }
 #tso-modal-body { padding:16px 20px; overflow-y:auto; flex:1; }
 #tso-modal-value { font-family:monospace; font-size:12px; white-space:pre-wrap; word-break:break-all; background:#f9f9f9; border:1px solid #ddd; padding:12px; border-radius:4px; max-height:400px; overflow-y:auto; margin:0; }
-#tso-modal-editor { display:none; width:100%; min-height:260px; font-family:monospace; font-size:12px; border:2px solid #007cba; border-radius:4px; padding:10px; resize:vertical; box-sizing:border-box; }
+#tso-modal-editor { display:none; width:100%; min-height:260px; font-family:monospace; font-size:12px; border:2px solid var(--tsootc-accent, #007cba); border-radius:4px; padding:10px; resize:vertical; box-sizing:border-box; }
 /* Visor arbre serialitzat */
 #tso-modal-tree { display:none; max-height:400px; overflow-y:auto; background:#f9f9f9; border:1px solid #ddd; padding:10px 12px; border-radius:4px; font-family:monospace; font-size:12px; }
 .tso-tree-node { margin:0; padding:0; }
-.tso-tree-toggle { cursor:pointer; user-select:none; color:#007cba; font-weight:700; padding:1px 4px; border-radius:3px; margin-right:4px; }
+.tso-tree-toggle { cursor:pointer; user-select:none; color:var(--tsootc-accent, #007cba); font-weight:700; padding:1px 4px; border-radius:3px; margin-right:4px; }
 .tso-tree-toggle:hover { background:#e8f4fb; }
 .tso-tree-children { margin-left:18px; border-left:1px dashed #ccc; padding-left:8px; }
 .tso-tree-children.collapsed { display:none; }
@@ -347,7 +378,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 /* Tabs vista bruta / arbre */
 #tso-modal-view-tabs { display:none; margin-bottom:10px; gap:6px; }
 #tso-modal-view-tabs button { font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid #ccc; background:#f5f5f5; cursor:pointer; }
-#tso-modal-view-tabs button.active { background:#007cba; color:#fff; border-color:#007cba; }
+#tso-modal-view-tabs button.active { background:var(--tsootc-accent, #007cba); color:#fff; border-color:var(--tsootc-accent, #007cba); }
 #tso-modal-edit-bar { display:none; margin-top:10px; gap:8px; align-items:center; flex-wrap:wrap; }
 #tso-modal-edit-bar.visible { display:flex; }
 #tso-modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:#666; padding:0 4px; }
@@ -382,18 +413,15 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 /* Renombrar grup */
 .tso-rename-btn { opacity:0.35; transition:opacity .15s; }
 .tso-rename-btn:hover, .tso-rename-btn.has-alias { opacity:1; }
-.tso-rename-btn.has-alias { color:#007cba !important; border-color:#007cba !important; }
+.tso-rename-btn.has-alias { color:var(--tsootc-accent, #007cba) !important; border-color:var(--tsootc-accent, #007cba) !important; }
 #tso-rename-overlay { background:rgba(0,0,0,.5); }
 #tso-rename-overlay.active { display:flex; }
 #tso-rename-box { background:#fff; border-radius:8px; width:90%; max-width:480px; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
 #tso-rename-box h3 { margin:0 0 6px; font-size:15px; }
 #tso-rename-box p  { margin:0 0 14px; font-size:12px; color:#666; font-family:monospace; background:#f5f5f5; padding:5px 10px; border-radius:4px; }
-#tso-rename-input  { width:100%; padding:8px 12px; border:2px solid #007cba; border-radius:5px; font-size:14px; box-sizing:border-box; margin-bottom:14px; }
+#tso-rename-input  { width:100%; padding:8px 12px; border:2px solid var(--tsootc-accent, #007cba); border-radius:5px; font-size:14px; box-sizing:border-box; margin-bottom:14px; }
 #tso-rename-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 #tso-rename-msg { font-size:12px; flex:1; }
-/* ---- Botó cercar opció desconeguda ---- */
-.tso-gemini-btn { display:inline-block; padding:2px 7px; background:#f0f6fc; border:1px solid #007cba; color:#007cba; border-radius:3px; font-size:11px; font-weight:600; white-space:nowrap; cursor:pointer; }
-.tso-gemini-btn:hover { background:#e3f0f8; color:#006093; border-color:#006093; }
 /* ---- Modal Assignar Opció ---- */
 #tso-assign-overlay { background:rgba(0,0,0,.6); }
 #tso-assign-overlay.active { display:flex; }
@@ -407,12 +435,10 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-assign-body .tso-assign-section { margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid #eee; }
 #tso-assign-body .tso-assign-section:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
 #tso-assign-body select, #tso-assign-body input[type="text"] { width:100%; padding:7px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box; }
-#tso-assign-body select:focus, #tso-assign-body input[type="text"]:focus { border-color:#007cba; outline:none; box-shadow:0 0 0 1px #007cba; }
-.tso-assign-btn { display:inline-block; padding:7px 14px; background:#007cba; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; }
-.tso-assign-btn:hover { background:#005d8f; }
-.tso-assign-btn-sec { background:#f6f7f7; color:#1d2327; border:1px solid #ccc; }
-.tso-assign-btn-sec:hover { background:#ddd; }
-.tso-assign-new-group { padding:10px 12px; background:#f0f6fc; border:1px dashed #007cba; border-radius:4px; }
+#tso-assign-body select:focus, #tso-assign-body input[type="text"]:focus { border-color:var(--tsootc-accent, #007cba); outline:none; box-shadow:0 0 0 1px var(--tsootc-accent, #007cba); }
+.tso-assign-btn { display:inline-block; padding:7px 14px; background:var(--tsootc-accent, #007cba); color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; }
+.tso-assign-btn:hover { background:var(--tsootc-accent-dark, #005d8f); }
+.tso-assign-new-group { padding:10px 12px; background:rgba(var(--tsootc-accent-rgb, 34, 113, 177), .08); border:1px dashed var(--tsootc-accent, #007cba); border-radius:4px; }
 .tso-custom-badge { display:inline-block; padding:1px 6px; background:#e8f5e9; border:1px solid #46b450; color:#2e7d32; border-radius:10px; font-size:10px; font-weight:700; vertical-align:middle; margin-left:4px; }
 /* ---- Mobile / narrow admin (matches WP ~782px toolbar breakpoint) ---- */
 .tso-nav-meta { display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; }
@@ -422,7 +448,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
   font-size:11px; font-weight:600; text-decoration:none; background:#f6f7f7; color:#555;
 }
 #tso-wrap .tso-lang-btn:hover { color:#1d2327; border-color:#999; }
-#tso-wrap .tso-lang-btn.is-active { background:#2271b1; color:#fff; border-color:#2271b1; font-weight:700; }
+#tso-wrap .tso-lang-btn.is-active { background:var(--tsootc-accent, #2271b1); color:#fff; border-color:var(--tsootc-accent, #2271b1); font-weight:700; }
 .tso-modal-head-btn { margin-right:8px; }
 #tso-modal-type-badge {
   display:none; font-size:11px; background:#e3f2fd; color:#0064a3; border:1px solid #b3d8f5;
@@ -432,25 +458,19 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-assign-head-text { flex:1; }
 .tso-btn-block { width:100%; text-align:center; box-sizing:border-box; }
 .tso-m0 { margin:0; }
-.tso-fs-12 { font-size:12px; }
-.tso-fs-11 { font-size:11px; }
 .tso-text-muted { color:#666; }
-.tso-text-muted-light { color:#888; }
 .tso-text-muted-faint { color:#999; }
 .tso-page-footnote { max-width:1100px; margin:16px auto 0; padding:0 20px; box-sizing:border-box; }
 .tso-page-footnote hr { margin:20px 0; border:0; border-top:1px solid #ddd; }
 .tso-max-w-1100 { max-width:1100px; width:100%; box-sizing:border-box; }
-.tso-flex-wrap-gap { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
 .tso-card-panel {
   background:var(--tsootc-surface, #fff); border:1px solid var(--tsootc-border-soft, #e2e4e7); border-radius:8px; padding:20px 24px;
   box-shadow:var(--tsootc-shadow, 0 1px 4px rgba(0,0,0,.06));
   color:var(--tsootc-text, #1d2327);
 }
-.tso-card-panel--compact { padding:18px 20px; }
 .tso-card-title { margin:0 0 14px; font-size:15px; }
 .tso-card-title-sm { margin:0 0 8px; font-size:16px; }
 .tso-card-desc { color:#666; font-size:13px; margin:0 0 16px; }
-.tso-card-desc-sm { color:#666; font-size:12px; margin:0; }
 .tso-icon-20 { font-size:20px; }
 .tso-retention-label { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; color:#555; }
 .tso-retention-input { width:90px; }
@@ -458,23 +478,23 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-stat-value-sm { font-size:18px; }
 .tso-action-count-sm { font-size:16px; }
 .tso-optimize-sub { font-size:11px; color:#888; margin-bottom:6px; }
-.tso-cleanup-footnote { color:#888; font-size:12px; margin-top:16px; }
-.tso-auto-meta-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:16px; font-size:13px; color:var(--tsootc-text-muted, #555); }
-.tso-auto-results-box { margin-bottom:16px; padding:12px 14px; background:var(--tsootc-surface-2, #f6f7f7); border:1px solid var(--tsootc-border, #dcdcde); border-radius:6px; color:var(--tsootc-text, #1d2327); }
+.tso-cleanup-footnote { color:#888; font-size:12px; margin-top:12px; }
+.tso-auto-meta-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:12px; font-size:13px; color:var(--tsootc-text-muted, #555); }
+.tso-auto-results-box { margin-bottom:12px; padding:12px 14px; background:var(--tsootc-surface-2, #f6f7f7); border:1px solid var(--tsootc-border, #dcdcde); border-radius:6px; color:var(--tsootc-text, #1d2327); }
 .tso-auto-results-title { font-size:12px; font-weight:600; margin-bottom:8px; color:var(--tsootc-text, #1d2327); }
 .tso-auto-results-list { margin:0; padding-left:18px; }
 .tso-hist-filter-select {
   font-size:12px; border-radius:4px; border:1px solid #ccc; padding:5px 8px; box-sizing:border-box;
 }
-.tso-hist-clear-btn--danger { white-space:nowrap; font-weight:700; }
-.tso-form-stop-prop { margin:0; }
 #tso-wrap .tso-donate-btn {
   display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
-  background:#fff8e6; border:1px solid #e0b070; color:#8a4a00;
+  background:var(--tsootc-accent, #2271b1); border:1px solid var(--tsootc-accent-dark, #135e96); color:#fff;
   border-radius:999px; padding:5px 12px; font-size:11px; font-weight:700;
   text-decoration:none; line-height:1.3;
 }
-#tso-wrap .tso-donate-btn:hover { background:#ffefb8; color:#6b3800; border-color:#c07000; }
+#tso-wrap .tso-donate-btn:hover {
+  background:var(--tsootc-accent-dark, #135e96); color:#fff; border-color:var(--tsootc-accent-darker, #0a4b78);
+}
 .tso-lang-switch { display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0; }
 /* Wide admin tables: horizontal scroll when viewport is narrower than table (desktop / tablet) */
 .tso-table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; margin:0 -4px; padding:0 4px; }
@@ -486,7 +506,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
   border:1px solid #8c8f94; border-radius:4px; font-size:13px; line-height:1.4;
   background:#fff; color:#1d2327;
 }
-.tso-tables-search:focus { border-color:#2271b1; box-shadow:0 0 0 1px #2271b1; outline:none; }
+.tso-tables-search:focus { border-color:var(--tsootc-accent, #2271b1); box-shadow:0 0 0 1px var(--tsootc-accent, #2271b1); outline:none; }
 .tso-tables-grid th.tso-tables-sortable {
   cursor:pointer; user-select:none; white-space:nowrap;
 }
@@ -494,7 +514,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 .tso-tables-grid th.tso-tables-sortable .tso-sort-ind {
   display:inline-block; margin-left:4px; font-size:10px; color:#8c8f94; min-width:0.9em;
 }
-.tso-tables-grid th.tso-tables-sortable.is-sorted .tso-sort-ind { color:#2271b1; font-weight:700; }
+.tso-tables-grid th.tso-tables-sortable.is-sorted .tso-sort-ind { color:var(--tsootc-accent, #2271b1); font-weight:700; }
 .tso-tables-grid th.tso-tables-sortable.is-asc .tso-sort-ind::after { content:"▲"; }
 .tso-tables-grid th.tso-tables-sortable.is-desc .tso-sort-ind::after { content:"▼"; }
 .tso-tables-grid th.tso-tables-sortable:not(.is-sorted) .tso-sort-ind::after { content:"⇅"; opacity:.45; }
@@ -504,13 +524,15 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 }
 #tso-wrap #tso-auto-interval {
   min-width:11.5rem; max-width:100%; box-sizing:border-box;
-  padding:6px 2.25rem 6px 10px; border-radius:4px; border:1px solid #8c8f94;
-  font-size:13px; line-height:1.4; background:#fff; color:#1d2327;
+  padding:6px 2.25rem 6px 10px; border-radius:8px; border:1px solid #8c8f94;
+  font-size:13px; line-height:1.4; color:#1d2327; font-weight:600;
+  /* Use background-color only — shorthand `background` would wipe the chevron. */
+  background-color:#fff;
 }
 @media screen and (max-width:782px) {
   #tso-wrap .tso-nav-inner { padding:8px 12px 0; }
   #tso-wrap .tso-tab-inner { padding:0 12px; }
-  #tso-wrap .tso-tab-content { padding:12px 0; min-height:0; }
+  #tso-wrap .tso-tab-content { padding:10px 0 12px; min-height:0; }
   #tso-wrap .tso-page-title { font-size:18px; }
   #tso-wrap .tso-nav-top { flex-direction:column; align-items:stretch; }
   #tso-wrap .tso-main-tabs {
@@ -545,12 +567,12 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
   .tso-table-group-title, .tso-table-group-meta { flex:1 1 100%; }
   .tso-actions-grid { grid-template-columns:minmax(0,1fr); gap:10px; }
   .tso-action-card { padding:14px 16px; }
-  .tso-section { padding:14px 14px; margin-bottom:14px; }
+  .tso-section { padding:14px 14px; margin-bottom:12px; }
   #tso-assign-option-name { max-width:100%; }
   #tso-modal-box { width:94%; max-height:90vh; }
   /* Stacked “cards” on narrow screens — no horizontal scroll */
   .tso-stack-on-mobile { overflow-x: visible !important; margin:0 !important; padding:4px 0 !important; }
-  .tso-stack-on-mobile table { min-width:0 !important; width:100% !important; table-layout:fixed; }
+  .tso-stack-on-mobile table { display:block; min-width:0 !important; width:100% !important; table-layout:auto; }
   .tso-stack-on-mobile thead { display:none !important; }
   .tso-stack-on-mobile tbody { display:block; width:100%; }
   .tso-stack-on-mobile tbody tr { display:block; width:100%; box-sizing:border-box; margin-bottom:12px; border:1px solid #e2e4e7; border-radius:8px; padding:10px 12px; background:#fafbff; box-shadow:0 1px 2px rgba(0,0,0,.04); }
@@ -605,13 +627,139 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 }
 #tso-wrap .tsootc-theme-btn:hover,
 #tso-wrap .tsootc-theme-btn:focus {
-  border-color:#2271b1;
-  color:#2271b1;
+  border-color:var(--tsootc-accent, #2271b1);
+  color:var(--tsootc-accent, #2271b1);
   background:var(--tsootc-surface-2, #f6f7f7);
   outline:none;
 }
 #tso-wrap .tsootc-theme-btn .tsootc-theme-icon { font-size:14px; line-height:1; }
 @media screen and (max-width:782px) {
   #tso-wrap .tsootc-theme-btn .tsootc-theme-label { display:none; }
+}
+
+/* ---- Selects: chevron + relief in day mode (night overrides colours) ---- */
+#tso-wrap select,
+#tso-wrap select#tso-auto-interval,
+#tso-wrap #tso-auto-interval,
+#tso-wrap select.tso-cron-select,
+#tso-wrap select.tso-hist-filter-select,
+#tso-wrap select.tso-cron-code {
+	-webkit-appearance: none !important;
+	-moz-appearance: none !important;
+	appearance: none !important;
+	padding: 6px 2.25rem 6px 10px !important;
+	min-height: 32px;
+	border: 1px solid #8c8f94 !important;
+	border-radius: 8px !important;
+	background-color: #fff !important;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%231d2327' d='M4.2 6.2a.75.75 0 0 1 1.06 0L8 8.94l2.74-2.74a.75.75 0 1 1 1.06 1.06l-3.27 3.27a.75.75 0 0 1-1.06 0L4.2 7.26a.75.75 0 0 1 0-1.06z'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 0.5rem center !important;
+	background-size: 16px 16px !important;
+	color: #1d2327 !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+	cursor: pointer;
+}
+#tso-wrap select:hover,
+#tso-wrap select:focus,
+#tso-wrap #tso-auto-interval:hover,
+#tso-wrap #tso-auto-interval:focus {
+	border-color: var(--tsootc-accent, #2271b1) !important;
+	box-shadow: 0 0 0 1px var(--tsootc-accent, #2271b1);
+	outline: none;
+}
+
+/* ---- Modern rounded buttons + soft relief (all CTAs / actions) ---- */
+#tso-wrap .button,
+#tso-wrap .button-primary,
+#tso-wrap a.button,
+#tso-wrap .button-secondary,
+#tso-wrap .tso-status-finding-btn,
+#tso-wrap a.tso-status-finding-btn,
+#tso-wrap .tso-btn-primary-outline,
+#tso-wrap .tso-btn-blue-outline,
+#tso-wrap .tso-btn-wp-blue-outline,
+#tso-wrap .tso-btn-danger-outline,
+#tso-wrap .tso-btn-danger-outline-sm,
+#tso-wrap .tso-btn-warn-outline,
+#tso-wrap .tso-btn-danger-text,
+#tso-wrap .tso-donate-btn,
+#tso-wrap .tso-lang-btn,
+#tso-wrap .tsootc-theme-btn,
+body.tools_page_tso-options-tables-cleaner .tso-assign-btn,
+body.tools_page_tso-options-tables-cleaner #tso-modal-save,
+body.tools_page_tso-options-tables-cleaner #tso-rename-save,
+body.tools_page_tso-options-tables-cleaner #tso-modal-view-tabs button {
+	border-radius: 8px !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+	transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, border-color 0.12s ease, color 0.12s ease !important;
+}
+#tso-wrap .button:hover,
+#tso-wrap a.button:hover,
+#tso-wrap .tso-status-finding-btn:hover,
+#tso-wrap .tso-btn-primary-outline:hover,
+#tso-wrap .tso-btn-blue-outline:hover,
+#tso-wrap .tso-btn-wp-blue-outline:hover,
+#tso-wrap .tso-btn-danger-outline:hover,
+#tso-wrap .tso-btn-danger-outline-sm:hover,
+#tso-wrap .tso-btn-warn-outline:hover,
+body.tools_page_tso-options-tables-cleaner .tso-assign-btn:hover,
+body.tools_page_tso-options-tables-cleaner #tso-modal-save:hover,
+body.tools_page_tso-options-tables-cleaner #tso-rename-save:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ---- WP admin colour scheme: all primary / accent buttons (Link Inspector pattern) ---- */
+#tso-wrap .button-primary,
+#tso-wrap .button.button-primary,
+#tso-wrap a.button-primary,
+#tso-wrap .tso-status-finding-btn,
+#tso-wrap a.tso-status-finding-btn,
+#tso-wrap .tso-donate-btn,
+#tso-wrap .tso-notice-info .button:not(.button-link-delete):not(.tso-btn-danger-outline):not(.tso-btn-danger-outline-sm):not(.tso-btn-danger-text),
+#tso-wrap .tso-notice-flex .button:not(.button-link-delete):not(.tso-btn-danger-outline):not(.tso-btn-danger-outline-sm):not(.tso-btn-danger-text),
+#tso-wrap .tso-hist-clear-btn.button-primary,
+body.tools_page_tso-options-tables-cleaner .tso-assign-btn,
+body.tools_page_tso-options-tables-cleaner #tso-modal-save,
+body.tools_page_tso-options-tables-cleaner #tso-rename-save {
+	background: var(--tsootc-accent, #2271b1) !important;
+	border-color: var(--tsootc-accent-dark, #135e96) !important;
+	color: #fff !important;
+	text-shadow: none !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(var(--tsootc-accent-rgb, 34, 113, 177), 0.35) !important;
+}
+#tso-wrap .button-primary:hover,
+#tso-wrap .button.button-primary:hover,
+#tso-wrap a.button-primary:hover,
+#tso-wrap .tso-status-finding-btn:hover,
+#tso-wrap a.tso-status-finding-btn:hover,
+#tso-wrap .tso-donate-btn:hover,
+body.tools_page_tso-options-tables-cleaner .tso-assign-btn:hover,
+body.tools_page_tso-options-tables-cleaner #tso-modal-save:hover,
+body.tools_page_tso-options-tables-cleaner #tso-rename-save:hover {
+	background: var(--tsootc-accent-dark, #135e96) !important;
+	border-color: var(--tsootc-accent-darker, #0a4b78) !important;
+	color: #fff !important;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(var(--tsootc-accent-rgb, 34, 113, 177), 0.4) !important;
+}
+#tso-wrap .button:not(.button-primary):not(.button-link-delete):not(.tso-btn-danger-outline):not(.tso-btn-danger-outline-sm):not(.tso-btn-danger-text):not(.tso-btn-warn-outline):not(.btn-act.delete):hover,
+#tso-wrap .button:not(.button-primary):not(.button-link-delete):focus {
+	border-color: var(--tsootc-accent, #2271b1);
+	color: var(--tsootc-accent-darker, #0a4b78);
+}
+#tso-wrap .tso-btn-blue-outline,
+#tso-wrap .tso-btn-wp-blue-outline,
+#tso-wrap .tso-btn-primary-outline {
+	background: rgba(var(--tsootc-accent-rgb, 34, 113, 177), 0.08) !important;
+	border-color: var(--tsootc-accent, #2271b1) !important;
+	color: var(--tsootc-accent-darker, #0a4b78) !important;
+}
+#tso-wrap input[type="checkbox"],
+#tso-wrap input[type="radio"] {
+	accent-color: var(--tsootc-accent, #2271b1);
+}
+#tso-wrap a:not(.button):not(.tso-main-tab):not(.tso-lang-btn):not(.btn-act) {
+	color: var(--tsootc-accent-dark, #135e96);
 }
 

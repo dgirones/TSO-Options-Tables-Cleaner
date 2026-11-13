@@ -40,10 +40,6 @@ function tsootc_option_key_map_save( $map, $invalidate_options_tab_cache = false
     }
 }
 
-function tsootc_option_key_map_reload() {
-    tsootc_get_option_key_map( true );
-}
-
 /**
  * Snapshot current wp_options keys (minus transients).
  *
@@ -486,7 +482,94 @@ function tsootc_post_activate_map_new_tables( $plugin_file ) {
 add_action( 'activated_plugin', 'tsootc_post_activate_map_new_tables', 21, 1 );
 
 /**
+ * Queue a plugin for the deep code-scan + remap pass that follows activation.
+ *
+ * The pass re-reads every installed plugin/theme source file and walks all wp_options
+ * keys and tables, which takes tens of seconds on a site with many plugins. It used to
+ * run inside the activation request itself; it now runs right after (WP-Cron) or when
+ * the Options & Tables Cleaner screen is opened, whichever happens first.
+ *
+ * @param string $plugin_file Plugin bootstrap path.
+ * @return void
+ */
+function tsootc_activation_scan_queue_add( $plugin_file ) {
+    $plugin_file = (string) $plugin_file;
+    if ( '' === $plugin_file || false === strpos( $plugin_file, '/' ) ) {
+        return;
+    }
+
+    $queue = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_ACTIVATION_SCAN_QUEUE );
+    if ( ! is_array( $queue ) ) {
+        $queue = array();
+    }
+    if ( ! in_array( $plugin_file, $queue, true ) ) {
+        $queue[] = $plugin_file;
+        tsootc_set_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_ACTIVATION_SCAN_QUEUE, $queue, DAY_IN_SECONDS );
+    }
+}
+
+/**
+ * Whether plugins are waiting for the post-activation deep scan.
+ *
+ * @return bool
+ */
+function tsootc_activation_scan_queue_has_items() {
+    $queue = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_ACTIVATION_SCAN_QUEUE );
+    return is_array( $queue ) && ! empty( $queue );
+}
+
+/**
+ * Run the deep code-scan + remap for every queued plugin (same work as before, off the activation request).
+ *
+ * The queue is emptied before work starts so a concurrent request (cron + screen load)
+ * never repeats the scan.
+ *
+ * @return void
+ */
+function tsootc_process_activation_scan_queue() {
+    $queue = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_ACTIVATION_SCAN_QUEUE );
+    if ( ! is_array( $queue ) || empty( $queue ) ) {
+        return;
+    }
+    tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_ACTIVATION_SCAN_QUEUE );
+
+    if ( ! function_exists( 'get_plugins' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    if ( function_exists( 'set_time_limit' ) ) {
+        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,Squiz.PHP.DiscouragedFunctions.Discouraged -- best-effort; the code-scan microtime() budget is the real guard.
+        @set_time_limit( 120 );
+    }
+
+    foreach ( $queue as $plugin_file ) {
+        $plugin_file = (string) $plugin_file;
+        if ( '' === $plugin_file || false === strpos( $plugin_file, '/' ) ) {
+            continue;
+        }
+
+        if ( function_exists( 'tsootc_codescan_deep_scan_plugin' ) ) {
+            tsootc_codescan_deep_scan_plugin( $plugin_file );
+        }
+
+        if ( function_exists( 'tsootc_remap_existing_options_to_plugin_file' ) ) {
+            tsootc_remap_existing_options_to_plugin_file( $plugin_file, false );
+        }
+
+        if ( function_exists( 'tsootc_remap_existing_tables_to_plugin_file' ) ) {
+            tsootc_remap_existing_tables_to_plugin_file( $plugin_file, false );
+        }
+    }
+
+    if ( function_exists( 'tsootc_options_tab_invalidate_after_inventory_change' ) ) {
+        tsootc_options_tab_invalidate_after_inventory_change();
+    }
+}
+add_action( 'tsootc_process_activation_scan', 'tsootc_process_activation_scan_queue' );
+
+/**
  * Deep code-scan + remap existing keys when a plugin is activated.
+ *
+ * Only queues the work so activation stays fast; see tsootc_process_activation_scan_queue().
  *
  * @param string $plugin_file Plugin bootstrap path.
  * @return void
@@ -497,16 +580,10 @@ function tsootc_post_activate_deep_codescan( $plugin_file ) {
         return;
     }
 
-    if ( function_exists( 'tsootc_codescan_deep_scan_plugin' ) ) {
-        tsootc_codescan_deep_scan_plugin( $plugin_file );
-    }
+    tsootc_activation_scan_queue_add( $plugin_file );
 
-    if ( function_exists( 'tsootc_remap_existing_options_to_plugin_file' ) ) {
-        tsootc_remap_existing_options_to_plugin_file( $plugin_file, false );
-    }
-
-    if ( function_exists( 'tsootc_remap_existing_tables_to_plugin_file' ) ) {
-        tsootc_remap_existing_tables_to_plugin_file( $plugin_file, false );
+    if ( ! wp_next_scheduled( 'tsootc_process_activation_scan' ) ) {
+        wp_schedule_single_event( time() + 5, 'tsootc_process_activation_scan' );
     }
 }
 add_action( 'activated_plugin', 'tsootc_post_activate_deep_codescan', 25, 1 );
@@ -582,7 +659,9 @@ function tsootc_remap_existing_tables_to_plugin_file( $plugin_file, $rebuild_cod
 
         if ( function_exists( 'tsootc_codescan_find_mapping' ) ) {
             $mapping = tsootc_codescan_find_mapping( $name_without_prefix, $index );
-            if ( is_array( $mapping ) && ! empty( $mapping['file'] ) && (string) $mapping['file'] === $plugin_file ) {
+            if ( is_array( $mapping ) && ! empty( $mapping['file'] ) && (string) $mapping['file'] === $plugin_file
+                && ! ( function_exists( 'tsootc_codescan_mapping_is_foreign_reference' )
+                    && tsootc_codescan_mapping_is_foreign_reference( $mapping, $name_without_prefix, $installed_plugins ) ) ) {
                 $matched = true;
             }
         }
@@ -839,40 +918,6 @@ function tsootc_get_pending_key_map() {
     return $pending;
 }
 
-function tsootc_post_upgrade_map_keys_deferred( $upgrader, $options ) {
-    if ( ! isset( $options['type'] ) || $options['type'] !== 'plugin' ) return;
-    if ( $options['action'] !== 'update' ) return;
-
-    // Actualitzacions massives (>1 plugin): mode diferit
-    $is_bulk = ! empty( $options['plugins'] ) && is_array( $options['plugins'] ) && count( $options['plugins'] ) > 1;
-    if ( ! $is_bulk ) return; // Les unitàries ja les gestiona tso_post_upgrade_map_keys
-
-    $before = tsootc_get_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT );
-    if ( ! is_array( $before ) ) return;
-    $after    = tsootc_snapshot_option_keys( true ); // fresh: full bulk-update batch just finished writing options
-    $new_keys = array_diff_key( $after, $before );
-    if ( empty( $new_keys ) ) return;
-
-    $pending = tsootc_get_pending_key_map();
-    $ts      = time();
-    foreach ( array_keys( $new_keys ) as $key ) {
-        if ( tsootc_is_wp_core_option( $key ) ) continue;
-        if ( tsootc_starts_with_legacy_wp_options_prefix( $key ) ) continue;
-        $map = tsootc_get_option_key_map();
-        if ( isset( $map[ $key ] ) ) continue; // ja mapejat
-        // Guardar com a pendent amb els plugins candidats
-        $pending[ $key ] = array(
-            'ts'       => $ts,
-            'plugins'  => $options['plugins'],
-            'detected' => null, // l'usuari tria
-        );
-    }
-    tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_PENDING_KEY_MAP, $pending, false );
-}
-// Hook deferred desactivat — el panell de confirmació s'ha eliminat.
-// Bulk updates: tsootc_post_upgrade_map_keys skips shared option-key diff (codescan + remap only).
-// add_action( 'upgrader_process_complete', 'tsootc_post_upgrade_map_keys_deferred', 27, 2 );
-
 // AJAX: obtenir claus pendents de confirmació
 function tsootc_ajax_get_pending_map() {
     nocache_headers();
@@ -1082,6 +1127,11 @@ function tsootc_resolve_table_key_map_mapped_file( $full_table_name, $migrate_al
 
     $table_map = tsootc_get_table_key_map();
     if ( isset( $table_map[ $full_table_name ] ) && '' !== (string) $table_map[ $full_table_name ] ) {
+        // An automatic assignment is ignored when code-scan evidence shows the plugin only reads the table.
+        if ( function_exists( 'tsootc_codescan_table_assignment_is_contradicted' )
+            && tsootc_codescan_table_assignment_is_contradicted( $full_table_name, (string) $table_map[ $full_table_name ] ) ) {
+            return null;
+        }
         return (string) $table_map[ $full_table_name ];
     }
 
@@ -2480,71 +2530,6 @@ function tsootc_history_should_register_option_prefix( $prefix, $option_name ) {
 }
 
 /**
- * Generic option roots that should not be attributed to deleted plugins from history alone.
- *
- * @param string $option_name Option key.
- * @return bool
- */
-function tsootc_history_option_has_unsafe_generic_root( $option_name ) {
-    $parts = preg_split( '/[-_]/', strtolower( (string) $option_name ) );
-    $root  = isset( $parts[0] ) ? (string) $parts[0] : '';
-    if ( strlen( $root ) < 3 ) {
-        return false;
-    }
-
-    return in_array(
-        $root,
-        array(
-            'banner',
-            'button',
-            'caption',
-            'carousel',
-            'color',
-            'customizer',
-            'default',
-            'font',
-            'footer',
-            'header',
-            'image',
-            'layout',
-            'logo',
-            'menu',
-            'nivo',
-            'product',
-            'section',
-            'slide',
-            'slider',
-            'social',
-            'style',
-            'theme',
-            'theme_mods',
-            'theme_my',
-            'theme_my_login',
-            'title',
-            'tml',
-            'typography',
-            'widget',
-        ),
-        true
-    );
-}
-
-/**
- * Token that must relate to the mapped plugin for unsafe generic roots.
- *
- * @param string $option_name Option key.
- * @return string
- */
-function tsootc_history_option_generic_evidence_token( $option_name ) {
-    if ( function_exists( 'tsootc_option_key_generic_evidence_token' ) ) {
-        return tsootc_option_key_generic_evidence_token( $option_name );
-    }
-
-    $parts = preg_split( '/[-_]/', strtolower( (string) $option_name ) );
-    return isset( $parts[0] ) ? (string) $parts[0] : '';
-}
-
-/**
  * Check whether a history mapping is safe enough for a generic option root.
  *
  * @param array  $mapping           Mapping row.
@@ -3213,91 +3198,6 @@ function tsootc_apply_history_to_detected( $detected, $installed_plugins = array
     }
 
     return $detected;
-}
-
-/**
- * Resolve a deleted plugin row from an option key prefix (map hints + history log).
- *
- * @param string $prefix              Root prefix without trailing _ (e.g. titan).
- * @param array  $installed_plugins   Plugin inventory.
- * @return array|null Detection row with installed=false, or null.
- */
-function tsootc_history_resolve_uninstalled_by_option_prefix( $prefix, array $installed_plugins = array() ) {
-    $prefix = strtolower( rtrim( (string) $prefix, '_-' ) );
-    if ( strlen( $prefix ) < 3 ) {
-        return null;
-    }
-
-    $probe = $prefix . '_history_probe';
-    if ( function_exists( 'tsootc_history_detect_option' ) ) {
-        $row = tsootc_history_detect_option( $probe, $installed_plugins );
-        if ( is_array( $row ) && array_key_exists( 'installed', $row ) && ! $row['installed'] ) {
-            return $row;
-        }
-    }
-
-    $log = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_PLUGIN_HISTORY, array() );
-    if ( ! is_array( $log ) || empty( $log ) ) {
-        return null;
-    }
-
-    $needle = $prefix . '_';
-    for ( $i = count( $log ) - 1; $i >= 0; $i-- ) {
-        $entry = $log[ $i ];
-        if ( ! is_array( $entry ) || ( $entry['type'] ?? '' ) !== 'plugin' ) {
-            continue;
-        }
-        $file = isset( $entry['file'] ) ? (string) $entry['file'] : '';
-        if ( '' === $file || false === strpos( $file, '/' ) ) {
-            continue;
-        }
-        $folder = strtolower( dirname( $file ) );
-        $folder_path = function_exists( 'tsootc_get_plugin_folder_path' ) ? tsootc_get_plugin_folder_path( $folder ) : '';
-        if ( '' !== $folder_path && is_dir( $folder_path ) ) {
-            continue;
-        }
-
-        $action = (string) ( $entry['action'] ?? '' );
-        $match  = false;
-
-        if ( 'deleted' === $action ) {
-            if ( function_exists( 'tsootc_option_key_matches_plugin_folder_evidence' )
-                && tsootc_option_key_matches_plugin_folder_evidence( $prefix . '_probe', $folder ) ) {
-                $match = true;
-            } elseif ( ! empty( $entry['detail']['option_keys'] ) && is_array( $entry['detail']['option_keys'] ) ) {
-                foreach ( $entry['detail']['option_keys'] as $key ) {
-                    if ( 0 === strpos( strtolower( (string) $key ), $needle ) ) {
-                        $match = true;
-                        break;
-                    }
-                }
-            }
-        } elseif ( in_array( $action, array( 'deactivated', 'keys_mapped' ), true ) ) {
-            if ( ! empty( $entry['detail']['option_keys'] ) && is_array( $entry['detail']['option_keys'] ) ) {
-                foreach ( $entry['detail']['option_keys'] as $key ) {
-                    if ( strtolower( (string) $key ) === strtolower( $prefix . '_history_probe' )
-                        || strtolower( (string) $key ) === strtolower( $prefix . '_option_probe' ) ) {
-                        $match = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if ( ! $match ) {
-            continue;
-        }
-
-        if ( function_exists( 'tsootc_build_uninstalled_detection_row' ) ) {
-            $label = isset( $entry['name'] ) ? (string) $entry['name'] : '';
-            $row   = tsootc_build_uninstalled_detection_row( $folder, $installed_plugins, $label );
-            if ( is_array( $row ) ) {
-                return $row;
-            }
-        }
-    }
-
-    return null;
 }
 
 function tsootc_history_get_plugin_name( $plugin_file ) {

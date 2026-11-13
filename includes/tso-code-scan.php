@@ -45,13 +45,26 @@ if ( ! defined( 'TSOOTC_CODESCAN_TIME_BUDGET_SECONDS' ) ) {
 }
 
 /**
+ * Wall-clock budget for a deep index build (reads many more files than the quick one).
+ *
+ * A budget too close to the real duration made a busy server cut the deep scan short and save an
+ * incomplete index (shared-library groups then disappeared). Two builds may run in one request
+ * (options + tables) and warm-up raises the PHP limit to 60 s, so each stays well under 30 s.
+ */
+if ( ! defined( 'TSOOTC_CODESCAN_TIME_BUDGET_DEEP_SECONDS' ) ) {
+	define( 'TSOOTC_CODESCAN_TIME_BUDGET_DEEP_SECONDS', 25 );
+}
+
+/**
  * Whether an index build has run past its wall-clock safety budget.
  *
  * @param float $start_time microtime(true) captured when the build started.
+ * @param bool  $deep       Deep build (larger budget).
  * @return bool
  */
-function tsootc_codescan_time_budget_exceeded( $start_time ) {
-	return ( microtime( true ) - (float) $start_time ) > (float) TSOOTC_CODESCAN_TIME_BUDGET_SECONDS;
+function tsootc_codescan_time_budget_exceeded( $start_time, $deep = false ) {
+	$budget = $deep ? (float) TSOOTC_CODESCAN_TIME_BUDGET_DEEP_SECONDS : (float) TSOOTC_CODESCAN_TIME_BUDGET_SECONDS;
+	return ( microtime( true ) - (float) $start_time ) > $budget;
 }
 
 /**
@@ -227,16 +240,21 @@ function tsootc_codescan_ensure_cache_dir_for_path( $path ) {
 }
 
 /**
- * Load a code-scan index from disk.
+ * Read and decode a code-scan index file, once per request while the file is unchanged.
  *
  * @param string $path File path.
- * @param string $sig  Expected inventory signature.
  * @return array|null
  */
-function tsootc_codescan_load_index_file( $path, $sig ) {
+function tsootc_codescan_read_index_file_memo( $path ) {
 	$path = (string) $path;
 	if ( '' === $path || ! is_readable( $path ) ) {
 		return null;
+	}
+
+	// Decode each index file once per request (callers ask for it per option/table); a save drops the entry.
+	$stamp = (string) filemtime( $path ) . ':' . (string) filesize( $path );
+	if ( isset( $GLOBALS['tsootc_codescan_file_memo'][ $path ] ) && $GLOBALS['tsootc_codescan_file_memo'][ $path ]['stamp'] === $stamp ) {
+		return $GLOBALS['tsootc_codescan_file_memo'][ $path ]['data'];
 	}
 
 	$raw = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local cache file.
@@ -244,7 +262,24 @@ function tsootc_codescan_load_index_file( $path, $sig ) {
 		return null;
 	}
 
-	$cached = json_decode( $raw, true );
+	$data = json_decode( $raw, true );
+	$data = is_array( $data ) ? $data : null;
+	$GLOBALS['tsootc_codescan_file_memo'][ $path ] = array(
+		'stamp' => $stamp,
+		'data'  => $data,
+	);
+	return $data;
+}
+
+/**
+ * Load a code-scan index from disk.
+ *
+ * @param string $path File path.
+ * @param string $sig  Expected inventory signature.
+ * @return array|null
+ */
+function tsootc_codescan_load_index_file( $path, $sig ) {
+	$cached = tsootc_codescan_read_index_file_memo( $path );
 	if ( ! is_array( $cached ) || ! isset( $cached['sig'], $cached['exact'] ) ) {
 		return null;
 	}
@@ -260,6 +295,92 @@ function tsootc_codescan_load_index_file( $path, $sig ) {
 }
 
 /**
+ * Load a code-scan index file ignoring its inventory signature (outdated but still informative).
+ *
+ * @param string $path Index file path.
+ * @return array|null
+ */
+function tsootc_codescan_load_index_file_any_sig( $path ) {
+	$cached = tsootc_codescan_read_index_file_memo( $path );
+	return ( is_array( $cached ) && isset( $cached['exact'] ) && is_array( $cached['exact'] ) ) ? $cached : null;
+}
+
+/**
+ * Cheap fingerprint (file time + size) of the code-scan index files on disk.
+ *
+ * Lets caches that were built from the index (the wp_options tab payload) notice that the index
+ * changed, instead of keeping a result computed while the index was outdated or missing.
+ *
+ * @return string
+ */
+function tsootc_codescan_index_files_stamp() {
+	$parts = array();
+	foreach ( array( tsootc_codescan_option_index_file_path(), tsootc_codescan_table_index_file_path() ) as $path ) {
+		$path    = (string) $path;
+		$parts[] = ( '' !== $path && is_readable( $path ) ) ? (string) filemtime( $path ) . ':' . (string) filesize( $path ) : '0';
+	}
+	return md5( implode( '|', $parts ) );
+}
+
+/**
+ * Copy into a freshly built quick index what the previous index (built by a deep scan) knew.
+ *
+ * A quick rebuild reads far fewer files than a deep scan, so without this every plugin change would drop
+ * the keys, tables and shared-library evidence only the deep scan finds. Entries are kept only while the
+ * plugin or theme that owns them is still installed; the next deep scan replaces them with fresh data.
+ *
+ * @param array      $index Index being built (by reference).
+ * @param array|null $stale Previous index, whatever its signature.
+ * @param string[]   $maps  Index sections to merge ('exact', 'prefix').
+ * @return void
+ */
+function tsootc_codescan_merge_stale_index( array &$index, $stale, array $maps ) {
+	if ( ! is_array( $stale ) ) {
+		return;
+	}
+
+	if ( ! function_exists( 'get_plugins' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+	$installed = array_fill_keys( array_keys( get_plugins() ), true );
+	$themes    = array();
+	if ( function_exists( 'wp_get_themes' ) ) {
+		foreach ( array_keys( wp_get_themes( array( 'errors' => false ) ) ) as $theme_slug ) {
+			$themes[ 'theme:' . strtolower( (string) $theme_slug ) ] = true;
+		}
+	}
+
+	foreach ( $maps as $map ) {
+		if ( empty( $stale[ $map ] ) || ! is_array( $stale[ $map ] ) ) {
+			continue;
+		}
+		if ( ! isset( $index[ $map ] ) || ! is_array( $index[ $map ] ) ) {
+			$index[ $map ] = array();
+		}
+		foreach ( $stale[ $map ] as $key => $mapping ) {
+			if ( ! is_array( $mapping ) || empty( $mapping['file'] ) ) {
+				continue;
+			}
+			$owner = (string) $mapping['file'];
+			if ( ! isset( $installed[ $owner ] ) && ! isset( $themes[ strtolower( $owner ) ] ) ) {
+				continue;
+			}
+			if ( ! isset( $index[ $map ][ $key ] ) ) {
+				$index[ $map ][ $key ] = $mapping;
+				continue;
+			}
+			if ( is_array( $index[ $map ][ $key ] ) ) {
+				foreach ( array( 'lib', 'lib_strong', 'also' ) as $meta ) {
+					if ( isset( $mapping[ $meta ] ) && ! isset( $index[ $map ][ $key ][ $meta ] ) ) {
+						$index[ $map ][ $key ][ $meta ] = $mapping[ $meta ];
+					}
+				}
+			}
+		}
+	}
+}
+
+/**
  * Persist a code-scan index to disk (avoids oversized wp_options transients).
  *
  * @param string $path  Target file.
@@ -271,6 +392,7 @@ function tsootc_codescan_save_index_file( $path, array $index ) {
 	if ( '' === $path || ! tsootc_codescan_ensure_cache_dir_for_path( $path ) ) {
 		return false;
 	}
+	unset( $GLOBALS['tsootc_codescan_file_memo'][ $path ] );
 
 	$json = wp_json_encode( $index, JSON_UNESCAPED_UNICODE );
 	if ( ! is_string( $json ) || '' === $json ) {
@@ -284,9 +406,16 @@ function tsootc_codescan_save_index_file( $path, array $index ) {
 /**
  * Signature of installed plugins + themes for cache invalidation.
  *
+ * @param bool $fresh Recompute instead of using the value memoized for this request.
  * @return string
  */
-function tsootc_codescan_build_inventory_sig() {
+function tsootc_codescan_build_inventory_sig( $fresh = false ) {
+	// One request sees one inventory: avoid a filemtime() per plugin on every call (it is called per option/table).
+	static $memo = null;
+	if ( ! $fresh && null !== $memo ) {
+		return $memo;
+	}
+
 	if ( ! function_exists( 'get_plugins' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 	}
@@ -309,10 +438,11 @@ function tsootc_codescan_build_inventory_sig() {
 		}
 	}
 
-	$parts[] = 'tsootc_codescan_schema:10';
+	$parts[] = 'tsootc_codescan_schema:11';
 
 	sort( $parts );
-	return md5( implode( '|', $parts ) );
+	$memo = md5( implode( '|', $parts ) );
+	return $memo;
 }
 
 /**
@@ -378,6 +508,103 @@ function tsootc_codescan_extract_update_option_literals( $source ) {
 	}
 
 	return array_keys( $found );
+}
+
+/**
+ * Extract option keys that a source file writes (update_option, add_option, register_setting).
+ *
+ * Unlike tsootc_codescan_extract_update_option_literals(), plain get_option() reads are excluded:
+ * a plugin that only reads a key (e.g. Media Cleaner reading wpseo_* from Yoast SEO) does not own it.
+ *
+ * @param string $source PHP file contents.
+ * @return string[] Unique option names.
+ */
+function tsootc_codescan_extract_write_option_literals( $source ) {
+	$source = (string) $source;
+	if ( '' === $source ) {
+		return array();
+	}
+
+	$patterns = array(
+		'/(?:update_option|add_option|update_blog_option|add_blog_option|bp_add_option|bp_update_option)\s*\(\s*[\'"]([a-zA-Z0-9_\-]+)[\'"]/i',
+		'/register_setting\s*\(\s*[\'"][^\'"]+[\'"]\s*,\s*[\'"]([a-zA-Z0-9_\-]+)[\'"]/i',
+	);
+	$found    = array();
+	foreach ( $patterns as $pattern ) {
+		if ( preg_match_all( $pattern, $source, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				if ( ! empty( $match[1] ) ) {
+					$found[ strtolower( $match[1] ) ] = true;
+				}
+			}
+		}
+	}
+
+	return array_keys( $found );
+}
+
+/**
+ * Whether an option key root plausibly names a plugin (folder slug tokens or slug prefix).
+ *
+ * @param string $option_name Option key.
+ * @param string $plugin_file Plugin bootstrap path (folder/file.php).
+ * @return bool
+ */
+function tsootc_codescan_key_root_relates_to_plugin( $option_name, $plugin_file ) {
+	$parts = preg_split( '/[-_]/', strtolower( (string) $option_name ) );
+	$root  = isset( $parts[0] ) ? (string) $parts[0] : '';
+	if ( strlen( $root ) < 3 ) {
+		return false;
+	}
+
+	$folder = strtolower( dirname( (string) $plugin_file ) );
+	$flat   = str_replace( array( '-', '_' ), '', $folder );
+	if ( in_array( $root, preg_split( '/[-_]/', $folder ), true ) ) {
+		return true;
+	}
+
+	return strlen( $root ) >= 4 && 0 === strpos( $flat, $root );
+}
+
+/**
+ * Drop plugin literals that the plugin only reads and that belong to another plugin's namespace.
+ *
+ * Only applies to plugins that write at least one option, so plugins whose writes go through
+ * wrappers keep every literal. A read-only key is kept when its root matches a root the plugin
+ * writes itself or relates to the plugin folder slug.
+ *
+ * @param array $index Code-scan index (by reference); exact entries carry a "written" flag.
+ * @return void
+ */
+function tsootc_codescan_prune_foreign_read_literals( array &$index ) {
+	if ( empty( $index['exact'] ) || ! is_array( $index['exact'] ) ) {
+		return;
+	}
+
+	$owned_roots = array();
+	foreach ( $index['exact'] as $key => $mapping ) {
+		if ( empty( $mapping['written'] ) || 'plugin' !== (string) ( $mapping['type'] ?? 'plugin' ) ) {
+			continue;
+		}
+		$parts = preg_split( '/[-_]/', (string) $key );
+		$owned_roots[ (string) ( $mapping['file'] ?? '' ) ][ (string) ( $parts[0] ?? '' ) ] = true;
+	}
+
+	foreach ( $index['exact'] as $key => $mapping ) {
+		if ( ! empty( $mapping['written'] ) || 'plugin' !== (string) ( $mapping['type'] ?? 'plugin' ) ) {
+			continue;
+		}
+		$file = (string) ( $mapping['file'] ?? '' );
+		if ( '' === $file || empty( $owned_roots[ $file ] ) ) {
+			continue;
+		}
+		$parts = preg_split( '/[-_]/', (string) $key );
+		$root  = (string) ( $parts[0] ?? '' );
+		if ( isset( $owned_roots[ $file ][ $root ] ) || tsootc_codescan_key_root_relates_to_plugin( (string) $key, $file ) ) {
+			continue;
+		}
+		unset( $index['exact'][ $key ] );
+	}
 }
 
 /**
@@ -1060,8 +1287,9 @@ function tsootc_codescan_deep_scan_plugin( $plugin_file ) {
 	$before       = isset( $index['exact'] ) && is_array( $index['exact'] ) ? count( $index['exact'] ) : 0;
 	$table_before = isset( $table_index['exact'] ) && is_array( $table_index['exact'] ) ? count( $table_index['exact'] ) : 0;
 
-	foreach ( tsootc_codescan_plugin_files_to_read_deep( $plugin_file ) as $path ) {
-		tsootc_codescan_index_file_literals( $index, $path, $plugin_file, $label );
+	$deep_paths = (array) tsootc_codescan_plugin_files_to_read_deep( $plugin_file );
+	tsootc_codescan_index_plugin_files( $index, $deep_paths, $plugin_file, $label );
+	foreach ( $deep_paths as $path ) {
 		tsootc_codescan_index_file_table_literals( $table_index, $path, $plugin_file, $label );
 		++$result['files_scanned'];
 	}
@@ -1197,6 +1425,480 @@ function tsootc_codescan_theme_files_to_read( $stylesheet ) {
 }
 
 /**
+ * Folder names that describe code layout, never a bundled library on their own.
+ *
+ * @return string[]
+ */
+function tsootc_codescan_generic_layout_dirs() {
+	return explode(
+		',',
+		'includes,inc,src,source,admin,administrator,classes,class,core,app,public,assets,common,helpers,helper,functions,modules,module,framework,views,view,templates,template,languages,js,css,images,img,api,models,controllers,traits,interfaces,abstracts,blocks,components,config,database,db,migrations,install,setup,utils,tools,shared,integrations,front,frontend,backend,ajax,lib,libs,library,libraries,vendor,vendors,packages,third-party,third_party,thirdparty,external,deps,dependencies'
+	);
+}
+
+/**
+ * Detect whether a plugin source file belongs to a bundled third-party library.
+ *
+ * "strong" = Composer layout vendor/{org}/{package}/… (one plugin is enough); otherwise the
+ * library folder only counts when two or more plugins bundle a folder with the same name.
+ *
+ * @param string $file_path   Absolute path of the PHP file.
+ * @param string $plugin_file Plugin bootstrap path (folder/file.php).
+ * @return array{slug:string,strong:bool}
+ */
+function tsootc_codescan_library_slug_from_path( $file_path, $plugin_file ) {
+	$none        = array(
+		'slug'   => '',
+		'strong' => false,
+	);
+	$plugin_file = (string) $plugin_file;
+	if ( '' === $plugin_file || 0 === strpos( $plugin_file, 'theme:' ) || false === strpos( $plugin_file, '/' ) ) {
+		return $none;
+	}
+
+	$folder = strtolower( dirname( $plugin_file ) );
+	$path   = strtolower( wp_normalize_path( (string) $file_path ) );
+	$marker = '/' . $folder . '/';
+	$pos    = strpos( $path, '/plugins' . $marker );
+	if ( false !== $pos ) {
+		$rel = substr( $path, $pos + strlen( '/plugins' . $marker ) );
+	} else {
+		$pos = strpos( $path, $marker );
+		if ( false === $pos ) {
+			return $none;
+		}
+		$rel = substr( $path, $pos + strlen( $marker ) );
+	}
+
+	$segments = array_values( array_filter( explode( '/', $rel ), 'strlen' ) );
+	array_pop( $segments ); // File name.
+	if ( empty( $segments ) ) {
+		return $none;
+	}
+
+	$slug   = '';
+	$strong = false;
+	$count  = count( $segments );
+	foreach ( $segments as $i => $dir ) {
+		if ( in_array( $dir, array( 'vendor', 'vendors', 'vendor_prefixed', 'vendor-prefixed' ), true ) ) {
+			if ( isset( $segments[ $i + 2 ] ) ) {
+				$slug   = $segments[ $i + 2 ];
+				$strong = true;
+			} elseif ( $i + 1 < $count ) {
+				$slug = $segments[ $i + 1 ];
+			}
+			break;
+		}
+		if ( in_array( $dir, array( 'packages', 'lib', 'libs', 'library', 'libraries', 'third-party', 'third_party', 'thirdparty', 'external', 'deps', 'dependencies' ), true ) ) {
+			if ( $i + 1 < $count ) {
+				$slug = $segments[ $i + 1 ];
+			}
+			break;
+		}
+	}
+	if ( '' === $slug && ! in_array( $segments[0], tsootc_codescan_generic_layout_dirs(), true ) ) {
+		$slug = $segments[0];
+	}
+
+	$slug = sanitize_title( $slug );
+	if ( '' === $slug || in_array( $slug, tsootc_codescan_generic_layout_dirs(), true ) ) {
+		return $none;
+	}
+
+	// A folder named after the plugin itself is its own code, not a bundled library.
+	$own = preg_replace( '/[^a-z0-9]/', '', $folder );
+	$lib = preg_replace( '/[^a-z0-9]/', '', $slug );
+	if ( '' === $lib || ( '' !== $own && ( false !== strpos( $own, $lib ) || false !== strpos( $lib, $own ) ) ) ) {
+		return $none;
+	}
+
+	return array(
+		'slug'   => $slug,
+		'strong' => $strong,
+	);
+}
+
+/**
+ * Store library metadata on an index entry.
+ *
+ * @param array $entry Index entry (by reference).
+ * @param array $lib   Result of tsootc_codescan_library_slug_from_path().
+ * @return void
+ */
+function tsootc_codescan_apply_library_meta( array &$entry, array $lib ) {
+	if ( '' === (string) ( $lib['slug'] ?? '' ) ) {
+		return;
+	}
+	$entry['lib'] = (string) $lib['slug'];
+	if ( ! empty( $lib['strong'] ) ) {
+		$entry['lib_strong'] = true;
+	}
+}
+
+/**
+ * Remember that another plugin also references an indexed key or table.
+ *
+ * @param array  $entry Index entry (by reference).
+ * @param string $file  Other plugin bootstrap path.
+ * @param array  $other Other entry (lib slug and its own "also" list).
+ * @return void
+ */
+function tsootc_codescan_note_other_owner( array &$entry, $file, array $other ) {
+	$file = (string) $file;
+	if ( '' === $file || 0 === strpos( $file, 'theme:' ) || (string) ( $entry['file'] ?? '' ) === $file ) {
+		return;
+	}
+	if ( ! isset( $entry['also'] ) || ! is_array( $entry['also'] ) ) {
+		$entry['also'] = array();
+	}
+	$other_lib = (string) ( $other['lib'] ?? '' );
+	if ( '' !== $other_lib && ! empty( $other['lib_strong'] ) ) {
+		$other_lib .= '!'; // Composer-style bundled library.
+	}
+	if ( isset( $entry['also'][ $file ] ) ) {
+		if ( '' === $other_lib ) {
+			$entry['also'][ $file ] = ''; // The plugin also uses it in its own code.
+		}
+	} elseif ( count( $entry['also'] ) < 8 ) {
+		$entry['also'][ $file ] = $other_lib;
+	}
+	if ( ! empty( $other['also'] ) && is_array( $other['also'] ) ) {
+		foreach ( $other['also'] as $also_file => $also_lib ) {
+			if ( count( $entry['also'] ) >= 8 ) {
+				break;
+			}
+			if ( (string) ( $entry['file'] ?? '' ) !== (string) $also_file && ! isset( $entry['also'][ $also_file ] ) ) {
+				$entry['also'][ $also_file ] = (string) $also_lib;
+			}
+		}
+	}
+}
+
+/**
+ * Whether an indexed key/table is provided by a library bundled in installed plugins.
+ *
+ * @param array $mapping Index entry.
+ * @return array{family:string,owners:string[]}|null
+ */
+function tsootc_codescan_mapping_shared_info( array $mapping ) {
+	$first = (string) ( $mapping['file'] ?? '' );
+	if ( '' === $first || 0 === strpos( $first, 'theme:' ) ) {
+		return null;
+	}
+
+	// File => library slug ("" = plugin code); a trailing "!" marks a Composer-style bundled library.
+	$raw = array( $first => (string) ( $mapping['lib'] ?? '' ) . ( ! empty( $mapping['lib_strong'] ) ? '!' : '' ) );
+	if ( ! empty( $mapping['also'] ) && is_array( $mapping['also'] ) ) {
+		foreach ( $mapping['also'] as $file => $slug ) {
+			$raw[ (string) $file ] = (string) $slug;
+		}
+	}
+
+	$libs   = array();
+	$strong = array();
+	foreach ( $raw as $file => $slug ) {
+		$clean = rtrim( (string) $slug, '!' );
+		if ( '' !== $clean && '!' === substr( (string) $slug, -1 ) ) {
+			$strong[ $clean ] = true;
+		}
+		$libs[ (string) $file ] = $clean;
+	}
+
+	$family = '';
+	$counts = array_count_values( array_filter( $libs, 'strlen' ) );
+	arsort( $counts );
+	foreach ( $counts as $slug => $n ) {
+		if ( $n >= 2 || isset( $strong[ $slug ] ) ) {
+			$family = (string) $slug;
+			break;
+		}
+	}
+	if ( '' === $family ) {
+		return null;
+	}
+
+	$owners = array();
+	foreach ( $libs as $file => $slug ) {
+		if ( $slug === $family ) {
+			$owners[] = (string) $file;
+		}
+	}
+
+	return array(
+		'family' => $family,
+		'owners' => $owners,
+	);
+}
+
+/**
+ * Detection row for a key/table that belongs to a library bundled by installed plugins.
+ *
+ * The row points at the best installed host (active preferred) so status follows that plugin,
+ * while the synthetic folder groups every key/table of the library together.
+ *
+ * @param array  $mapping           Index entry.
+ * @param array  $installed_plugins Inventory.
+ * @param string $source            Detection source label.
+ * @return array|null
+ */
+function tsootc_codescan_shared_library_row( array $mapping, array $installed_plugins, $source = 'codescan_cache' ) {
+	$info = tsootc_codescan_mapping_shared_info( $mapping );
+	if ( null === $info ) {
+		return null;
+	}
+
+	$names = array();
+	$best  = null;
+	foreach ( $info['owners'] as $owner_file ) {
+		foreach ( $installed_plugins as $pl ) {
+			if ( isset( $pl['file'] ) && (string) $pl['file'] === $owner_file ) {
+				$names[] = (string) ( $pl['name'] ?? $owner_file );
+				if ( null === $best || ( ! empty( $pl['active'] ) && empty( $best['active'] ) ) ) {
+					$best = $pl;
+				}
+				break;
+			}
+		}
+	}
+	if ( null === $best || empty( $best['file'] ) ) {
+		return null;
+	}
+
+	$token = trim( (string) preg_replace( '/[^a-z0-9]+/', '_', strtolower( $info['family'] ) ), '_' );
+	if ( '' === $token ) {
+		return null;
+	}
+
+	$label  = ucwords( trim( (string) preg_replace( '/[\s_\-]+/', ' ', $info['family'] ) ) );
+	$suffix = function_exists( 'tsootc_msg' )
+		? tsootc_msg( 'Llibreria compartida', 'Librería compartida', 'Shared library' )
+		: 'Shared library';
+
+	return array(
+		'name'          => $label . ' (' . $suffix . ')',
+		'file'          => (string) $best['file'],
+		'folder'        => '__shared_' . $token . '__',
+		'active'        => ! empty( $best['active'] ),
+		'installed'     => true,
+		'auto'          => false,
+		'shared'        => true,
+		'shared_owners' => array_values( array_unique( $names ) ),
+		'source'        => (string) $source,
+	);
+}
+
+/**
+ * Shared-library detection row for a group label such as "Action Scheduler (Shared library)".
+ *
+ * Lets an option be assigned by hand to a library group: the row is the same one the automatic detection
+ * builds for the library, so the option joins that group instead of creating a new one.
+ *
+ * @param string $group_label       Group label chosen by the user (any UI language).
+ * @param array  $installed_plugins Inventory.
+ * @return array|null
+ */
+function tsootc_codescan_shared_library_row_for_label( $group_label, array $installed_plugins ) {
+	if ( 1 !== preg_match( '/^(.*?)\s*\((?:Llibreria compartida|Librer\x{00ED}a compartida|Shared library)\)\s*$/iu', trim( (string) $group_label ), $m ) ) {
+		return null;
+	}
+	$wanted = preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $m[1] ) );
+	if ( '' === $wanted ) {
+		return null;
+	}
+
+	foreach ( tsootc_codescan_shared_table_family_tokens() as $mapping ) {
+		$info = tsootc_codescan_mapping_shared_info( $mapping );
+		if ( null === $info || preg_replace( '/[^a-z0-9]/', '', strtolower( $info['family'] ) ) !== $wanted ) {
+			continue;
+		}
+		$row = tsootc_codescan_shared_library_row( $mapping, $installed_plugins, 'custom_map' );
+		if ( is_array( $row ) ) {
+			$row['auto']   = false;
+			$row['source'] = 'custom_map';
+			return $row;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Bundled library folders of installed plugins whose normalized name is in $wanted.
+ *
+ * Library sources (vendor/, packages/…) are not read by the scan, so the folder name is the evidence:
+ * a table family such as "actionscheduler_*" matches a bundled folder named "action-scheduler".
+ *
+ * @param array<string,bool> $wanted Normalized names (letters and digits only) to look for.
+ * @return array<string,array<string,string>> Normalized name => plugin file => folder slug.
+ */
+function tsootc_codescan_find_bundled_library_dirs( array $wanted ) {
+	$found = array();
+	if ( empty( $wanted ) || ! function_exists( 'get_plugins' ) || ! function_exists( 'tsootc_get_plugin_folder_path' ) ) {
+		return $found;
+	}
+
+	$patterns = explode(
+		',',
+		'vendor/*/*,vendor/*,vendor_prefixed/*/*,packages/*,lib/*,libs/*,library/*,libraries/*,includes/libraries/*,includes/lib/*,includes/vendor/*,includes/vendor/*/*,inc/lib/*,third-party/*,third_party/*,src/vendor/*,src/libraries/*,*'
+	);
+
+	$start = microtime( true );
+
+	foreach ( array_keys( get_plugins() ) as $plugin_file ) {
+		if ( microtime( true ) - $start > 3 ) {
+			break;
+		}
+		$folder = strtolower( dirname( $plugin_file ) );
+		if ( false === strpos( (string) $plugin_file, '/' ) || tsootc_codescan_is_self_plugin_folder( $folder ) ) {
+			continue;
+		}
+		$root = tsootc_get_plugin_folder_path( $folder );
+		if ( '' === $root || ! is_dir( $root ) ) {
+			continue;
+		}
+		$own = preg_replace( '/[^a-z0-9]/', '', $folder );
+		foreach ( $patterns as $pattern ) {
+			$dirs = glob( trailingslashit( wp_normalize_path( $root ) ) . $pattern, GLOB_ONLYDIR | GLOB_NOSORT );
+			if ( ! is_array( $dirs ) ) {
+				continue;
+			}
+			foreach ( $dirs as $dir ) {
+				$slug = sanitize_title( basename( $dir ) );
+				$norm = preg_replace( '/[^a-z0-9]/', '', strtolower( $slug ) );
+				if ( '' === $norm || ! isset( $wanted[ $norm ] ) || in_array( $slug, tsootc_codescan_generic_layout_dirs(), true ) ) {
+					continue;
+				}
+				// A folder named after the plugin itself is its own code, not a bundled library.
+				if ( '' !== $own && ( false !== strpos( $own, $norm ) || false !== strpos( $norm, $own ) ) ) {
+					continue;
+				}
+				$found[ $norm ][ $plugin_file ] = $slug;
+			}
+		}
+	}
+
+	return $found;
+}
+
+/**
+ * Mark indexed tables whose name family matches a library folder bundled by installed plugins.
+ *
+ * @param array $index Table index with exact bucket (by reference).
+ * @return void
+ */
+function tsootc_codescan_attach_library_dirs( array &$index ) {
+	if ( empty( $index['exact'] ) || ! is_array( $index['exact'] ) ) {
+		return;
+	}
+
+	$wanted = array();
+	foreach ( array_keys( $index['exact'] ) as $key ) {
+		$parts = preg_split( '/[_\-]/', strtolower( (string) $key ) );
+		$norm  = preg_replace( '/[^a-z0-9]/', '', (string) ( $parts[0] ?? '' ) );
+		if ( strlen( (string) $norm ) >= 8 ) {
+			$wanted[ $norm ][] = (string) $key;
+		}
+	}
+	if ( empty( $wanted ) ) {
+		return;
+	}
+
+	$dirs = tsootc_codescan_find_bundled_library_dirs( array_fill_keys( array_keys( $wanted ), true ) );
+	foreach ( $dirs as $norm => $hosts ) {
+		foreach ( $wanted[ $norm ] as $key ) {
+			foreach ( $hosts as $host_file => $slug ) {
+				$lib = array(
+					'slug'   => $slug,
+					'strong' => true,
+				);
+				if ( (string) ( $index['exact'][ $key ]['file'] ?? '' ) === $host_file ) {
+					tsootc_codescan_apply_library_meta( $index['exact'][ $key ], $lib );
+				} else {
+					// The bundled folder is stronger evidence than any earlier reference from that plugin's own code.
+					if ( ! isset( $index['exact'][ $key ]['also'] ) || ! is_array( $index['exact'][ $key ]['also'] ) ) {
+						$index['exact'][ $key ]['also'] = array();
+					}
+					$index['exact'][ $key ]['also'][ $host_file ] = $slug . '!';
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Shared-library table families (first table-name token → index entry), from the warm table index.
+ *
+ * Lets options built at runtime (schema-ActionScheduler_*, action_scheduler_*) join the family
+ * detected from the library's tables, without listing any library by name.
+ *
+ * @return array<string,array>
+ */
+function tsootc_codescan_shared_table_family_tokens() {
+	static $cache = null;
+	if ( null !== $cache ) {
+		return $cache;
+	}
+	$cache = array();
+
+	// Library families change rarely: while the index for the current plugin inventory is not built yet,
+	// the previous one is still valid evidence (a family is only used when one of its host plugins is installed).
+	$table_index_path = tsootc_codescan_table_index_file_path();
+	$index            = tsootc_codescan_load_index_file( $table_index_path, tsootc_codescan_build_inventory_sig() );
+	$is_current       = is_array( $index );
+	if ( ! $is_current ) {
+		$index = tsootc_codescan_load_index_file_any_sig( $table_index_path );
+	}
+	if ( ! is_array( $index ) || empty( $index['exact'] ) || ! is_array( $index['exact'] ) ) {
+		$cache_empty = $cache;
+		$cache       = null;
+		return $cache_empty;
+	}
+
+	foreach ( $index['exact'] as $key => $mapping ) {
+		if ( ! is_array( $mapping ) || ( empty( $mapping['lib'] ) && empty( $mapping['also'] ) ) ) {
+			continue;
+		}
+		if ( null === tsootc_codescan_mapping_shared_info( $mapping ) ) {
+			continue;
+		}
+		$parts = preg_split( '/[_\-]/', strtolower( (string) $key ) );
+		$token = preg_replace( '/[^a-z0-9]/', '', (string) ( $parts[0] ?? '' ) );
+		if ( strlen( (string) $token ) < 8 || isset( $cache[ $token ] ) ) {
+			continue;
+		}
+		$cache[ $token ] = $mapping;
+	}
+
+	if ( ! $is_current ) {
+		// Do not memoize families taken from an outdated index.
+		$families = $cache;
+		$cache    = null;
+		return $families;
+	}
+
+	return $cache;
+}
+
+/**
+ * Shared-library index entry for an option whose key carries a known library family token.
+ *
+ * @param string $option_name Option key.
+ * @return array|null
+ */
+function tsootc_codescan_find_shared_family_mapping( $option_name ) {
+	$normalized = preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $option_name ) );
+	if ( '' === $normalized ) {
+		return null;
+	}
+	foreach ( tsootc_codescan_shared_table_family_tokens() as $token => $mapping ) {
+		if ( false !== strpos( $normalized, (string) $token ) ) {
+			return $mapping;
+		}
+	}
+	return null;
+}
+
+/**
  * Register literals from a file into the scan index.
  *
  * @param array  $index      Index (by reference).
@@ -1212,8 +1914,10 @@ function tsootc_codescan_index_file_literals( array &$index, $file_path, $plugin
 	}
 
 	$type = ( 0 === strpos( $plugin_file, 'theme:' ) ) ? 'theme' : 'plugin';
+	$lib  = tsootc_codescan_library_slug_from_path( $file_path, $plugin_file );
 	$keys = tsootc_codescan_extract_option_literals( $contents );
 	$update_option_keys = array_fill_keys( tsootc_codescan_extract_update_option_literals( $contents ), true );
+	$written_keys       = array_fill_keys( tsootc_codescan_extract_write_option_literals( $contents ), true );
 	$exact_only = array();
 	if ( 'theme' === $type ) {
 		$theme_slug = substr( (string) $plugin_file, 6 );
@@ -1239,20 +1943,75 @@ function tsootc_codescan_index_file_literals( array &$index, $file_path, $plugin
 		if ( tsootc_starts_with_legacy_wp_options_prefix( $key ) ) {
 			continue;
 		}
-		if ( ! isset( $index['exact'][ $key ] ) ) {
+		// A plugin that writes a key owns it over a plugin that only reads it.
+		$replace_reader = isset( $index['exact'][ $key ] )
+			&& 'plugin' === $type
+			&& 'plugin' === (string) ( $index['exact'][ $key ]['type'] ?? '' )
+			&& empty( $index['exact'][ $key ]['written'] )
+			&& isset( $written_keys[ $key ] );
+		if ( ! isset( $index['exact'][ $key ] ) || $replace_reader ) {
 			$index['exact'][ $key ] = array(
 				'type'  => $type,
 				'file'  => $plugin_file,
 				'name'  => $label,
 				'source_file' => wp_normalize_path( $file_path ),
 			);
+			if ( isset( $written_keys[ $key ] ) ) {
+				$index['exact'][ $key ]['written'] = true;
+			}
 			if ( isset( $exact_only[ $key ] ) ) {
 				$index['exact'][ $key ]['exact_only'] = true;
 			}
 			if ( isset( $update_option_keys[ $key ] ) ) {
 				$index['exact'][ $key ]['update_option_call'] = true;
 			}
+			tsootc_codescan_apply_library_meta( $index['exact'][ $key ], $lib );
+		} elseif ( '' === $lib['slug'] && (string) ( $index['exact'][ $key ]['file'] ?? '' ) === $plugin_file ) {
+			// The plugin also uses the key in its own code: not provided only by a bundled library.
+			unset( $index['exact'][ $key ]['lib'], $index['exact'][ $key ]['lib_strong'] );
 		}
+	}
+}
+
+/**
+ * Index every option literal of one plugin, dropping foreign read-only keys before they compete.
+ *
+ * The plugin is indexed on its own first so that pruning sees all of its writes, then merged into
+ * the shared index: first plugin wins, except that a plugin that writes a key replaces one that
+ * only reads it.
+ *
+ * @param array    $index       Shared code-scan index (by reference).
+ * @param string[] $paths       Plugin PHP files to read.
+ * @param string   $plugin_file Plugin bootstrap path.
+ * @param string   $label       Plugin display name.
+ * @return void
+ */
+function tsootc_codescan_index_plugin_files( array &$index, array $paths, $plugin_file, $label ) {
+	$plugin_index = array(
+		'exact'  => array(),
+		'prefix' => array(),
+	);
+	foreach ( $paths as $path ) {
+		tsootc_codescan_index_file_literals( $plugin_index, $path, $plugin_file, $label );
+	}
+	tsootc_codescan_prune_foreign_read_literals( $plugin_index );
+
+	if ( ! isset( $index['exact'] ) || ! is_array( $index['exact'] ) ) {
+		$index['exact'] = array();
+	}
+	foreach ( $plugin_index['exact'] as $key => $mapping ) {
+		if ( ! isset( $index['exact'][ $key ] ) ) {
+			$index['exact'][ $key ] = $mapping;
+			continue;
+		}
+		if ( empty( $index['exact'][ $key ]['written'] ) && ! empty( $mapping['written'] )
+			&& 'plugin' === (string) ( $index['exact'][ $key ]['type'] ?? '' ) ) {
+			$previous               = $index['exact'][ $key ];
+			$index['exact'][ $key ] = $mapping;
+			tsootc_codescan_note_other_owner( $index['exact'][ $key ], (string) ( $previous['file'] ?? '' ), $previous );
+			continue;
+		}
+		tsootc_codescan_note_other_owner( $index['exact'][ $key ], (string) ( $mapping['file'] ?? '' ), $mapping );
 	}
 }
 
@@ -1265,6 +2024,7 @@ function tsootc_codescan_index_file_literals( array &$index, $file_path, $plugin
 function tsootc_codescan_build_option_index( $deep = false ) {
 	$index = array(
 		'sig'    => tsootc_codescan_build_inventory_sig(),
+		'deep'   => (bool) $deep,
 		'exact'  => array(),
 		'prefix' => array(),
 	);
@@ -1277,7 +2037,7 @@ function tsootc_codescan_build_option_index( $deep = false ) {
 	$start    = microtime( true );
 
 	foreach ( get_plugins() as $plugin_file => $data ) {
-		if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+		if ( tsootc_codescan_time_budget_exceeded( $start, (bool) $deep ) ) {
 			break;
 		}
 		$folder = strtolower( dirname( $plugin_file ) );
@@ -1285,14 +2045,12 @@ function tsootc_codescan_build_option_index( $deep = false ) {
 			continue;
 		}
 		$label = ! empty( $data['Name'] ) ? (string) $data['Name'] : $folder;
-		foreach ( call_user_func( $files_fn, $plugin_file ) as $path ) {
-			tsootc_codescan_index_file_literals( $index, $path, $plugin_file, $label );
-		}
+		tsootc_codescan_index_plugin_files( $index, (array) call_user_func( $files_fn, $plugin_file ), $plugin_file, $label );
 	}
 
-	if ( ! tsootc_codescan_time_budget_exceeded( $start ) && function_exists( 'wp_get_themes' ) ) {
+	if ( ! tsootc_codescan_time_budget_exceeded( $start, (bool) $deep ) && function_exists( 'wp_get_themes' ) ) {
 		foreach ( wp_get_themes( array( 'errors' => false ) ) as $slug => $theme ) {
-			if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+			if ( tsootc_codescan_time_budget_exceeded( $start, (bool) $deep ) ) {
 				break;
 			}
 			if ( ! ( $theme instanceof WP_Theme ) || ! $theme->exists() ) {
@@ -1307,6 +2065,10 @@ function tsootc_codescan_build_option_index( $deep = false ) {
 				tsootc_codescan_index_file_literals( $index, $path, $key, $label );
 			}
 		}
+	}
+
+	if ( ! $deep ) {
+		tsootc_codescan_merge_stale_index( $index, tsootc_codescan_load_index_file_any_sig( tsootc_codescan_option_index_file_path() ), array( 'exact' ) );
 	}
 
 	tsootc_codescan_build_literal_prefix_index( $index );
@@ -1540,6 +2302,10 @@ function tsootc_codescan_maybe_warm_cache_deferred() {
 	if ( 'tso-options-tables-cleaner' !== tsootc_get_admin_screen_query_arg( 'page', '', 'key' ) ) {
 		return;
 	}
+	// Finish any post-activation deep scan that WP-Cron has not run yet, so detection is complete before this screen reads it.
+	if ( function_exists( 'tsootc_activation_scan_queue_has_items' ) && tsootc_activation_scan_queue_has_items() ) {
+		tsootc_process_activation_scan_queue();
+	}
 	$tab = tsootc_get_admin_screen_tab( 'cleanup' );
 	if ( 'options' === $tab ) {
 		return;
@@ -1690,6 +2456,42 @@ function tsootc_codescan_extract_table_literals( $source ) {
 }
 
 /**
+ * Table suffixes that a source creates or alters (CREATE/ALTER TABLE or dbDelta nearby), not only reads.
+ *
+ * @param string $source PHP source.
+ * @return string[] Lowercase suffixes.
+ */
+function tsootc_codescan_extract_table_creates( $source ) {
+	$source = (string) $source;
+	if ( '' === $source || ! preg_match( '/CREATE\s+TABLE|ALTER\s+TABLE|dbDelta/i', $source ) ) {
+		return array();
+	}
+
+	$patterns = array(
+		'/\$wpdb->(?:prefix|base_prefix)\s*\.\s*[\'"]([a-zA-Z0-9_]+)[\'"]/i',
+		'/\{\$wpdb->(?:prefix|base_prefix)\}([a-zA-Z0-9_]+)/i',
+		'/\$table_prefix\s*\.\s*[\'"]([a-zA-Z0-9_]+)[\'"]/i',
+		'/\{\$table_prefix\}([a-zA-Z0-9_]+)/i',
+	);
+
+	$creates = array();
+	foreach ( $patterns as $pattern ) {
+		if ( ! preg_match_all( $pattern, $source, $matches, PREG_OFFSET_CAPTURE ) ) {
+			continue;
+		}
+		foreach ( $matches[1] as $hit ) {
+			$start  = max( 0, (int) $hit[1] - 250 );
+			$window = substr( $source, $start, ( (int) $hit[1] - $start ) + 250 );
+			if ( preg_match( '/CREATE\s+TABLE|ALTER\s+TABLE|dbDelta/i', $window ) ) {
+				$creates[ strtolower( (string) $hit[0] ) ] = true;
+			}
+		}
+	}
+
+	return array_keys( $creates );
+}
+
+/**
  * Register table suffix literals from a file into the scan index.
  *
  * @param array  $index       Index (by reference).
@@ -1705,18 +2507,60 @@ function tsootc_codescan_index_file_table_literals( array &$index, $file_path, $
 	}
 
 	$type = ( 0 === strpos( $plugin_file, 'theme:' ) ) ? 'theme' : 'plugin';
-	$keys = tsootc_codescan_extract_table_literals( $contents );
+	$lib  = tsootc_codescan_library_slug_from_path( $file_path, $plugin_file );
+	$keys    = tsootc_codescan_extract_table_literals( $contents );
+	$creates = array_fill_keys( tsootc_codescan_extract_table_creates( $contents ), true );
 	foreach ( $keys as $key ) {
 		if ( tsootc_codescan_is_ignored_table_suffix( $key ) ) {
 			continue;
 		}
+		$is_creator = isset( $creates[ $key ] );
 		if ( ! isset( $index['exact'][ $key ] ) ) {
 			$index['exact'][ $key ] = array(
 				'type'        => $type,
 				'file'        => $plugin_file,
 				'name'        => $label,
 				'source_file' => wp_normalize_path( $file_path ),
+				'creates'     => $is_creator,
 			);
+			tsootc_codescan_apply_library_meta( $index['exact'][ $key ], $lib );
+		} elseif ( $is_creator && empty( $index['exact'][ $key ]['creates'] ) && (string) ( $index['exact'][ $key ]['file'] ?? '' ) !== $plugin_file ) {
+			// A plugin that only reads the table was seen first: the plugin that creates it owns it.
+			$previous                = $index['exact'][ $key ];
+			$index['exact'][ $key ] = array(
+				'type'        => $type,
+				'file'        => $plugin_file,
+				'name'        => $label,
+				'source_file' => wp_normalize_path( $file_path ),
+				'creates'     => true,
+			);
+			tsootc_codescan_apply_library_meta( $index['exact'][ $key ], $lib );
+			tsootc_codescan_note_other_owner( $index['exact'][ $key ], (string) ( $previous['file'] ?? '' ), $previous );
+			$index['exact'][ $key ]['readers'] = array_values( array_unique( array_merge( (array) ( $previous['readers'] ?? array() ), array( (string) ( $previous['file'] ?? '' ) ) ) ) );
+		} elseif ( (string) ( $index['exact'][ $key ]['file'] ?? '' ) === $plugin_file ) {
+			if ( $is_creator ) {
+				$index['exact'][ $key ]['creates'] = true;
+			}
+			if ( '' === $lib['slug'] ) {
+				// The plugin also uses the table in its own code: not provided only by a bundled library.
+				unset( $index['exact'][ $key ]['lib'], $index['exact'][ $key ]['lib_strong'] );
+			}
+		} else {
+			tsootc_codescan_note_other_owner(
+				$index['exact'][ $key ],
+				$plugin_file,
+				array(
+					'lib'        => $lib['slug'],
+					'lib_strong' => $lib['strong'],
+				)
+			);
+			if ( ! $is_creator && ! empty( $index['exact'][ $key ]['creates'] ) ) {
+				$readers = (array) ( $index['exact'][ $key ]['readers'] ?? array() );
+				if ( count( $readers ) < 8 ) {
+					$readers[]                         = $plugin_file;
+					$index['exact'][ $key ]['readers'] = array_values( array_unique( $readers ) );
+				}
+			}
 		}
 	}
 }
@@ -1740,6 +2584,7 @@ function tsootc_codescan_build_table_prefix_index( array &$index ) {
 function tsootc_codescan_build_table_index( $deep = false ) {
 	$index = array(
 		'sig'    => tsootc_codescan_build_inventory_sig(),
+		'deep'   => (bool) $deep,
 		'exact'  => array(),
 		'prefix' => array(),
 	);
@@ -1751,7 +2596,7 @@ function tsootc_codescan_build_table_index( $deep = false ) {
 	$start = microtime( true );
 
 	foreach ( get_plugins() as $plugin_file => $data ) {
-		if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+		if ( tsootc_codescan_time_budget_exceeded( $start, (bool) $deep ) ) {
 			break;
 		}
 		$folder = strtolower( dirname( $plugin_file ) );
@@ -1765,9 +2610,9 @@ function tsootc_codescan_build_table_index( $deep = false ) {
 		}
 	}
 
-	if ( ! tsootc_codescan_time_budget_exceeded( $start ) && function_exists( 'wp_get_themes' ) ) {
+	if ( ! tsootc_codescan_time_budget_exceeded( $start, (bool) $deep ) && function_exists( 'wp_get_themes' ) ) {
 		foreach ( wp_get_themes( array( 'errors' => false ) ) as $slug => $theme ) {
-			if ( tsootc_codescan_time_budget_exceeded( $start ) ) {
+			if ( tsootc_codescan_time_budget_exceeded( $start, (bool) $deep ) ) {
 				break;
 			}
 			if ( ! ( $theme instanceof WP_Theme ) || ! $theme->exists() ) {
@@ -1784,9 +2629,100 @@ function tsootc_codescan_build_table_index( $deep = false ) {
 		}
 	}
 
+	if ( ! $deep ) {
+		$stale_index = tsootc_codescan_load_index_file_any_sig( tsootc_codescan_table_index_file_path() );
+		if ( is_array( $stale_index ) && ! empty( $stale_index['exact'] ) && is_array( $stale_index['exact'] ) ) {
+			// Entries saved before the index recorded who creates each table carry no evidence: rescan them instead of reusing them.
+			foreach ( $stale_index['exact'] as $stale_key => $stale_entry ) {
+				if ( ! is_array( $stale_entry ) || ! array_key_exists( 'creates', $stale_entry ) ) {
+					unset( $stale_index['exact'][ $stale_key ] );
+				}
+			}
+		}
+		tsootc_codescan_merge_stale_index( $index, $stale_index, array( 'exact' ) );
+	}
+
+	tsootc_codescan_attach_library_dirs( $index );
 	tsootc_codescan_build_table_prefix_index( $index );
 
 	return $index;
+}
+
+/**
+ * Whether a code-scan table mapping is only a reference that must not override the prefix-map owner.
+ *
+ * Only entries explicitly marked as non-creating are affected; legacy entries keep their behaviour.
+ *
+ * @param array  $mapping              Index entry.
+ * @param string $table_without_prefix Table without site prefix.
+ * @param array  $installed_plugins    Inventory.
+ * @return bool
+ */
+function tsootc_codescan_mapping_is_foreign_reference( array $mapping, $table_without_prefix, array $installed_plugins = array() ) {
+	if ( ! array_key_exists( 'creates', $mapping ) || ! empty( $mapping['creates'] ) ) {
+		return false;
+	}
+	if ( ! function_exists( 'tsootc_resolve_plugin_row_from_table_prefix_map' ) ) {
+		return false;
+	}
+	$owner = tsootc_resolve_plugin_row_from_table_prefix_map( $table_without_prefix, $installed_plugins );
+	if ( ! is_array( $owner ) || empty( $owner['file'] ) ) {
+		return false;
+	}
+	return (string) $owner['file'] !== (string) ( $mapping['file'] ?? '' );
+}
+
+/**
+ * Whether an automatic table assignment is contradicted by code-scan evidence.
+ *
+ * True when the assigned plugin only reads the table while another plugin creates it,
+ * or nobody indexed creates it and the known prefix-map owner is a different installed plugin.
+ *
+ * @param string $full_table_name Full table name including site prefix.
+ * @param string $mapped_file     Plugin file currently assigned.
+ * @return bool
+ */
+function tsootc_codescan_table_assignment_is_contradicted( $full_table_name, $mapped_file ) {
+	global $wpdb;
+
+	$full_table_name = (string) $full_table_name;
+	$mapped_file     = (string) $mapped_file;
+	if ( '' === $mapped_file || ! is_object( $wpdb ) || 0 !== strpos( $full_table_name, (string) $wpdb->prefix ) ) {
+		return false;
+	}
+
+	$suffix = strtolower( substr( $full_table_name, strlen( (string) $wpdb->prefix ) ) );
+
+	// The known-table map names this exact table: its installed owner wins over an older automatic assignment.
+	$matched_prefix = '';
+	$matched_label  = '';
+	if ( function_exists( 'tsootc_match_table_prefix_map' ) && function_exists( 'tsootc_resolve_plugin_row_from_table_prefix_map' )
+		&& tsootc_match_table_prefix_map( $suffix, $matched_prefix, $matched_label )
+		&& strtolower( (string) $matched_prefix ) === $suffix ) {
+		$installed = function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array();
+		$owner     = tsootc_resolve_plugin_row_from_table_prefix_map( $suffix, $installed );
+		if ( is_array( $owner ) && ! empty( $owner['file'] ) && (string) $owner['file'] !== $mapped_file ) {
+			return true;
+		}
+	}
+
+	$index = tsootc_codescan_get_table_index( false );
+	if ( ! is_array( $index ) || empty( $index['exact'][ $suffix ] ) || ! is_array( $index['exact'][ $suffix ] ) ) {
+		return false;
+	}
+
+	$mapping = $index['exact'][ $suffix ];
+	if ( in_array( $mapped_file, (array) ( $mapping['readers'] ?? array() ), true ) ) {
+		return true;
+	}
+
+	if ( (string) ( $mapping['file'] ?? '' ) !== $mapped_file ) {
+		return false;
+	}
+
+	$installed = function_exists( 'tsootc_get_installed_plugins' ) ? tsootc_get_installed_plugins() : array();
+
+	return tsootc_codescan_mapping_is_foreign_reference( $mapping, $suffix, $installed );
 }
 
 /**
@@ -1851,6 +2787,14 @@ function tsootc_codescan_detect_table( $table_without_prefix, array $installed_p
 	$mapping = tsootc_codescan_find_mapping( $table_without_prefix, tsootc_codescan_get_table_index() );
 	if ( ! is_array( $mapping ) || empty( $mapping['file'] ) ) {
 		return null;
+	}
+	if ( tsootc_codescan_mapping_is_foreign_reference( $mapping, $table_without_prefix, $installed_plugins ) ) {
+		return null;
+	}
+
+	$shared_row = tsootc_codescan_shared_library_row( $mapping, $installed_plugins, 'codescan' );
+	if ( is_array( $shared_row ) ) {
+		return $shared_row;
 	}
 
 	$type  = (string) ( $mapping['type'] ?? 'plugin' );
@@ -2014,6 +2958,15 @@ function tsootc_codescan_grep_option_key_in_plugins( $option_name ) {
 				continue;
 			}
 
+			// A bare mention (e.g. get_option of another plugin's key) is not ownership.
+			$is_written = 1 === preg_match(
+				'/(?:update_option|add_option|update_blog_option|add_blog_option)\s*\(\s*[\'"]' . preg_quote( $needle, '/' ) . '[\'"]/i',
+				$contents
+			);
+			if ( ! $is_written && ! tsootc_codescan_key_root_relates_to_plugin( $needle, (string) $plugin_file ) ) {
+				continue;
+			}
+
 			$label = ! empty( $data['Name'] ) ? (string) $data['Name'] : $folder;
 			$cache[ $option_name ] = array(
 				'file'        => (string) $plugin_file,
@@ -2043,12 +2996,24 @@ function tsootc_codescan_lookup_option_from_cache( $option_name, array $installe
 
 	$index = tsootc_codescan_load_cached_option_index();
 	if ( ! is_array( $index ) || empty( $index['exact'] ) ) {
-		return null;
+		// No warm option index: a shared-library family (from the table index) can still be recognised.
+		$family_mapping = tsootc_codescan_find_shared_family_mapping( $option_name );
+		return is_array( $family_mapping )
+			? tsootc_codescan_shared_library_row( $family_mapping, $installed_plugins, 'codescan_cache' )
+			: null;
 	}
 
 	$mapping = tsootc_codescan_find_mapping( $option_name, $index );
 	if ( ! is_array( $mapping ) || empty( $mapping['file'] ) ) {
-		return null;
+		$family_mapping = tsootc_codescan_find_shared_family_mapping( $option_name );
+		return is_array( $family_mapping )
+			? tsootc_codescan_shared_library_row( $family_mapping, $installed_plugins, 'codescan_cache' )
+			: null;
+	}
+
+	$shared_row = tsootc_codescan_shared_library_row( $mapping, $installed_plugins, 'codescan_cache' );
+	if ( is_array( $shared_row ) ) {
+		return $shared_row;
 	}
 
 	$type  = (string) ( $mapping['type'] ?? 'plugin' );
@@ -2107,6 +3072,14 @@ function tsootc_codescan_lookup_table_from_cache( $table_without_prefix, array $
 	$mapping = tsootc_codescan_find_mapping( $table_without_prefix, $index );
 	if ( ! is_array( $mapping ) || empty( $mapping['file'] ) ) {
 		return null;
+	}
+	if ( tsootc_codescan_mapping_is_foreign_reference( $mapping, $table_without_prefix, $installed_plugins ) ) {
+		return null;
+	}
+
+	$shared_row = tsootc_codescan_shared_library_row( $mapping, $installed_plugins, 'codescan_cache' );
+	if ( is_array( $shared_row ) ) {
+		return $shared_row;
 	}
 
 	$type  = (string) ( $mapping['type'] ?? 'plugin' );
@@ -2185,7 +3158,15 @@ function tsootc_codescan_detect_option( $option_name, array $installed_plugins =
 		}
 	}
 	if ( ! is_array( $mapping ) || empty( $mapping['file'] ) ) {
-		return null;
+		$family_mapping = tsootc_codescan_find_shared_family_mapping( $option_name );
+		return is_array( $family_mapping )
+			? tsootc_codescan_shared_library_row( $family_mapping, $installed_plugins, 'codescan' )
+			: null;
+	}
+
+	$shared_row = tsootc_codescan_shared_library_row( $mapping, $installed_plugins, 'codescan' );
+	if ( is_array( $shared_row ) ) {
+		return $shared_row;
 	}
 
 	$type  = (string) ( $mapping['type'] ?? 'plugin' );

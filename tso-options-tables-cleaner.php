@@ -2,11 +2,11 @@
 /*
 Plugin Name: TSO Options & Tables Cleaner
 Description: Cleans wp_options, orphan metadata, revisions, and leftover plugin tables. Backup and table optimizer. UI: CA / ES / EN.
-Version:     1.3.6
+Version:     1.4.4
 Author:      Tu Soporte Online
 Author URI:  https://www.tusoporteonline.es/blog
 Requires at least: 6.1
-Requires PHP: 8.0
+Requires PHP: 7.4
 License:     GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: tso-options-tables-cleaner
@@ -25,7 +25,7 @@ if ( ! defined( 'TSOOTC_FILE' ) ) {
 }
 
 if ( ! defined( 'TSOOTC_VERSION' ) ) {
-	define( 'TSOOTC_VERSION', '1.3.6' );
+	define( 'TSOOTC_VERSION', '1.4.4' );
 }
 
 if ( ! defined( 'TSOOTC_PATH' ) ) {
@@ -96,10 +96,7 @@ $tsootc_table_detection_file = TSOOTC_PATH . 'includes/tso-table-detection.php';
 if ( is_readable( $tsootc_table_detection_file ) ) {
 	require_once $tsootc_table_detection_file;
 }
-$tsootc_detection_regression_file = TSOOTC_PATH . 'includes/tso-detection-regression.php';
-if ( is_readable( $tsootc_detection_regression_file ) ) {
-	require_once $tsootc_detection_regression_file;
-}
+/* Detection regression fixtures: loaded only by scripts/run-detection-regression.php (not runtime). */
 $tsootc_audit_file = TSOOTC_PATH . 'includes/tso-audit.php';
 if ( is_readable( $tsootc_audit_file ) ) {
 	require_once $tsootc_audit_file;

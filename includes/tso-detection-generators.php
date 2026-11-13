@@ -672,7 +672,11 @@ function tsootc_detection_gen_codescan_cache( $option_name, array $installed_plu
 	}
 	$row['source'] = 'codescan';
 	$evidence      = 'codescan_string';
-	if ( function_exists( 'tsootc_codescan_option_has_update_option_call' )
+	if ( ! empty( $row['shared'] ) ) {
+		$evidence = 'shared_library'; // Bundled-library family: folder + table evidence, not a single literal.
+	}
+	if ( empty( $row['shared'] )
+		&& function_exists( 'tsootc_codescan_option_has_update_option_call' )
 		&& tsootc_codescan_option_has_update_option_call( $option_name ) ) {
 		$evidence = 'codescan_update_option';
 	}
@@ -712,7 +716,11 @@ function tsootc_detection_gen_codescan_live( $option_name, array $installed_plug
 	}
 	$row['source'] = 'codescan';
 	$evidence      = 'codescan_string';
-	if ( function_exists( 'tsootc_codescan_option_has_update_option_call' )
+	if ( ! empty( $row['shared'] ) ) {
+		$evidence = 'shared_library'; // Bundled-library family: folder + table evidence, not a single literal.
+	}
+	if ( empty( $row['shared'] )
+		&& function_exists( 'tsootc_codescan_option_has_update_option_call' )
 		&& tsootc_codescan_option_has_update_option_call( $option_name ) ) {
 		$evidence = 'codescan_update_option';
 	}

@@ -25,15 +25,6 @@ function tsootc_get_backup_rel_dir() {
 }
 
 /**
- * Uploads subdirectory for SQL backups (prefixed, unique to this plugin).
- *
- * @return string Folder name under wp_upload_dir() basedir.
- */
-function tsootc_get_backup_subdir_name() {
-    return tsootc_get_backup_rel_dir();
-}
-
-/**
  * Legacy backup folders from earlier releases (read-only fallback).
  *
  * @return string[]
@@ -45,15 +36,6 @@ function tsootc_get_legacy_backup_rel_dirs() {
     );
 }
 
-/**
- * Legacy backup folder from earlier releases (read-only fallback).
- *
- * @return string
- */
-function tsootc_get_legacy_backup_subdir_name() {
-    return 'tso-backups';
-}
-
 function tsootc_get_backup_dir() {
     $upload = wp_upload_dir();
     if ( ! empty( $upload['error'] ) ) {
@@ -61,18 +43,6 @@ function tsootc_get_backup_dir() {
     }
 
     return trailingslashit( (string) $upload['basedir'] ) . tsootc_get_backup_rel_dir();
-}
-
-/**
- * @return string
- */
-function tsootc_get_legacy_backup_dir() {
-    $upload = wp_upload_dir();
-    if ( ! empty( $upload['error'] ) ) {
-        return '';
-    }
-
-    return trailingslashit( (string) $upload['basedir'] ) . tsootc_get_legacy_backup_subdir_name();
 }
 
 /**
@@ -101,15 +71,6 @@ function tsootc_get_backup_search_dir_paths() {
     }
 
     return $dirs;
-}
-
-function tsootc_get_backup_url() {
-    $upload = wp_upload_dir();
-    if ( ! empty( $upload['error'] ) ) {
-        return '';
-    }
-
-    return trailingslashit( (string) $upload['baseurl'] ) . tsootc_get_backup_rel_dir();
 }
 
 /**
@@ -251,6 +212,7 @@ function tsootc_build_backup_sql_header( $type, $tables ) {
         '-- TSO Options & Tables Cleaner Backup',
         '-- TSO Options & Tables Cleaner -- Backup created: ' . $created_gmt,
         '-- TSO Backup Version: 1',
+        '-- TSO Backup Plugin Version: ' . ( defined( 'TSOOTC_VERSION' ) ? TSOOTC_VERSION : '' ),
         '-- TSO Backup Type: ' . $type,
         '-- TSO Backup Scope: ' . $scope,
         '-- TSO Backup Tables: ' . $table_line,
@@ -274,7 +236,11 @@ function tsootc_sql_dump_value( $value ) {
         return 'NULL';
     }
 
-    return "'" . esc_sql( (string) $value ) . "'";
+    global $wpdb;
+
+    // esc_sql() swaps every "%" for a per-request random placeholder that is only undone when the
+    // query goes through wpdb. A dump written to a file never does, so undo it here.
+    return "'" . $wpdb->remove_placeholder_escape( esc_sql( (string) $value ) ) . "'";
 }
 
 /**
@@ -575,46 +541,84 @@ function tsootc_restore_backup_file( $path ) {
         );
     }
 
+    if ( function_exists( 'wp_raise_memory_limit' ) ) {
+        wp_raise_memory_limit( 'admin' );
+    }
     if ( function_exists( 'set_time_limit' ) ) {
         // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- long restores on shared hosts.
         @set_time_limit( 300 );
     }
 
-    $sql = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-    if ( false === $sql ) {
+    try {
+        $file = new SplFileObject( $path, 'r' );
+    } catch ( Exception $e ) {
         return new WP_Error(
             'tsootc_restore_read_failed',
             __( 'Could not read the selected backup file.', 'tso-options-tables-cleaner' )
         );
     }
 
-    $sql_clean = preg_replace( '/^--[^\r\n]*$/m', '', $sql );
-    $stmts     = preg_split( '/;\s*[\r\n]+/', (string) $sql_clean );
-    $stmts     = is_array( $stmts ) ? array_filter( array_map( 'trim', $stmts ) ) : array();
-    $errors    = 0;
-
+    $errors   = 0;
+    $count    = 0;
+    $repaired = 0;
+    $buffer   = '';
     $wpdb->query( 'SET FOREIGN_KEY_CHECKS=0' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-    foreach ( $stmts as $stmt ) {
-        if ( '' === $stmt ) {
+
+    // Stream the dump one line at a time: a full-database SQL file can be tens of MB and
+    // loading it whole (plus regex copies) exhausts PHP memory and leaves a half-restored DB.
+    // Every statement is a single line (values are escaped) except CREATE TABLE, which spans
+    // several lines and ends with a line starting with ")".
+    while ( ! $file->eof() ) {
+        $line = $file->fgets();
+        if ( false === $line ) {
+            break;
+        }
+        $trimmed = trim( $line );
+        if ( '' === $buffer && ( '' === $trimmed || 0 === strpos( $trimmed, '--' ) ) ) {
+            continue;
+        }
+        $buffer .= $line;
+        if ( ';' !== substr( $trimmed, -1 ) ) {
+            continue;
+        }
+        if ( 0 === strpos( strtoupper( ltrim( $buffer ) ), 'CREATE TABLE ' ) && 0 !== strpos( $trimmed, ')' ) ) {
             continue;
         }
 
-        $stmt_upper = strtoupper( ltrim( $stmt ) );
+        $stmt   = trim( $buffer );
+        $buffer = '';
+
+        // Backups made by 1.4.0-1.4.3 hold wpdb's random placeholder where a "%" was; put the "%" back.
+        if ( false !== strpos( $stmt, '{' ) ) {
+            $stmt      = preg_replace( '/\{[0-9a-f]{64}\}/', '%', $stmt, -1, $fixed );
+            $repaired += (int) $fixed;
+        }
+
+        $stmt_upper      = strtoupper( $stmt );
         $is_allowed_stmt = 0 === strpos( $stmt_upper, 'SET FOREIGN_KEY_CHECKS=' )
             || 0 === strpos( $stmt_upper, 'SET NAMES ' )
             || 0 === strpos( $stmt_upper, 'DROP TABLE IF EXISTS ' )
             || 0 === strpos( $stmt_upper, 'CREATE TABLE ' )
             || 0 === strpos( $stmt_upper, 'INSERT INTO ' );
         if ( ! $is_allowed_stmt ) {
-            $errors++;
+            ++$errors;
             continue;
         }
 
         $wpdb->query( $stmt ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Restore accepts only plugin-generated backups and only executes validated internal statements from that backup format.
         if ( $wpdb->last_error ) {
-            $errors++;
+            ++$errors;
+        }
+        ++$count;
+        if ( 0 === $count % 1000 ) {
+            $wpdb->queries = array();
+            if ( function_exists( 'set_time_limit' ) ) {
+                // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- long restores on shared hosts.
+                @set_time_limit( 300 );
+            }
         }
     }
+    unset( $file );
     $wpdb->query( 'SET FOREIGN_KEY_CHECKS=1' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
     if ( function_exists( 'tsootc_history_reset_caches' ) ) {
@@ -631,8 +635,9 @@ function tsootc_restore_backup_file( $path ) {
     }
 
     return array(
-        'errors' => $errors,
-        'meta'   => $meta,
+        'errors'   => $errors,
+        'repaired' => $repaired,
+        'meta'     => $meta,
     );
 }
 
@@ -918,6 +923,15 @@ function tsootc_backup_handler() {
                     $errors
                 )
                 : __( 'Database restored successfully.', 'tso-options-tables-cleaner' );
+        }
+
+        $repaired = isset( $restored['repaired'] ) ? (int) $restored['repaired'] : 0;
+        if ( $repaired > 0 ) {
+            $msg_text .= ' ' . sprintf(
+                /* translators: %d: number of repaired characters */
+                __( '%d damaged percent sign(s) from a backup made by an older plugin version were repaired.', 'tso-options-tables-cleaner' ),
+                $repaired
+            );
         }
 
         tsootc_set_stored_transient_by_dynamic_id( TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG, (string) $uid, array( 'type' => $errors ? 'warning' : 'success', 'msg' => $msg_text ), 30 );

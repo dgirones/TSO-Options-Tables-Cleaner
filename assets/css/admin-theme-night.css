@@ -1,12 +1,48 @@
 /**
  * Night theme — loaded last so it wins over tab-specific CSS.
  * Scope: #tso-wrap[data-theme="night"] and html[data-tsootc-theme="night"].
+ *
+ * Palette (WCAG-oriented on #1a1d27 surfaces):
+ *   bg #12141c · surface #1a1d27 · surface-2 #232635 · border #3a4058
+ *   text #eef0f6 · muted #b8becc · accent = WP admin colour scheme
+ *   ok #8fd19a · warn #ffc772 · danger #ff9a9a
  */
+
+/* Design tokens for night — accent follows WP admin colour scheme (Sunrise, Ocean, …) */
+#tso-wrap[data-theme="night"] {
+	--tsootc-bg: #12141c;
+	--tsootc-surface: #1a1d27;
+	--tsootc-surface-2: #232635;
+	--tsootc-surface-3: #2a2e3d;
+	--tsootc-border: #3a4058;
+	--tsootc-text: #eef0f6;
+	--tsootc-text-muted: #b8becc;
+	--tsootc-accent: var(--wp-admin-theme-color, #2271b1);
+	--tsootc-accent-rgb: var(--wp-admin-theme-color--rgb, 34, 113, 177);
+	--tsootc-accent-dark: var(--wp-admin-theme-color-darker-10, #135e96);
+	--tsootc-accent-darker: var(--wp-admin-theme-color-darker-20, #0a4b78);
+	--tsootc-accent-bright: color-mix(in srgb, var(--wp-admin-theme-color, #2271b1) 70%, #fff);
+	--tsootc-accent-warm: #ffd28a;
+	--tsootc-ok: #8fd19a;
+	--tsootc-warn: #ffc772;
+	--tsootc-danger: #ff9a9a;
+	--tsootc-input-bg: #232635;
+	--tsootc-table-stripe: #1f2330;
+	--tsootc-row-hover: rgba(var(--wp-admin-theme-color--rgb, 34, 113, 177), 0.16);
+	--tsootc-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+	color-scheme: dark;
+}
 
 /* Page chrome */
 html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpcontent,
 html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbody,
-html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbody-content {
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbody-content,
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpwrap,
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpfooter,
+html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner {
+	background: #12141c !important;
+}
+html[data-tsootc-theme="night"]:has(body.tools_page_tso-options-tables-cleaner) {
 	background: #12141c !important;
 }
 
@@ -46,9 +82,9 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 	color: var(--tsootc-text-muted, #c5c9d6) !important;
 }
 
-/* Links */
+/* Links — WP admin scheme (brightened for dark surfaces) */
 #tso-wrap[data-theme="night"] a:not(.button):not(.tso-main-tab):not(.tso-donate-btn):not(.tso-lang-btn):not(.btn-act) {
-	color: #8eb8e8 !important;
+	color: color-mix(in srgb, var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) 72%, #fff) !important;
 }
 
 /* Surfaces that stay white in day CSS */
@@ -58,12 +94,10 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-card-panel,
 #tso-wrap[data-theme="night"] .tso-panel-card,
 #tso-wrap[data-theme="night"] .tso-filter-bar,
-#tso-wrap[data-theme="night"] .tso-group-header,
 #tso-wrap[data-theme="night"] .tso-table-group,
 #tso-wrap[data-theme="night"] .tso-plugin-group,
 #tso-wrap[data-theme="night"] .tso-al-panel,
 #tso-wrap[data-theme="night"] .tso-opts-stat,
-#tso-wrap[data-theme="night"] .tso-opts-toolbar,
 #tso-wrap[data-theme="night"] .tso-tables-bulk-panel,
 #tso-wrap[data-theme="night"] .tso-auto-results-box,
 #tso-wrap[data-theme="night"] .tso-auto-label-col,
@@ -91,8 +125,8 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab.is-active,
 #tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab.is-active:hover,
 #tso-wrap[data-theme="night"] .tso-main-tabs .tso-main-tab.is-active:focus {
-	background: #2271b1 !important;
-	border-color: #2271b1 !important;
+	background: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	border-color: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
 	color: #fff !important;
 }
 
@@ -106,12 +140,10 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-al-head-title strong,
 #tso-wrap[data-theme="night"] .tso-al-item-name,
 #tso-wrap[data-theme="night"] .opt-name,
-#tso-wrap[data-theme="night"] .tso-td-name-strong,
 #tso-wrap[data-theme="night"] .tso-hist-header-title,
 #tso-wrap[data-theme="night"] .tso-hist-td--name,
 #tso-wrap[data-theme="night"] .tso-modal-meta-value,
 #tso-wrap[data-theme="night"] .tso-auto-results-title,
-#tso-wrap[data-theme="night"] .tso-auto-actions-title,
 #tso-wrap[data-theme="night"] .tso-auto-label-head,
 #tso-wrap[data-theme="night"] #tso-assign-body label {
 	color: var(--tsootc-text, #e8eaf0) !important;
@@ -124,12 +156,9 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-stat-label,
 #tso-wrap[data-theme="night"] .tso-action-desc,
 #tso-wrap[data-theme="night"] .tso-card-desc,
-#tso-wrap[data-theme="night"] .tso-card-desc-sm,
 #tso-wrap[data-theme="night"] .tso-text-muted,
-#tso-wrap[data-theme="night"] .tso-text-muted-light,
 #tso-wrap[data-theme="night"] .tso-text-muted-faint,
 #tso-wrap[data-theme="night"] .tso-text-muted-dark,
-#tso-wrap[data-theme="night"] .tso-text-wp-body,
 #tso-wrap[data-theme="night"] .tso-optimize-sub,
 #tso-wrap[data-theme="night"] .tso-cleanup-footnote,
 #tso-wrap[data-theme="night"] .tso-table-group-meta,
@@ -158,10 +187,8 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-extra-delete-label-help,
 #tso-wrap[data-theme="night"] .tso-extra-delete-msg,
 #tso-wrap[data-theme="night"] .tso-retention-label,
-#tso-wrap[data-theme="night"] .tso-safe-unknown,
 #tso-wrap[data-theme="night"] .tso-status-default,
 #tso-wrap[data-theme="night"] .tso-status-value,
-#tso-wrap[data-theme="night"] .tso-status-timeout,
 #tso-wrap[data-theme="night"] .tso-status-theme-installed,
 #tso-wrap[data-theme="night"] .tso-sev-normal,
 #tso-wrap[data-theme="night"] .tso-sev-pct-normal,
@@ -237,8 +264,8 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 	color: var(--tsootc-text, #f3f4f6) !important;
 }
 #tso-wrap[data-theme="night"] .tso-lang-btn.is-active {
-	background: #2271b1 !important;
-	border-color: #2271b1 !important;
+	background: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	border-color: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
 	color: #fff !important;
 }
 
@@ -248,9 +275,9 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 	border-color: transparent !important;
 }
 #tso-wrap[data-theme="night"] .tso-badge-core {
-	background: #1e2a3a !important;
-	border: 1px solid #2e4a66 !important;
-	color: #8eb8e8 !important;
+	background: rgba(var(--tsootc-accent-rgb, var(--wp-admin-theme-color--rgb, 34, 113, 177)), 0.18) !important;
+	border: 1px solid var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	color: var(--tsootc-accent-bright, #8eb8e8) !important;
 }
 #tso-wrap[data-theme="night"] .tso-risk-green {
 	background: #1f3324 !important;
@@ -272,6 +299,17 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 	border-color: #46b450 !important;
 	color: #d4edda !important;
 }
+#tso-wrap[data-theme="night"] .tso-notice-info,
+#tso-wrap[data-theme="night"] .tso-notice-flex {
+	background: #1a2430 !important;
+	border-color: #3d7eb8 !important;
+	color: #d0e4f7 !important;
+}
+#tso-wrap[data-theme="night"] .tso-notice-info .tso-notice-text,
+#tso-wrap[data-theme="night"] .tso-notice-flex .tso-notice-text,
+#tso-wrap[data-theme="night"] .tso-notice-flex > span {
+	color: #d0e4f7 !important;
+}
 #tso-wrap[data-theme="night"] .tso-notice-warning,
 #tso-wrap[data-theme="night"] .tso-panel-head--warm,
 #tso-wrap[data-theme="night"] .tso-extra-delete-panel,
@@ -287,6 +325,27 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 	background: #3a2222 !important;
 	border-color: #c00 !important;
 	color: #f5d0d0 !important;
+}
+#tso-wrap[data-theme="night"] .tso-orphan-safe-title {
+	color: #ff9a9a !important;
+}
+#tso-wrap[data-theme="night"] .tso-orphan-path-code {
+	background: #241414 !important;
+	color: #f5d0d0 !important;
+	border: 1px solid #5a3232;
+}
+#tso-wrap[data-theme="night"] .tso-orphan-safe-notice--exists {
+	background: #3a2e18 !important;
+	border-color: #c07000 !important;
+	color: #f5e6c8 !important;
+}
+#tso-wrap[data-theme="night"] .tso-orphan-safe-notice--exists .tso-orphan-safe-title {
+	color: #ffc772 !important;
+}
+#tso-wrap[data-theme="night"] .tso-orphan-safe-notice--exists .tso-orphan-path-code {
+	background: #241d0f !important;
+	color: #f5e6c8 !important;
+	border: 1px solid #5a4a28;
 }
 #tso-wrap[data-theme="night"] .tso-al-tip {
 	background: #2e2818 !important;
@@ -334,9 +393,9 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 }
 
 #tso-wrap[data-theme="night"] .tso-donate-btn {
-	background: #3a3220 !important;
-	border-color: #c07000 !important;
-	color: #f5d090 !important;
+	background: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	border-color: var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)) !important;
+	color: #fff !important;
 }
 
 /* Status tab surfaces */
@@ -403,15 +462,10 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 	border-color: #2e6b3a !important;
 }
 #tso-wrap[data-theme="night"] .tso-status-autoclean--suggest,
-#tso-wrap[data-theme="night"] .tso-status-recent--wp {
-	background: var(--tsootc-surface-2, #232635) !important;
-	border-color: var(--tsootc-border, #2e3245) !important;
-}
 
 /* Options / history extras */
 #tso-wrap[data-theme="night"] .tso-opts-search-clear,
 #tso-wrap[data-theme="night"] .tso-detect-badge,
-#tso-wrap[data-theme="night"] .tso-cron-badge-muted,
 #tso-wrap[data-theme="night"] .tso-hist-detail-code,
 #tso-wrap[data-theme="night"] .tso-hist-detail-chip {
 	background: var(--tsootc-surface-2, #232635) !important;
@@ -432,7 +486,6 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-plugin-group-head,
 #tso-wrap[data-theme="night"] .tso-plugin-group-head:hover,
 #tso-wrap[data-theme="night"] .tso-plugin-group-head.open,
-#tso-wrap[data-theme="night"] .tso-group-header,
 #tso-wrap[data-theme="night"] .tso-table-group summary,
 #tso-wrap[data-theme="night"] .tso-filter-row,
 #tso-wrap[data-theme="night"] .tso-opts-stat {
@@ -470,8 +523,7 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 /* Status badges (keep readable contrast) */
 #tso-wrap[data-theme="night"] .tso-plugin-badge,
 #tso-wrap[data-theme="night"] .tso-table-status-badge,
-#tso-wrap[data-theme="night"] .tso-usage-badge,
-#tso-wrap[data-theme="night"] .tso-cron-badge-muted {
+#tso-wrap[data-theme="night"] .tso-usage-badge {
 	background: var(--tsootc-surface-2, #232635) !important;
 	border-color: var(--tsootc-border, #2e3245) !important;
 	color: var(--tsootc-text, #e8eaf0) !important;
@@ -645,14 +697,11 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-backup-th,
 #tso-wrap[data-theme="night"] .tso-backup-td,
 #tso-wrap[data-theme="night"] .tso-backup-td-file,
-#tso-wrap[data-theme="night"] .tso-backup-list-title,
-#tso-wrap[data-theme="night"] .tso-backup-list-meta,
 #tso-wrap[data-theme="night"] .tso-backup-footnote,
 #tso-wrap[data-theme="night"] .tso-backup-empty {
 	color: var(--tsootc-text, #e8eaf0) !important;
 	border-color: var(--tsootc-border, #2e3245) !important;
 }
-#tso-wrap[data-theme="night"] .tso-backup-list-meta,
 #tso-wrap[data-theme="night"] .tso-backup-footnote,
 #tso-wrap[data-theme="night"] .tso-backup-empty {
 	color: var(--tsootc-text-muted, #c5c9d6) !important;
@@ -750,8 +799,6 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 #tso-wrap[data-theme="night"] .tso-tables-grid tr:hover td,
 #tso-wrap[data-theme="night"] .tso-table-group tr:hover td,
 #tso-wrap[data-theme="night"] .tso-hist-row:hover td,
-#tso-wrap[data-theme="night"] .tso-backup-table tr:hover td,
-#tso-wrap[data-theme="night"] .tso-group-header:hover,
 #tso-wrap[data-theme="night"] .tso-plugin-group-head:hover,
 #tso-wrap[data-theme="night"] .tso-table-group summary:hover,
 #tso-wrap[data-theme="night"] .tso-table-group[open] summary {
@@ -820,9 +867,9 @@ html[data-tsootc-theme="night"] body.tools_page_tso-options-tables-cleaner #wpbo
 }
 #tso-wrap[data-theme="night"] .tso-btn-blue-outline,
 #tso-wrap[data-theme="night"] .tso-btn-wp-blue-outline {
-	background: #1e2a3a !important;
-	border-color: #2271b1 !important;
-	color: #8eb8e8 !important;
+	background: rgba(var(--tsootc-accent-rgb, var(--wp-admin-theme-color--rgb, 34, 113, 177)), 0.16) !important;
+	border-color: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	color: #fff !important;
 }
 #tso-wrap[data-theme="night"] .tso-btn-danger-outline,
 #tso-wrap[data-theme="night"] .tso-btn-danger-outline-sm {
@@ -854,19 +901,22 @@ html[data-tsootc-theme="night"] #tso-assign-body select {
 	background-size: 16px 16px !important;
 	border: 1px solid #6b7280 !important;
 	color: #f3f4f6 !important;
-	border-radius: 4px !important;
+	border-radius: 8px !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
 	cursor: pointer !important;
 }
-/* code.tso-cron-code is NOT a dropdown — strip any accidental chevron */
+/* code.tso-cron-code is NOT a dropdown — no chip / chevron / grey “shadow” */
 #tso-wrap[data-theme="night"] code.tso-cron-code,
 #tso-wrap[data-theme="night"] code.tso-cron-code-sm {
 	-webkit-appearance: none !important;
 	appearance: none !important;
+	background: transparent !important;
 	background-image: none !important;
-	padding-right: 0.35em !important;
-	cursor: text !important;
-	border: none !important;
 	background-color: transparent !important;
+	box-shadow: none !important;
+	border: none !important;
+	padding: 0 !important;
+	cursor: text !important;
 }
 #tso-wrap[data-theme="night"] code.tso-cron-code {
 	color: #ffd28a !important;
@@ -892,8 +942,8 @@ html[data-tsootc-theme="night"] #tso-assign-body select {
 }
 #tso-wrap[data-theme="night"] .tso-filter-row .button-primary,
 #tso-wrap[data-theme="night"] .tso-audit-actions .button-primary {
-	background: #c07000 !important;
-	border-color: #c07000 !important;
+	background: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	border-color: var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)) !important;
 	color: #fff !important;
 }
 
@@ -937,6 +987,25 @@ html[data-tsootc-theme="night"] #tso-assign-body select {
 	min-width: 34px !important;
 	min-height: 30px !important;
 	padding: 4px 8px !important;
+}
+
+/* Mobile option cards (wp_options list) — dark card, readable labels */
+@media screen and (max-width: 782px) {
+	#tso-wrap[data-theme="night"] .tso-opts-scroll .tso-opts-table tbody tr {
+		background: var(--tsootc-surface, #1a1d27) !important;
+		border-color: var(--tsootc-border, #3a4058) !important;
+		color: var(--tsootc-text, #eef0f6) !important;
+	}
+	#tso-wrap[data-theme="night"] .tso-opts-scroll .tso-opts-table tbody td,
+	#tso-wrap[data-theme="night"] .tso-opts-scroll .tso-opts-table tbody td.col-name,
+	#tso-wrap[data-theme="night"] .tso-opts-scroll .tso-opts-table tbody td.col-size {
+		color: var(--tsootc-text, #eef0f6) !important;
+		background: transparent !important;
+	}
+	#tso-wrap[data-theme="night"] .tso-opts-scroll .tso-opts-table tbody td[data-label]:not([data-label=""])::before,
+	#tso-wrap[data-theme="night"] .tso-stack-on-mobile tbody td[data-label]:not([data-label=""])::before {
+		color: var(--tsootc-text-muted, #b8becc) !important;
+	}
 }
 
 /* Mobile stacked cards */
@@ -1006,25 +1075,20 @@ html[data-tsootc-theme="night"] #tso-assign-body input[type="text"] {
 	color: #e8eaf0 !important;
 }
 html[data-tsootc-theme="night"] .tso-assign-new-group {
-	background: #1e2a3a !important;
-	border-color: #2271b1 !important;
+	background: rgba(var(--wp-admin-theme-color--rgb, 34, 113, 177), 0.16) !important;
+	border-color: var(--wp-admin-theme-color, #2271b1) !important;
 	color: #e8eaf0 !important;
 }
 html[data-tsootc-theme="night"] .tso-assign-new-group label {
 	color: #e8eaf0 !important;
 }
 html[data-tsootc-theme="night"] .tso-assign-btn {
-	background: #2e7d32 !important;
+	background: var(--wp-admin-theme-color, #2271b1) !important;
 	color: #fff !important;
 	border: none !important;
 }
 html[data-tsootc-theme="night"] .tso-assign-btn:hover {
-	background: #256b2a !important;
-}
-html[data-tsootc-theme="night"] .tso-assign-btn-sec {
-	background: #1e2a3a !important;
-	border-color: #2271b1 !important;
-	color: #8eb8e8 !important;
+	background: var(--wp-admin-theme-color-darker-10, #135e96) !important;
 }
 
 /* Modals (admin_footer, outside wrap) */
@@ -1052,11 +1116,27 @@ html[data-tsootc-theme="night"] #tso-rename-box p {
 	border-color: #2e3245 !important;
 	color: #e8eaf0 !important;
 }
-html[data-tsootc-theme="night"] #tso-modal-view-tabs button,
-html[data-tsootc-theme="night"] .tso-assign-btn-sec {
+html[data-tsootc-theme="night"] #tso-modal-view-tabs button {
 	background: #232635 !important;
 	border-color: #2e3245 !important;
 	color: #c5c9d6 !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-view-tabs button.active {
+	background: var(--wp-admin-theme-color, #2271b1) !important;
+	border-color: var(--wp-admin-theme-color, #2271b1) !important;
+	color: #fff !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-save,
+html[data-tsootc-theme="night"] #tso-rename-save {
+	background: var(--wp-admin-theme-color, #2271b1) !important;
+	border-color: var(--wp-admin-theme-color-darker-10, #135e96) !important;
+	color: #fff !important;
+}
+html[data-tsootc-theme="night"] #tso-modal-save:hover,
+html[data-tsootc-theme="night"] #tso-rename-save:hover {
+	background: var(--wp-admin-theme-color-darker-10, #135e96) !important;
+	border-color: var(--wp-admin-theme-color-darker-20, #0a4b78) !important;
+	color: #fff !important;
 }
 
 /* ---- Round-2 night polish (contrast, badges, trash, headers, backup) ---- */
@@ -1098,17 +1178,18 @@ html[data-tsootc-theme="night"] .tso-assign-btn-sec {
 #tso-wrap[data-theme="night"] .tso-audit-actions a.button-primary,
 #tso-wrap[data-theme="night"] .tso-status-finding-btn,
 #tso-wrap[data-theme="night"] a.tso-status-finding-btn.button-primary {
-	background: #c07000 !important;
-	border-color: #c07000 !important;
+	background: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	border-color: var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)) !important;
 	color: #ffffff !important;
 	text-shadow: none !important;
-	box-shadow: none !important;
+	border-radius: 8px !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(var(--tsootc-accent-rgb, var(--wp-admin-theme-color--rgb, 34, 113, 177)), 0.4) !important;
 }
 #tso-wrap[data-theme="night"] .tso-filter-row .button-primary:hover,
 #tso-wrap[data-theme="night"] .tso-audit-actions .button-primary:hover,
 #tso-wrap[data-theme="night"] .tso-status-finding-btn:hover {
-	background: #a85f00 !important;
-	border-color: #a85f00 !important;
+	background: var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)) !important;
+	border-color: var(--tsootc-accent-darker, var(--wp-admin-theme-color-darker-20, #0a4b78)) !important;
 	color: #ffffff !important;
 }
 #tso-wrap[data-theme="night"] select#tso-auto-interval {
@@ -1197,7 +1278,6 @@ html[data-tsootc-theme="night"] .tso-assign-btn-sec {
 
 /* Extra tables: table names stand out from Motor / Updated / Files */
 #tso-wrap[data-theme="night"] .tso-td-mono > strong,
-#tso-wrap[data-theme="night"] .tso-td-name-strong,
 #tso-wrap[data-theme="night"] .tso-tables-grid .tso-td-mono strong {
 	color: #ffd28a !important;
 	font-weight: 700 !important;
@@ -1220,3 +1300,160 @@ html[data-tsootc-theme="night"] .tso-assign-btn-sec {
 	color: #ffd28a !important;
 	font-weight: 700 !important;
 }
+
+/* ---- Round-3 chromatic audit (all tabs) ----
+ * Fixes day-palette leftovers that fail WCAG AA on dark surfaces:
+ * #007cba stats, #a00000 / #9a6700 status labels, orange primary buttons.
+ */
+
+/* Stats / metrics: day blue #007cba → night accent (only blue family) */
+#tso-wrap[data-theme="night"] .tso-stat-card.color-blue .tso-stat-value,
+#tso-wrap[data-theme="night"] .tso-hist-stat-value,
+#tso-wrap[data-theme="night"] .tso-hist-pct-ok,
+#tso-wrap[data-theme="night"] .tso-opts-stat strong.stat-val--blue {
+	color: var(--tsootc-accent-bright, var(--tsootc-accent, #8eb8e8)) !important;
+}
+#tso-wrap[data-theme="night"] .tso-stat-card.color-blue {
+	border-top-color: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+}
+#tso-wrap[data-theme="night"] .tso-hist-fill-ok,
+#tso-wrap[data-theme="night"] .tso-al-item-bar,
+#tso-wrap[data-theme="night"] .tso-al-bar.blue {
+	background: linear-gradient(
+		90deg,
+		var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)),
+		var(--tsootc-accent-bright, var(--tsootc-accent, #8eb8e8))
+	) !important;
+}
+
+/* Semantic status labels (options / tables) — never day dark-red on dark bg */
+#tso-wrap[data-theme="night"] .tso-status-uninstalled,
+#tso-wrap[data-theme="night"] .tso-detect-badge-weak,
+#tso-wrap[data-theme="night"] .tso-orphan-safe-title {
+	color: var(--tsootc-danger, #ff9a9a) !important;
+}
+#tso-wrap[data-theme="night"] .tso-detect-badge-weak {
+	background: #3a2222 !important;
+	border-color: #6b3a3a !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-hosting-warn,
+#tso-wrap[data-theme="night"] .tso-text-warn-strong,
+#tso-wrap[data-theme="night"] .tso-status-hero--warning .tso-status-hero-badge {
+	color: var(--tsootc-warn, #ffc772) !important;
+}
+
+/* Stat card semantic values */
+#tso-wrap[data-theme="night"] .tso-stat-card.color-red .tso-stat-value,
+#tso-wrap[data-theme="night"] .tso-stat-card.color-orange .tso-stat-value {
+	color: var(--tsootc-warn, #ffc772) !important;
+}
+#tso-wrap[data-theme="night"] .tso-stat-card.color-green .tso-stat-value {
+	color: var(--tsootc-ok, #8fd19a) !important;
+}
+#tso-wrap[data-theme="night"] .tso-stat-card.color-red {
+	border-top-color: #c45a5a !important;
+}
+#tso-wrap[data-theme="night"] .tso-stat-card.color-orange {
+	border-top-color: #c07000 !important;
+}
+#tso-wrap[data-theme="night"] .tso-stat-card.color-green {
+	border-top-color: #46b450 !important;
+}
+
+/* Primary CTAs follow WP admin colour scheme (Sunrise / Ocean / …) */
+#tso-wrap[data-theme="night"] .button,
+#tso-wrap[data-theme="night"] a.button,
+#tso-wrap[data-theme="night"] .btn-act {
+	border-radius: 8px !important;
+}
+#tso-wrap[data-theme="night"] .button-primary,
+#tso-wrap[data-theme="night"] .button.button-primary,
+#tso-wrap[data-theme="night"] a.button-primary,
+#tso-wrap[data-theme="night"] .tso-status-finding-btn,
+#tso-wrap[data-theme="night"] a.tso-status-finding-btn,
+#tso-wrap[data-theme="night"] a.tso-status-finding-btn.button-primary,
+#tso-wrap[data-theme="night"] .button.button-primary.tso-status-finding-btn,
+#tso-wrap[data-theme="night"] .tso-filter-row .button-primary,
+#tso-wrap[data-theme="night"] .tso-filter-row a.button-primary,
+#tso-wrap[data-theme="night"] .tso-audit-actions .button-primary,
+#tso-wrap[data-theme="night"] .tso-audit-actions a.button-primary,
+#tso-wrap[data-theme="night"] .tso-donate-btn {
+	background: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	border-color: var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)) !important;
+	color: #fff !important;
+	font-weight: 700 !important;
+	text-shadow: none !important;
+	border-radius: 8px !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(var(--tsootc-accent-rgb, var(--wp-admin-theme-color--rgb, 34, 113, 177)), 0.4) !important;
+}
+#tso-wrap[data-theme="night"] .button-primary:hover,
+#tso-wrap[data-theme="night"] .button.button-primary:hover,
+#tso-wrap[data-theme="night"] a.button-primary:hover,
+#tso-wrap[data-theme="night"] .tso-status-finding-btn:hover,
+#tso-wrap[data-theme="night"] a.tso-status-finding-btn:hover,
+#tso-wrap[data-theme="night"] a.tso-status-finding-btn.button-primary:hover,
+#tso-wrap[data-theme="night"] .tso-filter-row .button-primary:hover,
+#tso-wrap[data-theme="night"] .tso-audit-actions .button-primary:hover,
+#tso-wrap[data-theme="night"] .tso-donate-btn:hover {
+	background: var(--tsootc-accent-dark, var(--wp-admin-theme-color-darker-10, #135e96)) !important;
+	border-color: var(--tsootc-accent-darker, var(--wp-admin-theme-color-darker-20, #0a4b78)) !important;
+	color: #fff !important;
+}
+
+/* Form controls: avoid native white checkboxes / date pickers */
+#tso-wrap[data-theme="night"] input[type="checkbox"],
+#tso-wrap[data-theme="night"] input[type="radio"] {
+	accent-color: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1));
+}
+#tso-wrap[data-theme="night"] input[type="checkbox"]:not(:checked),
+#tso-wrap[data-theme="night"] input[type="radio"]:not(:checked) {
+	background-color: var(--tsootc-input-bg, #232635) !important;
+	border-color: #6b7280 !important;
+}
+
+/* Outline chips tinted with WP admin scheme */
+#tso-wrap[data-theme="night"] .tso-btn-primary-outline,
+#tso-wrap[data-theme="night"] .tso-btn-blue-outline,
+#tso-wrap[data-theme="night"] .tso-btn-wp-blue-outline,
+#tso-wrap[data-theme="night"] .tso-rename-btn.has-alias {
+	background: rgba(var(--tsootc-accent-rgb, var(--wp-admin-theme-color--rgb, 34, 113, 177)), 0.16) !important;
+	border-color: var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) !important;
+	color: #fff !important;
+}
+
+/* Auto-clean label columns (cleanup tab) */
+#tso-wrap[data-theme="night"] .tso-auto-label-col,
+#tso-wrap[data-theme="night"] .tso-auto-action {
+	background: var(--tsootc-surface-2, #232635) !important;
+	border-color: var(--tsootc-border, #3a4058) !important;
+	color: var(--tsootc-text, #eef0f6) !important;
+}
+
+/* Attention / finding rows: ensure body copy stays muted-readable */
+#tso-wrap[data-theme="night"] .tso-status-finding-text,
+#tso-wrap[data-theme="night"] .tso-status-hero-desc {
+	color: var(--tsootc-text-muted, #b8becc) !important;
+}
+#tso-wrap[data-theme="night"] .tso-status-findings-title,
+#tso-wrap[data-theme="night"] .tso-status-hero-title {
+	color: var(--tsootc-text, #eef0f6) !important;
+}
+
+/* Links follow WP admin scheme (brightened on dark for readability) */
+#tso-wrap[data-theme="night"] a:not(.button):not(.tso-main-tab):not(.tso-donate-btn):not(.tso-lang-btn):not(.btn-act) {
+	color: color-mix(in srgb, var(--tsootc-accent, var(--wp-admin-theme-color, #2271b1)) 72%, #fff) !important;
+}
+
+/* Placeholder text */
+#tso-wrap[data-theme="night"] ::placeholder {
+	color: #8a90a4 !important;
+	opacity: 1;
+}
+
+/* Code / mono secondary */
+#tso-wrap[data-theme="night"] code:not(.tso-cron-code):not(.tso-orphan-path-code) {
+	background: var(--tsootc-surface-3, #2a2e3d) !important;
+	color: var(--tsootc-text-muted, #b8becc) !important;
+	border-color: var(--tsootc-border, #3a4058) !important;
+}
+

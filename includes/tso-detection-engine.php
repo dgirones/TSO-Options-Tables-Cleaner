@@ -48,6 +48,7 @@ function tsootc_detection_evidence_base_weights() {
 		'known_exact_map'        => 80,
 		'theme_disk'             => 55,
 		'codescan_string'        => 50,
+		'shared_library'         => 85,
 		'history_index'          => 40,
 		'legacy_installed'       => 60,
 		'slug_prefix_match'      => 35,
@@ -60,35 +61,6 @@ function tsootc_detection_evidence_base_weights() {
 	 * @param array<string,int> $weights Evidence type => score.
 	 */
 	return apply_filters( 'tsootc_detection_evidence_base_weights', $weights );
-}
-
-/**
- * Single entry point for wp_options owner resolution.
- *
- * @param string $option_name       Option key.
- * @param array  $installed_plugins Plugin/theme inventory.
- * @param array  $args              Optional args: fast (bool), force_v2 (bool).
- * @return array|null
- */
-function tsootc_detection_resolve_option( $option_name, array $installed_plugins = array(), $args = array() ) {
-	$args = is_array( $args ) ? $args : array();
-
-	if ( empty( $installed_plugins ) && function_exists( 'tsootc_get_installed_plugins' ) ) {
-		$installed_plugins = tsootc_get_installed_plugins();
-	}
-
-	$use_v2 = ! empty( $args['force_v2'] ) || tsootc_detection_engine_v2_enabled();
-	if ( ! $use_v2 ) {
-		if ( function_exists( 'tsootc_detect_plugin_with_history' ) ) {
-			return tsootc_detect_plugin_with_history( $option_name, $installed_plugins, $args );
-		}
-		if ( function_exists( 'tsootc_detect_plugin' ) ) {
-			return tsootc_detect_plugin( $option_name, $installed_plugins, $args );
-		}
-		return null;
-	}
-
-	return tsootc_detection_resolve_option_v2_with_postprocess( $option_name, $installed_plugins, $args );
 }
 
 /**
@@ -560,28 +532,6 @@ function tsootc_detection_finalize_row( $row, $option_name, array $installed_plu
 }
 
 /**
- * Summarize evidence for UI / audit.
- *
- * @param array $candidate Scored candidate.
- * @return string
- */
-function tsootc_detection_summarize_candidate_evidence( array $candidate ) {
-	$parts = array();
-	$pieces = isset( $candidate['evidence'] ) && is_array( $candidate['evidence'] ) ? $candidate['evidence'] : array();
-	foreach ( $pieces as $piece ) {
-		if ( ! is_array( $piece ) ) {
-			continue;
-		}
-		$type = (string) ( $piece['type'] ?? '' );
-		if ( '' !== $type ) {
-			$parts[] = $type;
-		}
-	}
-
-	return implode( ', ', array_unique( $parts ) );
-}
-
-/**
  * Owner token for diff/debug (folder or file slug).
  *
  * @param array|null $row Detection row.
@@ -600,55 +550,6 @@ function tsootc_detection_row_owner_token( $row ) {
 		return strtolower( dirname( $file ) );
 	}
 	return strtolower( $file );
-}
-
-/**
- * Compare cascade vs V2 resolver output (debug / staging).
- *
- * @param string $option_name       Option key.
- * @param array  $installed_plugins Inventory.
- * @param array  $args              Detection args.
- * @return array<string,mixed>
- */
-function tsootc_detection_debug_diff_cascade_vs_v2( $option_name, array $installed_plugins = array(), $args = array() ) {
-	$args = is_array( $args ) ? $args : array();
-
-	$cascade_args = array_merge( $args, array( 'force_cascade' => true ) );
-	$v2_args      = array_merge( $args, array( 'force_v2' => true ) );
-
-	$cascade = null;
-	$v2      = null;
-
-	if ( function_exists( 'tsootc_detect_plugin_with_history' ) ) {
-		$cascade = tsootc_detect_plugin_with_history( $option_name, $installed_plugins, $cascade_args );
-	}
-	if ( function_exists( 'tsootc_detection_resolve_option' ) ) {
-		$v2 = tsootc_detection_resolve_option( $option_name, $installed_plugins, $v2_args );
-	}
-
-	$token_a = tsootc_detection_row_owner_token( $cascade );
-	$token_b = tsootc_detection_row_owner_token( $v2 );
-	$match   = ( $token_a === $token_b );
-
-	$result = array(
-		'option'        => (string) $option_name,
-		'match'         => $match,
-		'cascade_token' => $token_a,
-		'v2_token'      => $token_b,
-		'cascade'       => $cascade,
-		'v2'            => $v2,
-	);
-
-	if ( ! $match && ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
-		/**
-		 * Log cascade vs V2 detection mismatch.
-		 *
-		 * @param array<string,mixed> $result Diff payload.
-		 */
-		do_action( 'tsootc_detection_resolver_diff', $result );
-	}
-
-	return $result;
 }
 
 /**
@@ -845,6 +746,9 @@ function tsootc_detection_resolve_owner_display_label( $owner_token, $detected, 
 	if ( '__wordpress_core__' === $token ) {
 		return 'WordPress';
 	}
+	if ( 0 === strpos( $token, '__shared_' ) && is_array( $detected ) && ! empty( $detected['name'] ) ) {
+		return (string) $detected['name'];
+	}
 
 	if ( is_array( $detected ) && ! empty( $detected['name'] ) ) {
 		$folder = (string) ( $detected['folder'] ?? '' );
@@ -1008,15 +912,4 @@ function tsootc_detection_resolve_option_group_bucket( $option_name, $detected, 
  * @param array  $args                 Optional: full_table_name (string).
  * @return array|null
  */
-function tsootc_detection_resolve_table( $table_without_prefix, array $installed_plugins = array(), $args = array() ) {
-	$args = is_array( $args ) ? $args : array();
-	$full = isset( $args['full_table_name'] ) ? (string) $args['full_table_name'] : '';
 
-	if ( function_exists( 'tsootc_detect_table_with_confidence' ) ) {
-		return tsootc_detect_table_with_confidence( $table_without_prefix, $installed_plugins, $full );
-	}
-	if ( function_exists( 'tsootc_detect_plugin_from_table' ) ) {
-		return tsootc_detect_plugin_from_table( $table_without_prefix, $installed_plugins );
-	}
-	return null;
-}

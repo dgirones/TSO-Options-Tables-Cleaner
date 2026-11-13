@@ -452,8 +452,21 @@
 
         document.querySelectorAll('.tso-plugin-group').forEach(function (grp) {
             var groupHay = (grp.getAttribute('data-search') || '').toLowerCase();
-            var groupMatch = search && groupHay.indexOf(search) !== -1;
+            // Plugin / group name: every word must be the start of a word ("store" does not match "Restore").
+            var groupMatch = search && String(search).split(/[\s\-_.,\/\\]+/).filter(Boolean).every(function (w) {
+                return new RegExp('(^|[^0-9a-z])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(groupHay);
+            });
             var anyVisible = false;
+            // If some options of the group match by name, list only those; the whole group is listed
+            // only when the search matches the plugin/group name and none of its option names (e.g. "freemius").
+            var anyNameMatch = false;
+            if (search && groupMatch) {
+                grp.querySelectorAll('.tso-opts-row').forEach(function (probe) {
+                    if (!anyNameMatch && window.tsootcSearchMatch((probe.dataset.name || '').toLowerCase(), search)) {
+                        anyNameMatch = true;
+                    }
+                });
+            }
 
             grp.querySelectorAll('.tso-opts-row').forEach(function (row) {
                 var name = (row.dataset.name || '').toLowerCase();
@@ -461,7 +474,7 @@
                 var rsal = row.dataset.safety || '';
                 var isOn = offVals.indexOf(ral) === -1;
                 var ok = true;
-                if (search && !groupMatch && name.indexOf(search) === -1) {
+                if (search && !(groupMatch && !anyNameMatch) && !window.tsootcSearchMatch(name, search)) {
                     ok = false;
                 }
                 if (auto === 'on' && !isOn) {

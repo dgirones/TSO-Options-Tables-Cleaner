@@ -5,8 +5,8 @@ Donate link: https://ko-fi.com/deadko_cat
 Tags: database, cleanup, optimization, maintenance, wp-options
 Requires at least: 6.1
 Tested up to: 7.1
-Requires PHP: 8.0
-Stable tag: 1.3.6
+Requires PHP: 7.4
+Stable tag: 1.4.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,29 +95,28 @@ No external connections: This plugin does not make any HTTP requests to external
 
 == Changelog ==
 
-Recent releases only. Older notes are in changelog.txt in the plugin folder.
+See changelog.txt in the plugin folder for older versions.
 
-= 1.3.6 =
-* Fix: the auto-drafts cleanup no longer deletes auto-drafts younger than one day, so a post editor left open no longer breaks when its draft is removed
-* Improvement: the Cron tab now refreshes itself when scheduled events run or change (checked every 20 seconds while the tab is open)
-* Fix: automatic cleanup "Next run" could show a date far beyond the selected frequency (e.g. 20 days on weekly) because every save pushed it out; saving no longer moves an existing schedule and the next run is realigned to last run + interval
-* Fix: cleaning post revisions / old revisions (and other post deletions) crashed with a critical error caused by an infinite recursion in the cleanup capability filter
-* Security hardening: the wp_options value viewer no longer instantiates PHP objects when unserializing a stored option's raw value (allowed_classes disabled), reducing object-injection exposure from other plugins' data
-* Fix: code-scan index build (option/table detection across installed plugins and themes) could hit "Maximum execution time exceeded" and fatal out on hosts with a low time limit or slow disk; it now stops within a safe time budget instead of running until the host kills it
+= 1.4.4 =
+* Fix: plugin status no longer writes "Undefined array key active" to the debug log when a detected row has no active flag.
+* Fix: custom cleanup schedules no longer trigger the WordPress 6.7 notice about loading translations too early.
+* Improvement: the language switcher includes AUTO, which follows the WordPress user language. Languages other than Catalan, Spanish and English keep their WordPress language pack.
 
-= 1.3.5 =
-* Admin: day / night / auto UI theme
-* Language: first use now follows the WordPress language installed for that user (Catalan/Spanish/English) instead of always defaulting to Catalan; falls back to English when unsupported
-* Performance: several admin_init/init hooks (options-tab signature, pre-theme-switch snapshot, code-scan cache warm-up, one-time storage/option-map migrations, comment-trash backfill, auto-clean cron migration) now only run on the relevant screen instead of on every wp-admin page or, in two cases, every front-end request
-* Current status tab: new DB size and persistent object-cache indicators, total KB shown for top autoload options, one-click wp_options refresh, and a 7-day "hide this notice" link on non-urgent findings; fixed a duplicate history read on every load
-* General cleanup tab: removed duplicate COUNT queries — refreshing action counts after a manual run or a retention-days change now reuses the already-computed stats instead of re-querying each action separately
+= 1.4.3 =
+* Fix: Current status tab figures, cards, notices, buttons and "Refresh data" link.
+* Fix: tables only read by another plugin are no longer assigned to it.
+* Fix: languages, plurals and dates in the General cleanup tab.
+* Fix: backups keep the % character; older backups are repaired on restore.
+* Fix: restoring large backups no longer fails with a critical error.
+* Improvement: Current status tab shows accumulated content, biggest tables and versions.
+* Improvement: compatible with PHP 7.4.
+* Improvement: General cleanup asks for confirmation only on Caution actions.
 
-= 1.3.4 =
-* Extra tables: fix delete UI when «Allow table deletion» is enabled (instant unlock + sync on reload)
-* Extra tables: correct detection for TSO plugin tables named pluginstso_* (legacy pluginspc_* aliases)
-* Options tab: search matches plugin group names (e.g. «really» finds Really Simple Security); clear ✕ on search field
-* Status tab: recent plugin/theme changes shown in a compact table with action badges
-* Detection audit: path column stacks segments; table fits viewport without forced horizontal scroll
-* Email report: inline CSS only (WordPress.org Plugin Check)
-* Regression tests: auto-clean schedule includes cleanup helpers
-
+= 1.4.2 =
+* Improvement: faster, more precise search of options, tables and history.
+* Improvement: tables and options of bundled libraries (Action Scheduler, Freemius) are detected and grouped as "Shared library".
+* Improvement: much faster wp_options detection and manual assignment.
+* Improvement: extra warning when deleting a recently modified table; "Deep table scan" spinner.
+* Fix: shared-library groups no longer disappear after a plugin update or install.
+* Fix: fewer false "Probably orphaned" and "removed plugin" labels; "fs_" options attributed to Freemius only when its SDK is present.
+* Fix: readable cards on mobile for Tables, Cron and night-mode Options.

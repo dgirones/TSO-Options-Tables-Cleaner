@@ -48,6 +48,8 @@ define( 'TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT', 'pre_install_snapshot' )
 define( 'TSOOTC_STORED_TRANSIENT_PRE_INSTALL_SNAPSHOT_THEME', 'pre_install_snapshot_theme' );
 define( 'TSOOTC_STORED_TRANSIENT_PRE_INSTALL_TABLE_SNAPSHOT', 'pre_install_table_snapshot' );
 define( 'TSOOTC_STORED_TRANSIENT_PRE_ACTIVATE_TABLE_SNAPSHOT', 'pre_activate_table_snapshot' );
+define( 'TSOOTC_STORED_TRANSIENT_ACTIVATION_SCAN_QUEUE', 'activation_scan_queue' );
+define( 'TSOOTC_STORED_TRANSIENT_STATUS_STATS', 'status_stats_cache' );
 
 // Dynamic transient prefix ids (suffix appended at runtime).
 define( 'TSOOTC_STORED_TRANSIENT_DYNAMIC_OPTS_TAB_INV_SIG', 'opts_tab_inv_sig' );
@@ -55,9 +57,6 @@ define( 'TSOOTC_STORED_TRANSIENT_DYNAMIC_PRE_DELETE_THEME', 'pre_delete_theme' )
 define( 'TSOOTC_STORED_TRANSIENT_DYNAMIC_CLEANUP_MSG', 'cleanup_msg' );
 define( 'TSOOTC_STORED_TRANSIENT_DYNAMIC_BACKUP_MSG', 'backup_msg' );
 define( 'TSOOTC_STORED_TRANSIENT_DYNAMIC_TABLE_FRAG_HINT', 'table_frag_hint' );
-
-// Dynamic wp_options blob prefix id.
-define( 'TSOOTC_STORED_OPTION_DYNAMIC_OPTS_TAB_CACHE_BLOB', 'opts_tab_cache_blob' );
 
 // User meta.
 define( 'TSOOTC_USER_META_UI_LANG', 'tso_options_tables_cleaner_ui_lang' );
@@ -72,6 +71,7 @@ define( 'TSOOTC_ADMIN_QUERY_DOWNLOAD_LEGACY', 'tso_download' );
 define( 'TSOOTC_ADMIN_QUERY_REFRESH', 'tsootc_refresh' );
 define( 'TSOOTC_ADMIN_QUERY_REFRESH_LEGACY', 'tso_refresh' );
 define( 'TSOOTC_ADMIN_QUERY_DISMISS_FINDING', 'tsootc_dismiss_finding' );
+define( 'TSOOTC_ADMIN_QUERY_STATUS_REFRESH', 'tsootc_status_refresh' );
 
 /**
  * Verify AJAX nonce (canonical action, then legacy during rollout).
@@ -83,10 +83,22 @@ function tsootc_verify_ajax_nonce() {
 	if ( '' === $nonce ) {
 		return false;
 	}
-	if ( defined( 'TSOOTC_NONCE_AJAX' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_AJAX ) ) {
-		return true;
-	}
-	if ( defined( 'TSOOTC_NONCE_AJAX_LEGACY' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_AJAX_LEGACY ) ) {
+	if ( ( defined( 'TSOOTC_NONCE_AJAX' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_AJAX ) )
+		|| ( defined( 'TSOOTC_NONCE_AJAX_LEGACY' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_AJAX_LEGACY ) ) ) {
+		// A verified plugin action may change the figures shown on the status tab; read-only ones do not.
+		$ajax_action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce verified just above.
+		$read_only   = array(
+			'tsootc_refresh_nonce',
+			'tsootc_get_option_value',
+			'tsootc_get_key_map',
+			'tsootc_get_pending_map',
+			'tsootc_get_cleanup_counts',
+			'tsootc_export_drop_sql',
+			'tsootc_export_table_restore_sql',
+		);
+		if ( ! in_array( $ajax_action, $read_only, true ) ) {
+			tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_STATUS_STATS );
+		}
 		return true;
 	}
 	return false;
@@ -104,10 +116,10 @@ function tsootc_verify_admin_form_nonce( $query_arg = '_wpnonce' ) {
 	if ( '' === $nonce ) {
 		return false;
 	}
-	if ( defined( 'TSOOTC_NONCE_FORM' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_FORM ) ) {
-		return true;
-	}
-	if ( defined( 'TSOOTC_NONCE_FORM_LEGACY' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_FORM_LEGACY ) ) {
+	if ( ( defined( 'TSOOTC_NONCE_FORM' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_FORM ) )
+		|| ( defined( 'TSOOTC_NONCE_FORM_LEGACY' ) && wp_verify_nonce( $nonce, TSOOTC_NONCE_FORM_LEGACY ) ) ) {
+		// Any verified plugin action may change the figures shown on the status tab.
+		tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_STATUS_STATS );
 		return true;
 	}
 	return false;
@@ -306,6 +318,7 @@ function tsootc_get_stored_option_key_map() {
 		'tso_theme_prefix_map_version'        => 'tso_options_tables_cleaner_theme_prefix_map_version',
 		'tso_comment_trash_meta_backfill_v1'  => 'tso_options_tables_cleaner_comment_trash_meta_backfill_v1',
 		'tso_allow_extra_table_delete'        => 'tso_options_tables_cleaner_allow_extra_table_delete',
+		'tso_status_dismissed_findings'       => 'tso_options_tables_cleaner_status_dismissed_findings',
 	);
 }
 
@@ -343,6 +356,8 @@ function tsootc_get_stored_transient_key_map() {
 		'tsootc_pre_install_snapshot_theme' => 'tso_options_tables_cleaner_pre_install_snapshot_theme',
 		'tso_pre_install_table_snapshot'    => 'tso_options_tables_cleaner_pre_install_table_snapshot',
 		'tso_pre_activate_table_snapshot'   => 'tso_options_tables_cleaner_pre_activate_table_snapshot',
+		'tso_activation_scan_queue'         => 'tso_options_tables_cleaner_activation_scan_queue',
+		'tso_status_stats_cache'            => 'tso_options_tables_cleaner_status_stats_cache',
 	);
 }
 
@@ -578,13 +593,13 @@ function tsootc_get_stored_transient( $legacy_key ) {
 	$legacy_key = (string) $legacy_key;
 	$new_key    = tsootc_resolve_stored_transient_key( $legacy_key );
 
-	if ( false !== $new_key && tsootc_stored_transient_exists( $new_key ) ) {
-		return get_transient( $new_key );
+	if ( false !== $new_key ) {
+		$value = get_transient( $new_key );
+		if ( false !== $value ) {
+			return $value;
+		}
 	}
-	if ( tsootc_stored_transient_exists( $legacy_key ) ) {
-		return get_transient( $legacy_key );
-	}
-	return false;
+	return get_transient( $legacy_key );
 }
 
 /**
@@ -1013,15 +1028,48 @@ function tsootc_detect_ui_lang_from_wp_locale( $user_id = 0 ) {
 }
 
 /**
+ * Language the user pinned in the switcher, or '' while following the WordPress language (AUTO).
+ *
+ * @param int $user_id User ID; 0 = current user.
+ * @return string ca|es|en, or ''.
+ */
+function tsootc_get_user_ui_lang_pin( $user_id = 0 ) {
+	$user_id = $user_id ? (int) $user_id : get_current_user_id();
+	$saved   = get_user_meta( $user_id, TSOOTC_USER_META_UI_LANG, true ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- single-user preference lookup
+	return in_array( $saved, array( 'ca', 'es', 'en' ), true ) ? $saved : '';
+}
+
+/**
+ * Whether the user's WordPress language is one of the bundled ones (Catalan, Spanish, English).
+ * Any other language is served by its WordPress language pack, which AUTO must leave in place.
+ *
+ * @param int $user_id User ID; 0 = current user.
+ * @return bool
+ */
+function tsootc_wp_locale_is_native( $user_id = 0 ) {
+	$locale = function_exists( 'get_user_locale' ) ? ( $user_id ? get_user_locale( (int) $user_id ) : get_user_locale() ) : get_locale();
+	if ( '' === $locale ) {
+		$locale = get_locale();
+	}
+	return in_array( strtolower( substr( (string) $locale, 0, 2 ) ), array( 'ca', 'es', 'en' ), true );
+}
+
+/**
  * Persist the admin UI language preference for a user.
  *
- * @param string $lang    ca|es|en.
+ * @param string $lang    ca|es|en to pin a language, or auto to follow the WordPress language.
  * @param int    $user_id User ID; 0 = current user.
  * @return void
  */
 function tsootc_set_user_ui_lang( $lang, $user_id = 0 ) {
 	$user_id = $user_id ? (int) $user_id : get_current_user_id();
 	$lang    = sanitize_key( (string) $lang );
+	if ( 'auto' === $lang ) {
+		delete_user_meta( $user_id, TSOOTC_USER_META_UI_LANG ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- single-user preference reset
+		// The old key is read once and copied back, so it must go too.
+		delete_user_meta( $user_id, tsootc_get_user_ui_lang_legacy_meta_key() ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- single-user preference reset
+		return;
+	}
 	if ( ! in_array( $lang, array( 'ca', 'es', 'en' ), true ) ) {
 		return;
 	}
@@ -1295,19 +1343,6 @@ function tsootc_migrate_stored_dynamic_transients() {
 			tsootc_migrate_one_stored_transient( $legacy_key );
 		}
 	}
-}
-
-/**
- * Migrate all fixed and known dynamic transient keys (legacy → canonical).
- *
- * @return void
- */
-function tsootc_migrate_stored_transients() {
-	foreach ( array_keys( tsootc_get_stored_transient_key_map() ) as $legacy_key ) {
-		tsootc_migrate_one_stored_transient( $legacy_key );
-	}
-
-	tsootc_migrate_stored_dynamic_transients();
 }
 
 /**

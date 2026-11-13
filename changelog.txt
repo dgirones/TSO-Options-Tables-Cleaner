@@ -1,6 +1,59 @@
 === TSO Options & Tables Cleaner — older changelog ===
 Current releases are listed in readme.txt.
 
+= 1.4.1 =
+* Improvement: activating a plugin is much faster; the deep scan now runs in the background.
+
+= 1.4.0 =
+* Fix: wp_options Accions column keeps all row buttons on one line (no wrap, no large empty gap before the actions)
+* Fix: Confirmar only appears when there is a real auto-suggested plugin/theme to promote — not on bare "Unconfirmed" rows with no candidate (same rule for extra tables)
+* Fix: bare tso_* keys from other TSO plugins are no longer attributed to theme tso-blog via the short token "tso" (history/map); polluted theme map rows are dropped on sanitize
+* Improvement: admin buttons use rounded relief styling; day-mode selects keep the chevron; Confirmar and secondary CTAs align with the WordPress admin colour scheme
+* Improvement: night-mode text and accent contrast reviewed across tabs; dead admin CSS/PHP paths removed
+* Fix: Cron tab EscapeOutput compliance for soft-broken hook names in the UI
+
+= 1.3.9 =
+* Fix: third-party promo/review notices that use `.notice-success` (e.g. Media Cleaner) are no longer treated as first-party and forced visible on the Tools screen; only TSO-marked notices stay shown
+* Fix: deep-scan / cache info banners no longer use WordPress `.notice-info` (white bar + unreadable text in night mode); they use first-party `.tso-notice-info` with night-theme contrast
+* Improvement: night-mode chromatic pass across all tabs — design tokens, readable status labels, and form-control dark accents
+* Improvement: primary buttons, active tabs, language chips and accent UI follow the WordPress admin colour scheme (Sunrise, Ocean, Ectoplasm, …), same approach as TSO Link Inspector
+
+= 1.3.8 =
+* Fix: extra-tables list no longer needs horizontal scrolling to see the action buttons, and the wp_options owner detection now recognizes Jetpack Carousel's option keys (carousel_display_exif and its siblings) instead of leaving them unconfirmed
+* Fix: the "looks uninstalled, safe to delete" notice could wrongly claim a plugin's folder was gone when it was actually still on the server (get_plugins() was sometimes called before WordPress had loaded it, on top of a stale cached check) — it now re-checks the folder live and shows a caution warning instead of a false all-clear when the folder is still there, and softens the wording ('probably safe') since automatic detection is not infallible
+* Fix: wp_options owner detection now recognizes WordPress core's own Connectors API keys (connectors_ai_google_api_key and its siblings, added in WordPress 7.0 for AI provider credentials) as WP Core instead of leaving them unconfirmed
+
+= 1.3.7 =
+* Fix: cleanup crashes and data-safety issues (auto-drafts younger than one day are kept, revisions cleanup no longer crashes, wp_options viewer no longer instantiates objects) and the code-scan index no longer times out on slow hosts
+* Fix: better owner detection for wp_options keys (Yoast SEO keys no longer listed under other plugins; plugins that only read a key no longer own it) and the Cron tab and automatic cleanup "Next run" now update correctly
+* Improvement: the "no backup" notice asks for a full database backup (wp_options + extra tables) and reappears when it is over 7 days old; single-table backups no longer hide it
+* Improvement: refreshed wp_options summary cards, and no more theme flash, sideways tab jumps or light strip in night mode when switching tabs
+
+= 1.3.6 =
+* Fix: the auto-drafts cleanup no longer deletes auto-drafts younger than one day, so a post editor left open no longer breaks when its draft is removed
+* Improvement: the Cron tab now updates its list in place (no page reload) right after each scheduled event is due, instead of on a fixed timer
+* Fix: automatic cleanup "Next run" could show a date far beyond the selected frequency (e.g. 20 days on weekly) because every save pushed it out; saving no longer moves an existing schedule and the next run is realigned to last run + interval
+* Fix: cleaning post revisions / old revisions (and other post deletions) crashed with a critical error caused by an infinite recursion in the cleanup capability filter
+* Security hardening: the wp_options value viewer no longer instantiates PHP objects when unserializing a stored option's raw value (allowed_classes disabled), reducing object-injection exposure from other plugins' data
+* Fix: code-scan index build (option/table detection across installed plugins and themes) could hit "Maximum execution time exceeded" and fatal out on hosts with a low time limit or slow disk; it now stops within a safe time budget instead of running until the host kills it
+
+= 1.3.5 =
+* Admin: day / night / auto UI theme
+* Language: first use now follows the WordPress language installed for that user (Catalan/Spanish/English) instead of always defaulting to Catalan; falls back to English when unsupported
+* Performance: several admin_init/init hooks (options-tab signature, pre-theme-switch snapshot, code-scan cache warm-up, one-time storage/option-map migrations, comment-trash backfill, auto-clean cron migration) now only run on the relevant screen instead of on every wp-admin page or, in two cases, every front-end request
+* Current status tab: new DB size and persistent object-cache indicators, total KB shown for top autoload options, one-click wp_options refresh, and a 7-day "hide this notice" link on non-urgent findings; fixed a duplicate history read on every load
+* General cleanup tab: removed duplicate COUNT queries — refreshing action counts after a manual run or a retention-days change now reuses the already-computed stats instead of re-querying each action separately
+
+= 1.3.4 =
+* Extra tables: fix delete UI when «Allow table deletion» is enabled (instant unlock + sync on reload)
+* Extra tables: correct detection for TSO plugin tables named pluginstso_* (legacy pluginspc_* aliases)
+* Options tab: search matches plugin group names (e.g. «really» finds Really Simple Security); clear ✕ on search field
+* Status tab: recent plugin/theme changes shown in a compact table with action badges
+* Detection audit: path column stacks segments; table fits viewport without forced horizontal scroll
+* Email report: inline CSS only (WordPress.org Plugin Check)
+* Regression tests: auto-clean schedule includes cleanup helpers
+
+
 = 1.3.3 =
 * Admin: new **Current status** tab (default) with database overview and shortcuts to cleanup
 * Admin: modal overlays (rename group, option viewer, assign) render in the footer so they no longer break page layout

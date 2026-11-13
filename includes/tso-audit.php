@@ -690,9 +690,9 @@ function tsootc_render_options_audit_panel( $grouped_ordered, $installed_plugins
 	echo '<p class="tso-audit-actions">';
 	echo '<a class="button button-primary" href="' . esc_url( $off_url ) . '">' . esc_html( $txt_off ) . '</a>';
 	if ( $only_mismatch ) {
-		echo '<a class="button button-secondary" href="' . esc_url( $all_url ) . '">' . esc_html( $txt_all ) . '</a>';
+		echo '<a class="button tso-btn-blue-outline" href="' . esc_url( $all_url ) . '">' . esc_html( $txt_all ) . '</a>';
 	} elseif ( $mismatch_count > 0 ) {
-		echo '<a class="button button-secondary" href="' . esc_url( $mismatch_url ) . '">' . esc_html( $txt_filter ) . ' (' . (int) $mismatch_count . ')</a>';
+		echo '<a class="button tso-btn-blue-outline" href="' . esc_url( $mismatch_url ) . '">' . esc_html( $txt_filter ) . ' (' . (int) $mismatch_count . ')</a>';
 	}
 	echo '</p>';
 	echo '<div class="tso-audit-table-wrap">';

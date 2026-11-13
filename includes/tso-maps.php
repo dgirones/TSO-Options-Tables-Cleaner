@@ -86,10 +86,6 @@ function tsootc_get_prefix_map() {
         'antispam'                  => 'Antispam Bee',
         'avada'                     => 'Avada Theme',
         'ajaxhc'                    => 'Ajax Hit Counter',
-        'action_scheduler'          => 'Action Scheduler (WooCommerce)',
-        'schema-ActionScheduler'    => 'Action Scheduler (WooCommerce)',
-        'schema-actionscheduler'    => 'Action Scheduler (WooCommerce)',
-        'actionscheduler'           => 'Action Scheduler (WooCommerce)',
         'adbc'                      => 'Advanced Database Cleaner',
         'adbc_'                     => 'Advanced Database Cleaner',
         'sigmabc'                   => 'Advanced Database Cleaner',
@@ -642,14 +638,6 @@ function tsootc_get_known_option_exact_map() {
             'name'   => 'WooCommerce',
             'folder' => 'woocommerce',
         ),
-        'schema-ActionScheduler_StoreSchema' => array(
-            'name'   => 'Action Scheduler (WooCommerce)',
-            'folder' => 'woocommerce',
-        ),
-        'schema-ActionScheduler_LoggerSchema' => array(
-            'name'   => 'Action Scheduler (WooCommerce)',
-            'folder' => 'woocommerce',
-        ),
         'product_shipping_class_children'   => array(
             'name'   => 'WooCommerce',
             'folder' => 'woocommerce',
@@ -868,7 +856,6 @@ function tsootc_get_table_prefix_map() {
         'current_theme_supports_woocommerce' => 'WooCommerce',
         'wc_'                       => 'WooCommerce',
         'wcs_'                      => 'WooCommerce Subscriptions',
-        'actionscheduler_'          => 'Action Scheduler (WooCommerce/etc.)',
         // ---- Yoast SEO (slug: wordpress-seo) ----
         'yoast_'                    => 'Yoast SEO',
         'yoast_seo_'                => 'Yoast SEO',

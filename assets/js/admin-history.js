@@ -64,7 +64,7 @@
             if (actionVal && action !== actionVal) {
                 show = false;
             }
-            if (searchVal && name.indexOf(searchVal) === -1) {
+            if (searchVal && !window.tsootcSearchMatch(name, searchVal)) {
                 show = false;
             }
             if (tsFrom > 0 && ts < tsFrom) {

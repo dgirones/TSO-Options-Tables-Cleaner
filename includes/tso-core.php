@@ -47,6 +47,20 @@ function tsootc_msg( $ca, $es, $en ) {
 }
 
 /**
+ * Count message with singular/plural form per language.
+ *
+ * @param int   $n  Count (substituted for %d).
+ * @param array $ca Catalan: array( singular, plural ).
+ * @param array $es Spanish: array( singular, plural ).
+ * @param array $en English: array( singular, plural ).
+ * @return string
+ */
+function tsootc_msg_count( $n, array $ca, array $es, array $en ) {
+    $i = ( 1 === (int) $n ) ? 0 : 1;
+    return sprintf( tsootc_ui_triple_text( tsootc_get_ui_lang(), $ca[ $i ], $es[ $i ], $en[ $i ] ), (int) $n );
+}
+
+/**
  * Sanitize option payloads for admin saves while preserving serialized/HTML content.
  *
  * @param mixed $value Raw POST value.
@@ -373,7 +387,7 @@ function tsootc_handle_lang_switch() {
         return;
     }
     $lang = sanitize_key( $lang_arg );
-    if ( in_array( $lang, array( 'ca', 'es', 'en' ), true ) ) {
+    if ( in_array( $lang, array( 'auto', 'ca', 'es', 'en' ), true ) ) {
         tsootc_set_user_ui_lang( $lang );
     }
     $allowed_tabs = array( 'status', 'cleanup', 'options', 'tables', 'history', 'cron', 'backup' );
@@ -479,6 +493,14 @@ function tsootc_is_wp_core_option( $name ) {
 
     if ( in_array( $name, $exact, true ) ) return true;
     if ( ! empty( $prefixed ) && in_array( $name, $prefixed, true ) ) return true;
+
+    // WordPress 7.0+ core Connectors API (Settings → Connectors): provider
+    // credentials/config stored by core itself, not by any plugin folder.
+    // Naming convention (wp-includes/connectors.php): connectors_{type}_{id}_api_key
+    // e.g. connectors_ai_google_api_key, connectors_ai_openai_api_key,
+    // connectors_ai_anthropic_api_key. Prefix covers future connector types too.
+    if ( 0 === strpos( $name, 'connectors_' ) ) return true;
+
     return false;
 }
 function tsootc_get_custom_map( $force_reload = false ) {
@@ -511,7 +533,7 @@ function tsootc_custom_map_delete( $option_name ) {
     tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_CUSTOM_OPTION_MAP, $map, false );
     tsootc_get_custom_map( true );
     if ( function_exists( 'tsootc_options_tab_flush_cache' ) ) {
-        tsootc_options_tab_flush_cache();
+        tsootc_options_tab_flush_cache( true );
     }
 }
 
@@ -665,20 +687,6 @@ function tsootc_get_group_aliases( $force_reload = false ) {
     return $cache;
 }
 
-function tsootc_set_group_alias( $group_key, $alias ) {
-    $map = tsootc_get_group_aliases();
-    if ( $alias === '' ) {
-        unset( $map[ $group_key ] );
-    } else {
-        $map[ $group_key ] = sanitize_text_field( $alias );
-    }
-    tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_GROUP_ALIASES, $map, false );
-    tsootc_get_group_aliases( true ); // reset static cache
-    if ( function_exists( 'tsootc_options_tab_flush_cache' ) ) {
-        tsootc_options_tab_flush_cache();
-    }
-}
-
 /**
  * Whether a grouped-options bucket key is not a real assign target.
  *
@@ -741,9 +749,11 @@ function tsootc_resolve_assignable_group_display_label( $group_key, $group_data 
     if ( function_exists( 'tsootc_detection_is_owner_token_group_key' )
         && tsootc_detection_is_owner_token_group_key( $group_key ) ) {
         $token = substr( $group_key, strlen( 'owner:' ) );
-        if ( preg_match( '/^__[a-z0-9_]+__$/', $token )
-            || ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
-                && tsootc_is_synthetic_shared_sdk_folder( $token ) ) ) {
+        // Libraries bundled in plugins (__shared_{family}__) can be chosen; hosting and SDK tokens cannot.
+        if ( 0 !== strpos( $token, '__shared_' )
+            && ( preg_match( '/^__[a-z0-9_]+__$/', $token )
+                || ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+                    && tsootc_is_synthetic_shared_sdk_folder( $token ) ) ) ) {
             return '';
         }
     }
@@ -1427,6 +1437,23 @@ function tsootc_option_key_matches_plugin_folder_evidence( $option_name, $folder
  * @return bool
  */
 function tsootc_option_looks_like_legacy_theme_framework_option( $option_name ) {
+    // Same answer for the same key while one bulk detection runs (inventory and maps do not change).
+    if ( empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+        return tsootc_option_looks_like_legacy_theme_framework_option_uncached( $option_name );
+    }
+    $memo_key = 'tsootc_option_looks_like_legacy_theme_framework_option|' . (string) $option_name;
+    if ( ! array_key_exists( $memo_key, $GLOBALS['tsootc_opts_fn_cache'] ) ) {
+        $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ] = tsootc_option_looks_like_legacy_theme_framework_option_uncached( $option_name );
+    }
+    return $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ];
+}
+
+/**
+ * Uncached implementation of {@see tsootc_option_looks_like_legacy_theme_framework_option()}.
+ *
+ * @return mixed
+ */
+function tsootc_option_looks_like_legacy_theme_framework_option_uncached( $option_name ) {
     $lower = strtolower( (string) $option_name );
     if ( '' === $lower || tsootc_is_wp_core_option( $option_name ) ) {
         return false;
@@ -2055,6 +2082,13 @@ function tsootc_resolve_theme_slug_from_option_token( $token, array $installed_p
         return '';
     }
 
+    // Same guard as tsootc_resolve_installed_theme_slug_from_token(): history/prefix-map
+    // must not resolve bare token "tso" to theme slug tso-blog / tso-* when TSO plugins exist.
+    if ( 'tso' === $token && function_exists( 'tsootc_site_has_tso_branded_plugins' )
+        && tsootc_site_has_tso_branded_plugins( $installed_plugins ) ) {
+        return '';
+    }
+
     $aliases = tsootc_get_theme_option_token_aliases();
     if ( isset( $aliases[ $token ] ) ) {
         $alias_slug = sanitize_title( (string) $aliases[ $token ] );
@@ -2123,6 +2157,23 @@ function tsootc_resolve_theme_slug_from_option_token( $token, array $installed_p
  * @return string Stylesheet slug or empty.
  */
 function tsootc_find_theme_slug_for_option_key( $option_name, array $installed_plugins = array() ) {
+    // Same answer for the same key while one bulk detection runs (inventory and maps do not change).
+    if ( empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+        return tsootc_find_theme_slug_for_option_key_uncached( $option_name, $installed_plugins );
+    }
+    $memo_key = 'tsootc_find_theme_slug_for_option_key|' . (string) $option_name . '|' . count( $installed_plugins );
+    if ( ! array_key_exists( $memo_key, $GLOBALS['tsootc_opts_fn_cache'] ) ) {
+        $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ] = tsootc_find_theme_slug_for_option_key_uncached( $option_name, $installed_plugins );
+    }
+    return $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ];
+}
+
+/**
+ * Uncached implementation of {@see tsootc_find_theme_slug_for_option_key()}.
+ *
+ * @return mixed
+ */
+function tsootc_find_theme_slug_for_option_key_uncached( $option_name, array $installed_plugins = array() ) {
     $option_name = (string) $option_name;
     if ( '' === $option_name || tsootc_is_wp_core_option( $option_name ) ) {
         return '';
@@ -2424,18 +2475,6 @@ function tsootc_detection_row_from_inventory_match( array $pl, array $installed_
         'folder' => $folder,
         'active' => ! empty( $pl['active'] ),
         'auto'   => true,
-    );
-}
-
-/**
- * Aliases from short option prefixes to theme stylesheet slugs (static fallbacks).
- *
- * @return array<string,string>
- */
-function tsootc_get_theme_option_prefix_aliases() {
-    return array_merge(
-        tsootc_get_legacy_theme_slug_aliases(),
-        tsootc_build_history_theme_prefix_map()
     );
 }
 
@@ -2985,16 +3024,76 @@ function tsootc_detect_legacy_theme_framework_option( $option_name, array $insta
 }
 
 /**
+ * Whether an option key starts with a prefix hint at a valid boundary.
+ *
+ * A hint that already ends with a separator (wpseo_, itsec_, ...) matches any key that starts
+ * with it. A hint without a trailing separator (wpseo, jetpack, ...) only matches when the key
+ * ends there or the next character is a separator. Checking the next character for hints that
+ * end in "_" silently rejected every key (wpseo_titles) and left the expected-owner guard idle.
+ *
+ * @param string   $lower       Lowercased option key.
+ * @param string   $prefix_l    Lowercased hint prefix.
+ * @param string[] $extra_seps  Additional accepted separator characters after a bare prefix.
+ * @return bool
+ */
+function tsootc_option_key_starts_with_hint_prefix( $lower, $prefix_l, array $extra_seps = array() ) {
+    $lower    = (string) $lower;
+    $prefix_l = (string) $prefix_l;
+    if ( '' === $prefix_l || 0 !== strpos( $lower, $prefix_l ) ) {
+        return false;
+    }
+
+    $last = substr( $prefix_l, -1 );
+    if ( '_' === $last || '-' === $last ) {
+        return true;
+    }
+
+    $next = isset( $lower[ strlen( $prefix_l ) ] ) ? $lower[ strlen( $prefix_l ) ] : '';
+    return '' === $next || '_' === $next || '-' === $next || in_array( $next, $extra_seps, true );
+}
+
+/**
+ * Prefix-hint keys, longest first, sorted once per request (the maps are constant).
+ *
+ * @param string $map_id Cache id of the map ('general', 'tso').
+ * @param array  $hints  Hint map.
+ * @return string[]
+ */
+function tsootc_sorted_hint_keys( $map_id, array $hints ) {
+    static $sorted = array();
+
+    if ( ! isset( $sorted[ $map_id ] ) ) {
+        $keys = array_keys( $hints );
+        usort(
+            $keys,
+            static function( $a, $b ) {
+                return strlen( (string) $b ) - strlen( (string) $a );
+            }
+        );
+        $sorted[ $map_id ] = $keys;
+    }
+
+    return $sorted[ $map_id ];
+}
+
+/**
  * Expected plugin folder slug(s) for an option from prefix/slug-hint maps.
  *
  * @param string $option_name Option key.
  * @return string[]
  */
 function tsootc_option_key_expected_plugin_folders( $option_name ) {
+    static $memo = array();
+
     $option_name = (string) $option_name;
     $lower       = strtolower( $option_name );
     if ( '' === $lower ) {
         return array();
+    }
+
+    // Pure function of the key and of constant maps; the detector asks for the same key many times.
+    if ( isset( $memo[ $option_name ] ) ) {
+        return $memo[ $option_name ];
     }
 
     if ( function_exists( 'tsootc_responsive_option_owner_is_theme' )
@@ -3013,20 +3112,10 @@ function tsootc_option_key_expected_plugin_folders( $option_name ) {
 
     if ( function_exists( 'tsootc_get_option_prefix_slug_hints' ) ) {
         $hints = tsootc_get_option_prefix_slug_hints();
-        $keys  = array_keys( $hints );
-        usort(
-            $keys,
-            static function( $a, $b ) {
-                return strlen( (string) $b ) - strlen( (string) $a );
-            }
-        );
+        $keys  = tsootc_sorted_hint_keys( 'general', $hints );
         foreach ( $keys as $prefix ) {
             $prefix_l = strtolower( (string) $prefix );
-            if ( $lower !== $prefix_l && 0 !== strpos( $lower, $prefix_l ) ) {
-                continue;
-            }
-            $next = isset( $lower[ strlen( $prefix_l ) ] ) ? $lower[ strlen( $prefix_l ) ] : '';
-            if ( '' !== $next && '_' !== $next && '-' !== $next ) {
+            if ( $lower !== $prefix_l && ! tsootc_option_key_starts_with_hint_prefix( $lower, $prefix_l ) ) {
                 continue;
             }
             $targets = is_array( $hints[ $prefix ] ) ? $hints[ $prefix ] : array( $hints[ $prefix ] );
@@ -3041,20 +3130,10 @@ function tsootc_option_key_expected_plugin_folders( $option_name ) {
 
     if ( function_exists( 'tsootc_get_tso_option_prefix_slug_hints' ) && tsootc_option_key_uses_tso_branded_prefix( $option_name ) ) {
         $tso_hints = tsootc_get_tso_option_prefix_slug_hints();
-        $keys      = array_keys( $tso_hints );
-        usort(
-            $keys,
-            static function( $a, $b ) {
-                return strlen( (string) $b ) - strlen( (string) $a );
-            }
-        );
+        $keys      = tsootc_sorted_hint_keys( 'tso', $tso_hints );
         foreach ( $keys as $prefix ) {
             $prefix_l = strtolower( (string) $prefix );
-            if ( 0 !== strpos( $lower, $prefix_l ) ) {
-                continue;
-            }
-            $next = isset( $lower[ strlen( $prefix_l ) ] ) ? $lower[ strlen( $prefix_l ) ] : '';
-            if ( '' !== $next && '_' !== $next && '-' !== $next ) {
+            if ( ! tsootc_option_key_starts_with_hint_prefix( $lower, $prefix_l ) ) {
                 continue;
             }
             $targets = is_array( $tso_hints[ $prefix ] ) ? $tso_hints[ $prefix ] : array( $tso_hints[ $prefix ] );
@@ -3072,7 +3151,8 @@ function tsootc_option_key_expected_plugin_folders( $option_name ) {
         $normalized[] = tsootc_sanitize_plugin_folder_slug( (string) $folder );
     }
 
-    return array_values( array_filter( array_unique( $normalized ) ) );
+    $memo[ $option_name ] = array_values( array_filter( array_unique( $normalized ) ) );
+    return $memo[ $option_name ];
 }
 
 /**
@@ -3159,8 +3239,11 @@ function tsootc_get_tso_option_prefix_slug_hints() {
         'tsootc_liin_'              => $link_inspector,
         'tso_liin_'                 => $link_inspector, // legacy wp_options prefix
         'tsoliin_'               => $link_inspector,
+        'tso_lc_'                   => $link_inspector, // legacy Link Inspector prefix (tso_lc_bg_*)
         'tsootc_twrn_'              => 'tso-widget-rss-noticias',
         'tso_twrn_'                 => 'tso-widget-rss-noticias', // legacy wp_options prefix
+        'tso_widget_rss_noticias_'  => 'tso-widget-rss-noticias',
+        'tso_stack_inspector_'      => 'tso-stack-inspector',
         'tsootc_an_'                => $gestor_avisos,
         'tso_an_'                   => $gestor_avisos, // legacy wp_options prefix
         'tso_admin_notices_'        => $gestor_avisos,
@@ -3191,23 +3274,36 @@ function tsootc_get_tso_option_prefix_slug_hints() {
  * @return bool
  */
 function tsootc_option_key_uses_tso_branded_prefix( $option_name ) {
+    static $memo = array();
+
     $lower = strtolower( (string) $option_name );
     if ( '' === $lower ) {
         return false;
     }
+
+    // Depends only on the key and on constant maps, and is asked many times per key.
+    if ( ! isset( $memo[ $lower ] ) ) {
+        $memo[ $lower ] = tsootc_option_key_uses_tso_branded_prefix_uncached( $option_name, $lower ) ? 1 : 0;
+    }
+
+    return 1 === $memo[ $lower ];
+}
+
+/**
+ * Uncached implementation of {@see tsootc_option_key_uses_tso_branded_prefix()}.
+ *
+ * @param string $option_name Option key.
+ * @param string $lower       Lower-case key.
+ * @return bool
+ */
+function tsootc_option_key_uses_tso_branded_prefix_uncached( $option_name, $lower ) {
     if ( 0 === strpos( $lower, 'tsootc_' ) || 0 === strpos( $lower, 'tso-' ) ) {
         return true;
     }
 
     if ( 0 === strpos( $lower, 'tso_' ) ) {
         $tso_hints = tsootc_get_tso_option_prefix_slug_hints();
-        $tso_keys  = array_keys( $tso_hints );
-        usort(
-            $tso_keys,
-            static function( $a, $b ) {
-                return strlen( (string) $b ) - strlen( (string) $a );
-            }
-        );
+        $tso_keys  = tsootc_sorted_hint_keys( 'tso', $tso_hints );
         foreach ( $tso_keys as $prefix ) {
             if ( tsootc_option_matches_tso_plugin_row( $option_name, $prefix, array() ) ) {
                 return true;
@@ -3216,13 +3312,7 @@ function tsootc_option_key_uses_tso_branded_prefix( $option_name ) {
     }
 
     $hints = tsootc_get_tso_option_prefix_slug_hints();
-    $keys  = array_keys( $hints );
-    usort(
-        $keys,
-        static function( $a, $b ) {
-            return strlen( (string) $b ) - strlen( (string) $a );
-        }
-    );
+    $keys  = tsootc_sorted_hint_keys( 'tso', $hints );
     foreach ( $keys as $prefix ) {
         if ( tsootc_option_matches_tso_plugin_row( $option_name, $prefix, array() ) ) {
             return true;
@@ -3558,6 +3648,13 @@ function tsootc_correct_false_cross_plugin_attribution( $detected, $option_name,
         return $detected;
     }
 
+    // A library bundled by plugins (detected from code) is owned by the library, not by any single plugin folder.
+    if ( ! empty( $detected['shared'] ) && ! empty( $detected['folder'] )
+        && function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+        && tsootc_is_synthetic_shared_sdk_folder( (string) $detected['folder'] ) ) {
+        return $detected;
+    }
+
     $folder = '';
     if ( ! empty( $detected['folder'] ) ) {
         $folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
@@ -3626,6 +3723,10 @@ function tsootc_get_freemius_group_label() {
  * @return bool
  */
 function tsootc_is_synthetic_shared_sdk_folder( $folder ) {
+	// Libraries bundled by plugins and detected from code (not listed by name): __shared_{family}__.
+	if ( 1 === preg_match( '/^__shared_[a-z0-9_]+__$/', (string) $folder ) ) {
+		return true;
+	}
 	return in_array(
 		(string) $folder,
 		array( '__freemius__', '__wp_toolkit__', '__hosting__', '__wordpress_core__', '__action_scheduler__' ),
@@ -3650,7 +3751,26 @@ function tsootc_option_is_freemius_shared_key( $option_name ) {
 		'fs_api_cache_time',
 	);
 
-	return in_array( $lower, $shared_exact, true ) || 0 === strpos( $lower, 'fs_' );
+	if ( in_array( $lower, $shared_exact, true ) ) {
+		return true;
+	}
+
+	// Any other fs_* key is only claimed while the SDK is really present (its fs_accounts store exists),
+	// so an unrelated plugin that happens to use an "fs_" prefix is not attributed to Freemius.
+	return 0 === strpos( $lower, 'fs_' ) && tsootc_freemius_sdk_is_present();
+}
+
+/**
+ * Whether the shared Freemius SDK stores its account data on this site.
+ *
+ * @return bool
+ */
+function tsootc_freemius_sdk_is_present() {
+	static $present = null;
+	if ( null === $present ) {
+		$present = null !== get_option( 'fs_accounts', null );
+	}
+	return $present;
 }
 
 /**
@@ -4386,6 +4506,17 @@ function tsootc_auto_option_map_is_safe_for_option( $option_name, $plugin_file, 
             return false;
         }
 
+        // Drop polluted map rows: bare tso_* plugin keys wrongly stored as theme:tso-blog.
+        // theme_mods_* / tsothm_* keep other prefixes and are unaffected.
+        $opt_prefix = function_exists( 'tsootc_get_option_key_bounded_prefix' )
+            ? tsootc_get_option_key_bounded_prefix( $option_name )
+            : '';
+        if ( 'tso' === $opt_prefix
+            && function_exists( 'tsootc_site_has_tso_branded_plugins' )
+            && tsootc_site_has_tso_branded_plugins( $installed_plugins ) ) {
+            return false;
+        }
+
         if ( function_exists( 'tsootc_theme_slug_exists' ) && tsootc_theme_slug_exists( $theme_slug ) ) {
             return true;
         }
@@ -4448,78 +4579,6 @@ function tsootc_auto_option_map_is_safe_for_option( $option_name, $plugin_file, 
     $name = function_exists( 'tsootc_history_get_plugin_name' ) ? tsootc_history_get_plugin_name( $plugin_file ) : '';
     $haystack = strtolower( dirname( $plugin_file ) . ' ' . basename( $plugin_file ) . ' ' . $name );
     return false !== strpos( $haystack, $token );
-}
-
-/**
- * Guard user/custom maps from stale generic assignments created by older detection.
- *
- * @param string $option_name       Option key.
- * @param string $plugin_name       Stored plugin/group label.
- * @param array  $installed_plugins Plugin/theme inventory.
- * @return bool
- */
-function tsootc_custom_option_map_is_safe_for_option( $option_name, $plugin_name, array $installed_plugins = array() ) {
-    $plugin_name = (string) $plugin_name;
-    if ( '' === $plugin_name ) {
-        return false;
-    }
-
-    $expected = tsootc_option_key_expected_plugin_folders( $option_name );
-    if ( ! empty( $expected ) ) {
-        $label_l = strtolower( $plugin_name );
-        $match   = false;
-        foreach ( $installed_plugins as $pl ) {
-            if ( empty( $pl['file'] ) ) {
-                continue;
-            }
-            $folder = function_exists( 'tsootc_normalize_plugin_folder_slug' )
-                ? tsootc_normalize_plugin_folder_slug( dirname( (string) $pl['file'] ) )
-                : strtolower( dirname( (string) $pl['file'] ) );
-            if ( ! in_array( $folder, $expected, true ) ) {
-                continue;
-            }
-            if ( strtolower( (string) $pl['name'] ) === $label_l ) {
-                $match = true;
-                break;
-            }
-            if ( 'theme' === ( $pl['type'] ?? 'plugin' )
-                && function_exists( 'tsootc_format_theme_group_label' )
-                && strtolower( tsootc_format_theme_group_label( $folder, (string) $pl['name'] ) ) === $label_l ) {
-                $match = true;
-                break;
-            }
-        }
-        if ( ! $match ) {
-            foreach ( $expected as $folder ) {
-                $resolved = function_exists( 'tsootc_resolve_plugin_label_for_folder' )
-                    ? strtolower( tsootc_resolve_plugin_label_for_folder( $folder, $installed_plugins, '' ) )
-                    : strtolower( $folder );
-                if ( '' !== $resolved && ( $label_l === $resolved || false !== strpos( $label_l, $resolved ) ) ) {
-                    $match = true;
-                    break;
-                }
-                if ( function_exists( 'tsootc_format_theme_group_label' )
-                    && strtolower( tsootc_format_theme_group_label( $folder, '' ) ) === $label_l ) {
-                    $match = true;
-                    break;
-                }
-            }
-        }
-        if ( ! $match ) {
-            return false;
-        }
-    }
-
-    if ( ! tsootc_option_key_has_unsafe_generic_root( $option_name ) ) {
-        return true;
-    }
-
-    $token = tsootc_option_key_generic_evidence_token( $option_name );
-    if ( '' === $token ) {
-        return false;
-    }
-
-    return false !== strpos( strtolower( $plugin_name ), $token );
 }
 
 /**
@@ -4896,6 +4955,14 @@ function tsootc_resolve_custom_map_detection_row( $option_name, $group_label, ar
     $group_label = sanitize_text_field( (string) $group_label );
     if ( '' === $group_label ) {
         return null;
+    }
+
+    // A library group chosen from the assign list ("Action Scheduler (Shared library)") resolves to that library group.
+    if ( function_exists( 'tsootc_codescan_shared_library_row_for_label' ) ) {
+        $shared_row = tsootc_codescan_shared_library_row_for_label( $group_label, $installed_plugins );
+        if ( is_array( $shared_row ) ) {
+            return $shared_row;
+        }
     }
 
     $label_l = strtolower( $group_label );
@@ -5287,8 +5354,6 @@ function tsootc_get_plugin_folder_aliases() {
         'js-composer'             => 'js_composer',
         'wpbakery'                => 'js_composer',
         'visual-composer'         => 'js_composer',
-        'action-scheduler'        => 'woocommerce',
-        'action_scheduler'        => 'woocommerce',
         'wp-user-avatar'          => 'one-user-avatar',
         'cool-crypto'             => 'cryptocurrency-price-widget',
     );
@@ -5328,12 +5393,21 @@ function tsootc_get_plugin_folder_display_labels() {
  * @return string
  */
 function tsootc_normalize_plugin_folder_slug( $folder ) {
-    $folder = strtolower( sanitize_file_name( (string) $folder ) );
-    if ( '' === $folder ) {
-        return '';
+    static $memo = array();
+
+    $raw = (string) $folder;
+    if ( isset( $memo[ $raw ] ) ) {
+        return $memo[ $raw ];
     }
-    $aliases = tsootc_get_plugin_folder_aliases();
-    return isset( $aliases[ $folder ] ) ? (string) $aliases[ $folder ] : $folder;
+
+    $folder = strtolower( sanitize_file_name( $raw ) );
+    if ( '' !== $folder ) {
+        $aliases = tsootc_get_plugin_folder_aliases();
+        $folder  = isset( $aliases[ $folder ] ) ? (string) $aliases[ $folder ] : $folder;
+    }
+
+    $memo[ $raw ] = $folder;
+    return $folder;
 }
 
 /**
@@ -6020,11 +6094,7 @@ function tsootc_infer_plugin_folder_from_option( $option_name, array $installed_
         );
         foreach ( $keys as $prefix ) {
             $prefix_l = strtolower( (string) $prefix );
-            if ( strpos( $lower, $prefix_l ) !== 0 ) {
-                continue;
-            }
-            $next = isset( $lower[ strlen( $prefix_l ) ] ) ? $lower[ strlen( $prefix_l ) ] : '';
-            if ( '' !== $next && ! in_array( $next, array( '_', '-', '.', '[', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' ), true ) ) {
+            if ( ! tsootc_option_key_starts_with_hint_prefix( $lower, $prefix_l, array( '.', '[', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' ) ) ) {
                 continue;
             }
             $targets = is_array( $prefix_hints[ $prefix ] ) ? $prefix_hints[ $prefix ] : array( $prefix_hints[ $prefix ] );
@@ -6143,6 +6213,7 @@ function tsootc_get_option_prefix_slug_hints() {
     $gestor_avisos  = array( 'tso-gestor-avisos', 'tso-gestor-de-avisos', 'tso-admin-notices' );
     $image_master   = array( 'tso-image-master', 'tso-image-master-pro' );
     $link_inspector = array( 'tso-link-inspector', 'tso-link-inspector-pro', 'tsolinkinspector' );
+    $yoast_seo      = array( 'wordpress-seo', 'wordpress-seo-premium' );
 
     $hints = array(
         'wp_beta_tester'            => 'wordpress-beta-tester',
@@ -6196,8 +6267,6 @@ function tsootc_get_option_prefix_slug_hints() {
         'theme_my_login'            => 'theme-my-login',
         'widget_tso_tab_widget'     => 'tso-tabs-widget',
         'widget_tso_clasificacion_widget' => 'tso-tabla-liga',
-        'schema-actionscheduler'    => 'woocommerce',
-        'schema-ActionScheduler'    => 'woocommerce',
         'ct_nivo_'                  => 'customizr',
         'ct_alert'                  => 'customizr',
         'apbct_'                    => 'cleantalk-spam-protect',
@@ -6237,8 +6306,6 @@ function tsootc_get_option_prefix_slug_hints() {
         'woocommerce_'              => 'woocommerce',
         'woocommerce_analytics'     => 'woocommerce',
         'woo_'                      => 'woocommerce',
-        'action_scheduler'          => 'woocommerce',
-        'actionscheduler'           => 'woocommerce',
         'as_has_'                   => 'woocommerce',
         'as_schedule'               => 'woocommerce',
         'as_lock_'                  => 'woocommerce',
@@ -6261,8 +6328,10 @@ function tsootc_get_option_prefix_slug_hints() {
         'ampforwp_'                 => array( 'accelerated-mobile-pages', 'amp-for-wp', 'accelerated-mobile-page' ),
         'open_graph_protocol'       => 'jetpack',
         'wordpress_api_key'         => array( 'jetpack', 'akismet' ),
-        'wpseo_'                    => 'wordpress-seo',
-        'yoast_'                    => 'wordpress-seo',
+        'wpseo'                     => $yoast_seo, // Also covers wpseo-gsc-* (hyphen) keys.
+        'wpseo_'                    => $yoast_seo,
+        'yoast'                     => $yoast_seo,
+        'yoast_'                    => $yoast_seo,
         'elementor'                 => 'elementor',
         'akismet'                   => 'akismet',
         'contact_form_7'            => 'contact-form-7',
@@ -6369,6 +6438,13 @@ function tsootc_get_option_prefix_slug_hints() {
         'wsblc_'                    => 'broken-link-checker',
         'monitor_'                  => 'jetpack',
         'feedback_unread_count'     => 'jetpack',
+        // Jetpack Carousel module (Settings > Media) — a small fixed set of bare option
+        // names with no plugin-specific prefix, so exact keys instead of a generic
+        // "carousel_" prefix (that root also belongs to unrelated carousel/slider plugins).
+        'carousel_background_color' => 'jetpack',
+        'carousel_display_exif'     => 'jetpack',
+        'carousel_display_geo'      => 'jetpack',
+        'carousel_enable_it'        => 'jetpack',
         'fs_'                       => '__freemius__',
         'fs_accounts'               => '__freemius__',
         'fs_active_plugins'         => '__freemius__',
@@ -6430,8 +6506,6 @@ function tsootc_get_table_prefix_slug_hints() {
         'lp_'                     => 'learnpress',
         'woocommerce_'            => 'woocommerce',
         'woo_'                    => 'woocommerce',
-        'actionscheduler_'        => array( 'woocommerce', 'action-scheduler' ),
-        'actionscheduler'         => array( 'woocommerce', 'action-scheduler' ),
         'yoast_'                  => 'wordpress-seo',
         'yoast_seo_'              => 'wordpress-seo',
         'yarpp_'                  => 'yet-another-related-posts-plugin',
@@ -7705,6 +7779,23 @@ function tsootc_key_starts_with_bounded_prefix( $name, $prefix ) {
  * @return string Theme stylesheet slug or empty.
  */
 function tsootc_find_theme_by_option_or_table_prefix( $name, array $installed_plugins = array() ) {
+    // Same answer for the same key while one bulk detection runs (inventory and maps do not change).
+    if ( empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+        return tsootc_find_theme_by_option_or_table_prefix_uncached( $name, $installed_plugins );
+    }
+    $memo_key = 'tsootc_find_theme_by_option_or_table_prefix|' . (string) $name . '|' . count( $installed_plugins );
+    if ( ! array_key_exists( $memo_key, $GLOBALS['tsootc_opts_fn_cache'] ) ) {
+        $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ] = tsootc_find_theme_by_option_or_table_prefix_uncached( $name, $installed_plugins );
+    }
+    return $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ];
+}
+
+/**
+ * Uncached implementation of {@see tsootc_find_theme_by_option_or_table_prefix()}.
+ *
+ * @return mixed
+ */
+function tsootc_find_theme_by_option_or_table_prefix_uncached( $name, array $installed_plugins = array() ) {
     $lower = strtolower( (string) $name );
     if ( '' === $lower ) {
         return '';
@@ -7716,13 +7807,7 @@ function tsootc_find_theme_by_option_or_table_prefix( $name, array $installed_pl
     }
 
     $hints = tsootc_get_theme_option_prefix_slug_hints();
-    $keys  = array_keys( $hints );
-    usort(
-        $keys,
-        static function( $a, $b ) {
-            return strlen( (string) $b ) - strlen( (string) $a );
-        }
-    );
+    $keys  = tsootc_sorted_hint_keys( 'theme', $hints );
 
     foreach ( $keys as $prefix ) {
         if ( ! tsootc_key_starts_with_bounded_prefix( $lower, $prefix ) ) {
@@ -7990,6 +8075,23 @@ function tsootc_option_looks_like_active_theme_setting( $option_name ) {
  * @return string Theme stylesheet slug or empty.
  */
 function tsootc_find_theme_for_option_name( $option_name, array $installed_plugins = array() ) {
+    // Same answer for the same key while one bulk detection runs (inventory and maps do not change).
+    if ( empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+        return tsootc_find_theme_for_option_name_uncached( $option_name, $installed_plugins );
+    }
+    $memo_key = 'tsootc_find_theme_for_option_name|' . (string) $option_name . '|' . count( $installed_plugins );
+    if ( ! array_key_exists( $memo_key, $GLOBALS['tsootc_opts_fn_cache'] ) ) {
+        $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ] = tsootc_find_theme_for_option_name_uncached( $option_name, $installed_plugins );
+    }
+    return $GLOBALS['tsootc_opts_fn_cache'][ $memo_key ];
+}
+
+/**
+ * Uncached implementation of {@see tsootc_find_theme_for_option_name()}.
+ *
+ * @return mixed
+ */
+function tsootc_find_theme_for_option_name_uncached( $option_name, array $installed_plugins = array() ) {
     $lower = strtolower( (string) $option_name );
 
     if ( function_exists( 'tsootc_option_key_is_known_plugin_not_theme' )
@@ -9208,6 +9310,14 @@ function tsootc_is_plugin_folder_currently_installed( $folder_slug, array $insta
             }
         }
 
+        // get_plugins() lives in wp-admin/includes/plugin.php, which WordPress does not load on
+        // every admin screen — only require it here, not earlier, so a caller with a fresh
+        // $installed_plugins inventory never pays for it. Without this, on a page where nothing
+        // else happened to load that file first, get_plugins() would be undefined and a plugin
+        // folder that is genuinely installed could be reported as not installed.
+        if ( ! function_exists( 'get_plugins' ) && defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
         if ( function_exists( 'get_plugins' ) ) {
             foreach ( array_keys( get_plugins() ) as $plugin_file ) {
                 if ( strtolower( dirname( (string) $plugin_file ) ) === $candidate ) {
@@ -9292,6 +9402,28 @@ function tsootc_build_plugin_detection_row_from_folder( $folder_slug, array $ins
  * @return bool
  */
 function tsootc_plugin_folder_has_site_evidence( $folder_slug, array $installed_plugins = array() ) {
+    // During the bulk wp_options detection the inventory, history and key map do not change, and the same
+    // folders are asked about for every option: answer each folder once (the cache is reset per batch).
+    if ( empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+        return tsootc_plugin_folder_has_site_evidence_uncached( $folder_slug, $installed_plugins );
+    }
+
+    $cache_key = (string) $folder_slug . '|' . count( $installed_plugins );
+    if ( ! isset( $GLOBALS['tsootc_opts_evidence_cache'][ $cache_key ] ) ) {
+        $GLOBALS['tsootc_opts_evidence_cache'][ $cache_key ] = tsootc_plugin_folder_has_site_evidence_uncached( $folder_slug, $installed_plugins ) ? 1 : 0;
+    }
+
+    return 1 === $GLOBALS['tsootc_opts_evidence_cache'][ $cache_key ];
+}
+
+/**
+ * Uncached implementation of {@see tsootc_plugin_folder_has_site_evidence()}.
+ *
+ * @param string $folder_slug       Plugin folder slug.
+ * @param array  $installed_plugins Optional inventory.
+ * @return bool
+ */
+function tsootc_plugin_folder_has_site_evidence_uncached( $folder_slug, array $installed_plugins = array() ) {
     $folder_slug = function_exists( 'tsootc_normalize_plugin_folder_slug' )
         ? tsootc_normalize_plugin_folder_slug( $folder_slug )
         : strtolower( sanitize_file_name( (string) $folder_slug ) );
@@ -9733,7 +9865,51 @@ function tsootc_format_removed_component_path( $folder_or_token ) {
 }
 
 /**
- * Prominent notice: plugin folder is gone; deleting wp_options rows is safe.
+ * Whether a plugin's folder is physically present on disk right now.
+ *
+ * A separate, deliberately literal check from tsootc_is_plugin_folder_currently_installed():
+ * that function is used for detection logic and, by design, ignores a bare leftover directory
+ * with no readable plugin header. This one answers the plain question the orphan notice asks
+ * the user — "is that folder still on the server" — so it must not report a folder as gone
+ * just because it lacks (or hasn't finished getting, mid-upload) a valid plugin header.
+ *
+ * @param string $plugin_folder Plugin directory slug, or theme:stylesheet / synthetic token.
+ * @return bool
+ */
+function tsootc_plugin_folder_exists_on_disk( $plugin_folder ) {
+    $folder = (string) $plugin_folder;
+    if ( '' === $folder || 0 === strpos( $folder, 'theme:' )
+        || ( function_exists( 'tsootc_is_synthetic_shared_sdk_folder' ) && tsootc_is_synthetic_shared_sdk_folder( $folder ) ) ) {
+        return false;
+    }
+
+    $folder_slug = function_exists( 'tsootc_normalize_plugin_folder_slug' )
+        ? tsootc_normalize_plugin_folder_slug( $folder )
+        : strtolower( sanitize_file_name( $folder ) );
+    if ( '' === $folder_slug || ! defined( 'WP_PLUGIN_DIR' ) ) {
+        return false;
+    }
+
+    $candidates = function_exists( 'tsootc_get_plugin_folder_disk_candidates' )
+        ? tsootc_get_plugin_folder_disk_candidates( $folder_slug )
+        : array( $folder_slug );
+    foreach ( $candidates as $candidate ) {
+        if ( '' !== (string) $candidate && is_dir( WP_PLUGIN_DIR . '/' . $candidate ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Prominent notice next to an "unconfirmed" / "looks uninstalled" wp_options group.
+ *
+ * Automatic detection can misjudge a plugin as uninstalled (wrong or stale folder guess).
+ * Before wording this as a confident "safe to delete", it re-checks the folder on disk right
+ * now, live — not the cached detection result the group was classified with — and shows a
+ * cautionary variant instead when the folder actually IS still there, rather than asserting
+ * something the check itself cannot be fully sure of.
  *
  * @param string $lang          UI language.
  * @param string $plugin_label  Human-readable plugin or theme name.
@@ -9744,6 +9920,9 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
     $plugin_label = '' !== (string) $plugin_label
         ? (string) $plugin_label
         : tsootc_ui_triple_text( $lang, 'aquest plugin', 'este plugin', 'this plugin' );
+
+    $folder_exists_now = '' !== (string) $plugin_folder && function_exists( 'tsootc_plugin_folder_exists_on_disk' )
+        && tsootc_plugin_folder_exists_on_disk( $plugin_folder );
 
     $path_line = '';
     if ( '' !== (string) $plugin_folder ) {
@@ -9762,15 +9941,56 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
             . '</strong> <code class="tso-orphan-path-code">'
             . esc_html( $relative_path )
             . '</code> — '
-            . esc_html(
-                tsootc_ui_triple_text(
-                    $lang,
-                    'NO existeix (ja l\'has eliminat).',
-                    'NO existe (ya lo eliminaste).',
-                    'does NOT exist (you already removed it).'
+            . ( $folder_exists_now
+                ? esc_html(
+                    tsootc_ui_triple_text(
+                        $lang,
+                        'SÍ existeix ara mateix.',
+                        'SÍ existe ahora mismo.',
+                        'DOES exist right now.'
+                    )
+                )
+                : esc_html(
+                    tsootc_ui_triple_text(
+                        $lang,
+                        'no existeix (sembla eliminada).',
+                        'no existe (parece eliminada).',
+                        'does not exist (looks removed).'
+                    )
                 )
             )
             . '</p>';
+    }
+
+    if ( $folder_exists_now ) {
+        $html  = '<div class="tso-orphan-safe-notice tso-orphan-safe-notice--exists">';
+        $html .= '<p class="tso-orphan-safe-title">'
+            . esc_html(
+                tsootc_ui_triple_text(
+                    $lang,
+                    '⚠️ Compte: sembla que encara està instal·lat',
+                    '⚠️ Cuidado: parece que todavía está instalado',
+                    '⚠️ Careful: this looks like it is still installed'
+                )
+            )
+            . '</p>';
+        $html .= '<p class="tso-orphan-safe-body">'
+            . esc_html(
+                sprintf(
+                    tsootc_ui_triple_text(
+                        $lang,
+                        'La detecció automàtica ha agrupat aquestes entrades sota «%1$s», donant-lo per desinstal·lat, però la seva carpeta encara existeix al servidor. Pot ser un fals positiu (una clau ambigua, o el plugin real és un altre); revisa-ho abans d\'eliminar res.',
+                        'La detección automática ha agrupado estas entradas bajo «%1$s», dándolo por desinstalado, pero su carpeta todavía existe en el servidor. Puede ser un falso positivo (una clave ambigua, o el plugin real es otro); revísalo antes de eliminar nada.',
+                        'Automatic detection grouped these entries under "%1$s" as uninstalled, but its folder still exists on the server. This may be a false positive (an ambiguous key, or the real owner is a different plugin) — review it before deleting anything.'
+                    ),
+                    $plugin_label
+                )
+            )
+            . '</p>';
+        $html .= $path_line;
+        $html .= '</div>';
+
+        return $html;
     }
 
     $html  = '<div class="tso-orphan-safe-notice">';
@@ -9778,9 +9998,9 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
         . esc_html(
             tsootc_ui_triple_text(
                 $lang,
-                '✅ Pots esborrar-ho tot sense por',
-                '✅ Puedes borrarlo todo sin miedo',
-                '✅ You can delete all of this safely'
+                '✅ Probablement el pots esborrar sense por',
+                '✅ Probablemente puedes borrarlo sin miedo',
+                '✅ You can probably delete this safely'
             )
         )
         . '</p>';
@@ -9789,15 +10009,15 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
             tsootc_ui_triple_text(
                 $lang,
                 sprintf(
-                    '«%1$s» ja NO està instal·lat a WordPress. Aquestes entrades són només residus a la base de dades (wp_options): el plugin no les llegeix i no tornaran a aparèixer si el reinstal·les des de zero.',
+                    'Segons la detecció automàtica, «%1$s» ja NO està instal·lat a WordPress (la seva carpeta no existeix al servidor). Aquestes entrades semblen només residus a la base de dades (wp_options): el plugin no les llegeix i no tornaran a aparèixer si el reinstal·les des de zero.',
                     $plugin_label
                 ),
                 sprintf(
-                    '«%1$s» ya NO está instalado en WordPress. Estas entradas son solo residuos en la base de datos (wp_options): el plugin no las lee y no volverán si lo reinstalas desde cero.',
+                    'Según la detección automática, «%1$s» ya NO está instalado en WordPress (su carpeta no existe en el servidor). Estas entradas parecen solo residuos en la base de datos (wp_options): el plugin no las lee y no volverán si lo reinstalas desde cero.',
                     $plugin_label
                 ),
                 sprintf(
-                    '%1$s is NO LONGER installed on WordPress. These rows are database leftovers in wp_options only — the plugin does not use them and they will not come back if you reinstall from scratch.',
+                    'Based on automatic detection, %1$s is NO LONGER installed on WordPress (its folder does not exist on the server). These rows look like database leftovers in wp_options only — the plugin does not use them and they will not come back if you reinstall from scratch.',
                     $plugin_label
                 )
             )
@@ -9807,9 +10027,9 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
         . esc_html(
             tsootc_ui_triple_text(
                 $lang,
-                'Eliminar-les NO trencarà el teu lloc web.',
-                'Eliminarlas NO romperá tu sitio web.',
-                'Deleting them will NOT break your website.'
+                'Eliminar-les no hauria de trencar el teu lloc web, però si dubtes, fes primer un backup.',
+                'Eliminarlas no debería romper tu sitio web, pero si dudas, haz primero una copia de seguridad.',
+                'Deleting them should not break your website, but if in doubt, make a backup first.'
             )
         )
         . '</p>';
@@ -9828,8 +10048,12 @@ function tsootc_get_orphan_plugin_notice_html( $lang, $plugin_label = '', $plugi
  * @return array
  */
 function tsootc_enrich_prefix_groups( array $grouped, array $plugins, $lang = 'ca' ) {
+    // The "Unconfirmed" bucket mixes options of unrelated owners: one sample option cannot say the whole group is removed.
+    $unconfirmed_group_key = function_exists( 'tsootc_msg' )
+        ? '❓ ' . tsootc_msg( 'Sense confirmar', 'Sin confirmar', 'Unconfirmed' )
+        : '❓ Unconfirmed';
     foreach ( $grouped as $gk => &$gd ) {
-        if ( strpos( (string) $gk, '❓ ' ) !== 0 ) {
+        if ( strpos( (string) $gk, '❓ ' ) !== 0 || (string) $gk === $unconfirmed_group_key ) {
             continue;
         }
         $root = (string) preg_replace( '/^❓\s*/u', '', (string) $gk );
@@ -10468,7 +10692,9 @@ function tsootc_opts_tab_counts( array $grouped ) {
 	);
 	foreach ( $grouped as $gk => $gd ) {
 		$item_count = isset( $gd['items'] ) && is_array( $gd['items'] ) ? count( $gd['items'] ) : 0;
-		if ( '__unknown__' === $gk || ( 0 === strpos( (string) $gk, '❓ ' ) && empty( $gd['is_uninstalled'] ) ) ) {
+		if ( '__unknown__' === $gk
+			|| ( 0 === strpos( (string) $gk, '❓ ' ) && empty( $gd['is_uninstalled'] ) )
+			|| tsootc_option_group_is_unconfirmed( (string) $gk, $gd ) ) {
 			$counts['n_unknown'] += $item_count;
 			++$counts['groups_unknown'];
 			continue;
@@ -10698,14 +10924,14 @@ function tsootc_get_plugin_status( $detected, $installed_plugins, $lang = 'ca' )
         }
     }
 
-    if ( isset( $detected['auto'] ) && $detected['auto'] && $detected['file'] !== '' ) {
-        if ( $detected['active'] ) {
+    if ( isset( $detected['auto'] ) && $detected['auto'] && ( $detected['file'] ?? null ) !== '' ) {
+        if ( ! empty( $detected['active'] ) ) {
             return array( 'status' => tsootc_ui_triple_text( $lang, '✅ Actiu', '✅ Activo', '✅ Active' ), 'color' => '#2a7a2a', 'inactive' => false, 'uninstalled' => false );
         }
         return array( 'status' => tsootc_ui_triple_text( $lang, '⚠️ Inactiu', '⚠️ Inactivo', '⚠️ Inactive' ), 'color' => '#c07000', 'inactive' => true, 'uninstalled' => false );
     }
 
-    if ( is_bool( $detected['active'] ) ) {
+    if ( array_key_exists( 'active', $detected ) && is_bool( $detected['active'] ) ) {
         if ( $detected['active'] ) {
             return array( 'status' => tsootc_ui_triple_text( $lang, '✅ Actiu', '✅ Activo', '✅ Active' ), 'color' => '#2a7a2a', 'inactive' => false, 'uninstalled' => false );
         }
@@ -11122,7 +11348,7 @@ function tsootc_get_all_options() {
 
 /** Bump when options-tab grouping / detection logic changes (invalidates payload cache). */
 if ( ! defined( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION' ) ) {
-	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 64 );
+	define( 'TSOOTC_OPTIONS_TAB_CACHE_VERSION', 68 );
 }
 
 /**
@@ -11334,7 +11560,7 @@ function tsootc_options_tab_invalidation_sig_transient_key() {
  */
 function tsootc_custom_map_bump_options_tab_cache() {
     if ( function_exists( 'tsootc_options_tab_flush_cache' ) ) {
-        tsootc_options_tab_flush_cache();
+        tsootc_options_tab_flush_cache( true );
         return;
     }
     $sig = tsootc_get_options_tab_invalidation_sig( true );
@@ -11384,7 +11610,9 @@ function tsootc_options_tab_sync_invalidation_sig() {
         return;
     }
 
-    tsootc_options_tab_invalidate_cache();
+    // Plugins/themes changed: drop the grouped result only. The code-scan index validates itself against the
+    // inventory and keeps its previous data until it is rebuilt, so a plugin change never starts it from scratch.
+    tsootc_options_tab_flush_cache();
     tsootc_set_stored_transient( tsootc_options_tab_invalidation_sig_transient_key(), $sig, WEEK_IN_SECONDS );
 }
 add_action( 'admin_init', 'tsootc_options_tab_sync_invalidation_sig', 4 );
@@ -11405,15 +11633,6 @@ function tsootc_maybe_prune_stale_options_tab_cache_files() {
     tsootc_prune_stale_options_tab_cache_files();
 }
 add_action( 'admin_init', 'tsootc_maybe_prune_stale_options_tab_cache_files', 6 );
-
-/**
- * Fingerprint of wp_options + plugin/theme inventory (cheap; no full code scan).
- *
- * @return string
- */
-function tsootc_get_options_table_fingerprint() {
-    return tsootc_get_options_tab_invalidation_sig();
-}
 
 /**
  * Relative path under wp-content/uploads for all plugin-owned files.
@@ -11491,15 +11710,6 @@ function tsootc_get_legacy_options_tab_cache_rel_dirs() {
 }
 
 /**
- * Legacy uploads subdirectory from releases before schema 4.
- *
- * @return string
- */
-function tsootc_get_legacy_options_tab_cache_rel_dir() {
-    return 'tso-options-tab-cache';
-}
-
-/**
  * Absolute uploads path for wp_options tab cache (may not exist yet).
  *
  * @return string Empty when uploads are not available.
@@ -11511,22 +11721,6 @@ function tsootc_get_options_tab_cache_dir_path() {
     }
 
     return trailingslashit( (string) $upload['basedir'] ) . tsootc_get_options_tab_cache_rel_dir();
-}
-
-/**
- * Absolute path to the legacy wp_options tab cache directory (read-only fallback).
- *
- * @return string Empty when uploads are not available.
- */
-function tsootc_get_legacy_options_tab_cache_dir_path() {
-    foreach ( tsootc_get_legacy_options_tab_cache_dir_paths() as $path ) {
-        if ( is_dir( $path ) ) {
-            return $path;
-        }
-    }
-
-    $paths = tsootc_get_legacy_options_tab_cache_dir_paths();
-    return isset( $paths[0] ) ? $paths[0] : '';
 }
 
 /**
@@ -11788,21 +11982,6 @@ function tsootc_options_tab_cache_filenames_for_blog() {
     return array_values( array_unique( $out ) );
 }
 
-/**
- * Legacy cache file path (schema < 4 uploads subdir).
- *
- * @param string|null $lang Optional UI lang.
- * @return string
- */
-function tsootc_legacy_options_tab_cache_file_path( $lang = null ) {
-    $dir = tsootc_get_legacy_options_tab_cache_dir_path();
-    if ( '' === $dir ) {
-        return '';
-    }
-
-    return $dir . '/' . tsootc_options_tab_cache_filename( $lang );
-}
-
 function tsootc_options_tab_cache_option_key() {
     // Legacy map key (storage dual-reads → tso_options_tables_cleaner_opts_tab_cache_blob_*).
     return 'tso_opts_tab_cache_blob_' . (int) get_current_blog_id();
@@ -11893,7 +12072,17 @@ function tsootc_options_tab_payload_is_valid( array $cached ) {
         return false;
     }
 
-    return $stored_sig === tsootc_get_options_tab_invalidation_sig();
+    if ( $stored_sig !== tsootc_get_options_tab_invalidation_sig() ) {
+        return false;
+    }
+
+    // The payload is built from the code-scan index: once that index is rebuilt, a result made without it is outdated.
+    if ( function_exists( 'tsootc_codescan_index_files_stamp' )
+        && ( ! isset( $cached['codescan_stamp'] ) || (string) $cached['codescan_stamp'] !== tsootc_codescan_index_files_stamp() ) ) {
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -12165,13 +12354,167 @@ function tsootc_prune_stale_options_tab_cache_files() {
 }
 
 /**
+ * Key that says the per-option detection snapshot still matches everything detection reads
+ * (plugins, themes, options inventory, saved key map, aliases, code-scan indexes). It leaves out the manual
+ * assignment map on purpose: a manual assignment only changes the options it was made for.
+ *
+ * @return string
+ */
+function tsootc_options_tab_base_detect_key() {
+    $key_map = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_OPTION_KEY_MAP, array() );
+    $aliases = tsootc_get_stored_option_by_id( TSOOTC_STORED_OPTION_GROUP_ALIASES, array() );
+    $active  = get_option( 'active_plugins', array() );
+
+    return md5(
+        (string) TSOOTC_OPTIONS_TAB_CACHE_VERSION
+        . '|' . wp_json_encode( tsootc_options_tab_get_installed_plugin_slugs() )
+        . '|' . wp_json_encode( tsootc_options_tab_get_installed_theme_slugs() )
+        . '|' . (string) get_option( 'stylesheet', '' )
+        . '|' . (string) get_option( 'template', '' )
+        . '|' . tsootc_get_options_tab_options_inventory_fingerprint()
+        . '|' . md5( (string) wp_json_encode( is_array( $key_map ) ? $key_map : array() ) )
+        . '|' . md5( (string) wp_json_encode( is_array( $aliases ) ? $aliases : array() ) )
+        . '|' . md5( (string) wp_json_encode( is_array( $active ) ? $active : array() ) )
+        . '|' . ( function_exists( 'tsootc_codescan_index_files_stamp' ) ? tsootc_codescan_index_files_stamp() : '' )
+    );
+}
+
+/**
+ * Option name stored in a bulk detection cache key ("name|v2|f", "name|f", "name|s").
+ *
+ * @param string $cache_key Batch cache key.
+ * @return string
+ */
+function tsootc_options_tab_base_detect_name_from_key( $cache_key ) {
+    return (string) preg_replace( '/\|(?:v2\|)?[fs]$/', '', (string) $cache_key );
+}
+
+/**
+ * Path of the per-option detection snapshot file (one per blog and UI language).
+ *
+ * @param string|null $lang Optional UI lang.
+ * @return string Empty when uploads are not available.
+ */
+function tsootc_options_tab_base_detect_path( $lang = null ) {
+    $dir = tsootc_get_options_tab_cache_dir_path();
+    if ( '' === $dir ) {
+        return '';
+    }
+
+    return trailingslashit( $dir ) . 'detect-v' . (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION . '-blog-' . (int) get_current_blog_id() . '-' . tsootc_options_tab_cache_lang( $lang ) . '.json';
+}
+
+/**
+ * Remove the per-option detection snapshot files of this blog.
+ *
+ * @return void
+ */
+function tsootc_options_tab_base_detect_delete_files() {
+    $pattern = '/^detect-v\d+-blog-' . (int) get_current_blog_id() . '-[a-z]{2}\.json$/';
+    foreach ( tsootc_get_options_tab_cache_search_dir_paths() as $dir ) {
+        if ( '' === $dir || ! is_dir( $dir ) ) {
+            continue;
+        }
+        $entries = scandir( $dir );
+        if ( ! is_array( $entries ) ) {
+            continue;
+        }
+        foreach ( $entries as $entry ) {
+            if ( is_string( $entry ) && preg_match( $pattern, $entry ) && is_file( trailingslashit( $dir ) . $entry ) ) {
+                wp_delete_file( trailingslashit( $dir ) . $entry );
+            }
+        }
+    }
+}
+
+/**
+ * Put the saved detection results of options that are not assigned by hand into the bulk detection batch cache,
+ * so a rebuild after a manual assignment only detects the options that changed.
+ *
+ * @param string $lang UI lang.
+ * @return int Number of detection results reused.
+ */
+function tsootc_options_tab_base_detect_seed( $lang ) {
+    $path = tsootc_options_tab_base_detect_path( $lang );
+    if ( '' === $path || ! is_file( $path ) || empty( $GLOBALS['tsootc_opts_batch_active'] ) ) {
+        return 0;
+    }
+
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+    $raw  = file_get_contents( $path );
+    $data = is_string( $raw ) ? json_decode( $raw, true ) : null;
+    if ( ! is_array( $data ) || ! isset( $data['key'], $data['rows'] ) || ! is_array( $data['rows'] )
+        || tsootc_options_tab_base_detect_key() !== (string) $data['key'] ) {
+        return 0;
+    }
+
+    $custom_map = tsootc_get_custom_map();
+    $reused     = 0;
+    foreach ( $data['rows'] as $cache_key => $row ) {
+        $name = tsootc_options_tab_base_detect_name_from_key( $cache_key );
+        if ( '' === $name || isset( $custom_map[ $name ] ) || ! is_array( $row ) ) {
+            continue;
+        }
+        $GLOBALS['tsootc_opts_detect_cache'][ (string) $cache_key ] = $row;
+        ++$reused;
+    }
+
+    return $reused;
+}
+
+/**
+ * Save the detection results of the bulk batch (options that are not assigned by hand) for the next rebuild.
+ *
+ * @param string $lang UI lang.
+ * @return void
+ */
+function tsootc_options_tab_base_detect_save( $lang ) {
+    if ( empty( $GLOBALS['tsootc_opts_detect_cache'] ) || ! is_array( $GLOBALS['tsootc_opts_detect_cache'] ) ) {
+        return;
+    }
+
+    $path = tsootc_options_tab_base_detect_path( $lang );
+    if ( '' === $path || is_wp_error( tsootc_ensure_options_tab_cache_dir() ) ) {
+        return;
+    }
+
+    $custom_map = tsootc_get_custom_map();
+    $rows       = array();
+    foreach ( $GLOBALS['tsootc_opts_detect_cache'] as $cache_key => $row ) {
+        $name = tsootc_options_tab_base_detect_name_from_key( $cache_key );
+        if ( '' === $name || isset( $custom_map[ $name ] ) || ! is_array( $row ) ) {
+            continue;
+        }
+        $rows[ (string) $cache_key ] = $row;
+    }
+
+    $json = wp_json_encode(
+        array(
+            'key'  => tsootc_options_tab_base_detect_key(),
+            'rows' => $rows,
+        )
+    );
+    if ( ! is_string( $json ) || '' === $json ) {
+        return;
+    }
+
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+    file_put_contents( $path, $json, LOCK_EX );
+}
+
+/**
  * Drop cached wp_options tab payload (grouping + counts).
  *
  * @return void
  */
-function tsootc_options_tab_flush_cache() {
+function tsootc_options_tab_flush_cache( $keep_base_detect = false ) {
     unset( $GLOBALS['tsootc_opts_tab_payload_memo'] );
     unset( $GLOBALS['tsootc_opts_tab_payload_memo_ready'] );
+
+    // The per-option detection snapshot only survives a manual assignment change; any other flush drops it.
+    if ( ! $keep_base_detect ) {
+        tsootc_options_tab_base_detect_delete_files();
+    }
 
     tsootc_delete_stored_transient_by_id( TSOOTC_STORED_TRANSIENT_OPTIONS_TAB_PAYLOAD );
     tsootc_delete_stored_transient( tsootc_options_tab_invalidation_sig_transient_key() );
@@ -12216,6 +12559,8 @@ function tsootc_detection_codescan_grep_allowed( $set = null ) {
 function tsootc_options_tab_begin_detection_batch( array $plugins ) {
     $GLOBALS['tsootc_opts_batch_active']     = true;
     $GLOBALS['tsootc_opts_detect_cache']     = array();
+    $GLOBALS['tsootc_opts_evidence_cache']   = array();
+    $GLOBALS['tsootc_opts_fn_cache']         = array();
     $GLOBALS['tsootc_opts_safety_cache']     = array();
     $GLOBALS['tsootc_opts_status_cache']     = array();
     $GLOBALS['tsootc_opts_slug_match_index'] = tsootc_get_plugin_slug_match_index( $plugins );
@@ -12325,6 +12670,32 @@ function tsootc_get_existing_group_names_light( array $plugins ) {
 }
 
 /**
+ * Whether an options group is the reserved "Unconfirmed" bucket (mixed owners, never a plugin).
+ *
+ * The bucket can lose its leading "❓ " when groups are re-keyed, so the key, the detected name and the display label are all checked.
+ *
+ * @param string $group_key  Group key.
+ * @param array  $group_data Group bucket.
+ * @return bool
+ */
+function tsootc_option_group_is_unconfirmed( $group_key, array $group_data ) {
+    if ( ! function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' ) ) {
+        return false;
+    }
+    $candidates = array(
+        preg_replace( '/^❓\s*/u', '', (string) $group_key ),
+        isset( $group_data['detected_name'] ) ? (string) $group_data['detected_name'] : '',
+        isset( $group_data['display_label'] ) ? preg_replace( '/^❓\s*/u', '', (string) $group_data['display_label'] ) : '',
+    );
+    foreach ( $candidates as $candidate ) {
+        if ( tsootc_detection_is_reserved_unconfirmed_label( (string) $candidate ) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Sort option groups by review priority, keeping Widgets directly above Core.
  *
  * @param array $grouped Grouped options.
@@ -12340,7 +12711,8 @@ function tsootc_order_option_groups( array $grouped ) {
 
     foreach ( $grouped as $group_key => $group_data ) {
         if ( '__unknown__' === $group_key
-            || ( 0 === strpos( (string) $group_key, '❓ ' ) && empty( $group_data['is_uninstalled'] ) ) ) {
+            || ( 0 === strpos( (string) $group_key, '❓ ' ) && empty( $group_data['is_uninstalled'] ) )
+            || tsootc_option_group_is_unconfirmed( (string) $group_key, $group_data ) ) {
             $order_unknown[ $group_key ] = $group_data;
         } elseif ( '__core__' === $group_key ) {
             $order_core[ $group_key ] = $group_data;
@@ -12417,6 +12789,12 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
         }
     }
 
+    // Shared-library families come from the table index. Make sure it exists before detection starts
+    // (a refresh or an inventory change may have removed it) - bulk detection itself never builds indexes.
+    if ( function_exists( 'tsootc_codescan_get_table_index' ) ) {
+        tsootc_codescan_get_table_index( false );
+    }
+
     tsootc_detection_codescan_grep_allowed( false );
 
     // Sanitize only on forced refresh — running it on every rebuild mutates key_map
@@ -12429,6 +12807,7 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
     $detect_args = array( 'fast' => true );
 
     tsootc_options_tab_begin_detection_batch( $plugins );
+    tsootc_options_tab_base_detect_seed( $lang );
 
     $options   = tsootc_get_all_options();
     $options   = is_array( $options ) ? $options : array();
@@ -12627,6 +13006,7 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
 
     $grouped = tsootc_order_option_groups( $grouped );
 
+    tsootc_options_tab_base_detect_save( $lang );
     tsootc_options_tab_end_detection_batch();
     tsootc_detection_codescan_grep_allowed( true );
 
@@ -12646,6 +13026,7 @@ function tsootc_build_options_tab_payload( array $plugins, $lang = 'ca', $force_
         'cache_version'    => (int) TSOOTC_OPTIONS_TAB_CACHE_VERSION,
         'lang'             => tsootc_options_tab_cache_lang( $lang ),
         'invalidation_sig' => $invalidation_sig,
+        'codescan_stamp'   => function_exists( 'tsootc_codescan_index_files_stamp' ) ? tsootc_codescan_index_files_stamp() : '',
         'fingerprint'      => $invalidation_sig,
         'plugin_slugs'     => tsootc_options_tab_get_installed_plugin_slugs(),
         'theme_slugs'      => tsootc_options_tab_get_installed_theme_slugs(),
@@ -13243,6 +13624,13 @@ function tsootc_get_extra_table_group_key( $detected ) {
         return '__unknown__';
     }
 
+    // A library bundled by plugins is its own group, never merged into the plugin that hosts it.
+    if ( ! empty( $detected['shared'] ) && ! empty( $detected['folder'] )
+        && function_exists( 'tsootc_is_synthetic_shared_sdk_folder' )
+        && tsootc_is_synthetic_shared_sdk_folder( (string) $detected['folder'] ) ) {
+        return 'shared:' . strtolower( (string) $detected['folder'] );
+    }
+
     if ( ! empty( $detected['file'] ) ) {
         return 'file:' . strtolower( (string) $detected['file'] );
     }
@@ -13375,9 +13763,17 @@ function tsootc_get_orphan_tables() {
         if ( 0 === $detect_score && is_array( $detected ) && function_exists( 'tsootc_table_detection_compute_row_score' ) ) {
             $detect_score = tsootc_table_detection_compute_row_score( $detected, $name_without_prefix, $table, $installed_plugins );
         }
-        $detect_hint = is_array( $detected ) ? (string) ( $detected['hint'] ?? '' ) : '';
+        $detect_hint = is_array( $detected ) ? trim( (string) ( $detected['hint'] ?? '' ) ) : '';
         $detect_needs_confirm = function_exists( 'tsootc_table_detection_row_needs_confirm_action' )
             && tsootc_table_detection_row_needs_confirm_action( $detected, $detect_score );
+        if ( $detect_needs_confirm
+            && '' === $detect_hint
+            && is_array( $detected )
+            && ! empty( $detected['name'] )
+            && function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' )
+            && ! tsootc_detection_is_reserved_unconfirmed_label( (string) $detected['name'] ) ) {
+            $detect_hint = trim( (string) $detected['name'] );
+        }
         $is_custom_table = function_exists( 'tsootc_custom_table_map_get_plugin' )
             && null !== tsootc_custom_table_map_get_plugin( $table );
         $status_key  = tsootc_get_extra_table_status_key( $detected, $installed_plugins, $name_without_prefix );
@@ -14287,7 +14683,7 @@ function tsootc_ajax_get_option_value() {
         // 'allowed_classes' => false: this is the raw value of an arbitrary wp_options row (any
         // installed plugin could own it), so unserializing it for the read-only viewer must not
         // instantiate objects — defends against PHP object-injection gadgets in other plugins' data.
-        $unserialized = @unserialize( $val_str, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+        $unserialized = @unserialize( $val_str, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- allowed_classes=false, read-only viewer of arbitrary option rows.
         if ( $unserialized !== false || $val_str === 'b:0;' ) {
             $parsed = $unserialized;
         }
@@ -14705,50 +15101,6 @@ function tsootc_table_is_hosting_softaculous( $table_without_prefix ) {
         return false;
     }
     return 0 === strpos( $lower, 'softaculous' );
-}
-
-/**
- * Whether an extra table row maps to a plugin file that still exists on disk
- * (under the plugins directory) but is not active on this site or the multisite network.
- *
- * @param array $table_item Row from tsootc_get_orphan_tables().
- * @return bool
- */
-function tsootc_extra_table_plugin_installed_but_inactive( $table_item ) {
-    $plugin_file = isset( $table_item['plugin_file'] ) ? (string) $table_item['plugin_file'] : '';
-    if ( '' === $plugin_file || '' === trim( $plugin_file ) ) {
-        return false;
-    }
-
-    $plugin_file = str_replace( "\0", '', $plugin_file );
-    if ( function_exists( 'validate_file' ) && 0 !== validate_file( $plugin_file ) ) {
-        return false;
-    }
-
-    $full = tsootc_get_plugin_file_path( $plugin_file );
-    $root = tsootc_get_plugins_directory();
-    if ( '' === $full || '' === $root || 0 !== strpos( $full, $root . '/' ) ) {
-        return false;
-    }
-
-    if ( ! is_file( $full ) ) {
-        return false;
-    }
-
-    if ( ! function_exists( 'is_plugin_active' ) ) {
-        require_once ABSPATH . 'wp-admin/includes/plugin.php';
-    }
-
-    $site_active = is_plugin_active( $plugin_file );
-    if ( $site_active ) {
-        return false;
-    }
-
-    if ( function_exists( 'is_plugin_active_for_network' ) && is_multisite() && is_plugin_active_for_network( $plugin_file ) ) {
-        return false;
-    }
-
-    return true;
 }
 
 /**

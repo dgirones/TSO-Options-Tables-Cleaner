@@ -287,14 +287,22 @@ function tsootc_admin_register_assets( $hook_suffix ) {
 		);
 	}
 
+	// Hide third-party admin notices on this screen. Do NOT carve out bare
+	// .notice-success: promo/review nags (Media Cleaner, etc.) use that class and
+	// WordPress core relocates them into #tso-wrap. Only first-party TSO markers stay.
 	$guard  = 'body.tools_page_tso-options-tables-cleaner #wpbody-content > h1{display:none!important;}';
-	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content .notice:not(.notice-success),';
+	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content .notice,';
 	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content .updated,';
 	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content .update-nag,';
 	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content div.error{display:none!important;}';
 	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .tso-notice-success{display:flex!important;}';
 	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .tso-notice-warning{display:flex!important;}';
-	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .notice.notice-success{display:block!important;}';
+	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .tso-notice-info{display:flex!important;}';
+	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .tso-notice-flex{display:flex!important;}';
+	$guard .= 'body.tools_page_tso-options-tables-cleaner #tso-wrap .notice.tsootc-own-notice{display:block!important;}';
+	// Win over page-specific show rules when TSO Admin Notices marked a notice.
+	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content [data-tsoan-hide],';
+	$guard .= 'body.tools_page_tso-options-tables-cleaner #wpbody-content .tsoan-hidden-group{display:none!important;}';
 	wp_add_inline_style( 'tso-options-tables-cleaner-admin', $guard );
 
 	// Night theme last (after tab CSS) so contrast overrides always win.
@@ -318,7 +326,12 @@ function tsootc_admin_register_assets( $hook_suffix ) {
         return;
     }
     function isOwnNotice(el) {
-        return el.classList.contains('notice-success') || el.classList.contains('tso-notice-success') || el.classList.contains('tso-notice-warning');
+        // First-party markers only — never bare .notice-success (promo nags use it).
+        return el.classList.contains('tso-notice-success')
+            || el.classList.contains('tso-notice-warning')
+            || el.classList.contains('tso-notice-info')
+            || el.classList.contains('tso-notice-flex')
+            || el.classList.contains('tsootc-own-notice');
     }
     function hideForeignNotices() {
         var root = document.getElementById('wpbody-content');
@@ -326,7 +339,11 @@ function tsootc_admin_register_assets( $hook_suffix ) {
             return;
         }
         root.querySelectorAll('.notice, .updated, .update-nag, div.error').forEach(function (el) {
-            if (isOwnNotice(el)) {
+            if (el.hasAttribute('data-tsoan-hide') || el.closest('.tsoan-hidden-group')) {
+                el.style.setProperty('display', 'none', 'important');
+                return;
+            }
+            if (el.hasAttribute('data-tsoan-keep') || isOwnNotice(el)) {
                 return;
             }
             if (el.classList.contains('notice') || el.classList.contains('updated') || el.classList.contains('update-nag') || el.classList.contains('error')) {
@@ -365,7 +382,7 @@ function tsootc_admin_get_extra_css() {
 #tso-wrap .tso-nav-top{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;margin-bottom:10px}
 #tso-wrap .tso-main-tabs{display:flex;flex-wrap:wrap;gap:8px;width:100%;max-width:100%;min-width:0;margin:0 0 4px;padding:10px;box-sizing:border-box;overflow:hidden;background:var(--tsootc-surface,#fff);border:1px solid var(--tsootc-border,#e2e4e7);border-radius:12px}
 #tso-wrap .tso-main-tabs .tso-main-tab{display:inline-flex;align-items:center;flex:0 1 auto;min-width:0;max-width:100%;margin:0;border:1px solid var(--tsootc-border,#dcdcde);background:var(--tsootc-surface,#fff);color:var(--tsootc-text,#1d2327);font-size:13px;font-weight:500;line-height:1.35;padding:10px 14px;border-radius:8px;text-decoration:none;box-sizing:border-box}
-#tso-wrap .tso-main-tabs .tso-main-tab.is-active{background:#2271b1!important;border-color:#2271b1!important;color:#fff!important;font-weight:700}
+#tso-wrap .tso-main-tabs .tso-main-tab.is-active{background:var(--tsootc-accent,var(--wp-admin-theme-color,#2271b1))!important;border-color:var(--tsootc-accent,var(--wp-admin-theme-color,#2271b1))!important;color:#fff!important;font-weight:700}
 #tso-wrap .tso-tab-content{clear:both;display:block;width:100%;box-sizing:border-box}
 #tso-wrap .tso-stats-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:24px;width:100%}
 #tso-wrap .tso-actions-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;width:100%}
@@ -430,6 +447,7 @@ function tsootc_admin_get_script_config( $lang ) {
 			'btnLabel'          => tsootc_ui_triple_text( $lang, '🔧 Optimitzar taules fragmentades', '🔧 Optimizar tablas fragmentadas', '🔧 Optimize fragmented tables' ),
 			'headerSep'         => tsootc_ui_triple_text( $lang, '🔧 Resultat de l\'optimització — ', '🔧 Resultado de la optimización — ', '🔧 Optimization result — ' ),
 			'tablesProcessed'   => tsootc_ui_triple_text( $lang, 'taules processades', 'tablas procesadas', 'tables processed' ),
+			'tableProcessed'    => tsootc_ui_triple_text( $lang, 'taula processada', 'tabla procesada', 'table processed' ),
 			'completedNoErrors' => tsootc_ui_triple_text( $lang, '✅ Completat sense errors', '✅ Completado sin errores', '✅ Completed without errors' ),
 			'errorPrefix'       => tsootc_ui_triple_text( $lang, 'Error: ', 'Error: ', 'Error: ' ),
 			'fragWord'          => tsootc_ui_triple_text( $lang, 'fragmentats', 'fragmentados', 'fragmented' ),
@@ -550,12 +568,6 @@ function tsootc_admin_get_script_config( $lang ) {
 	);
 }
 
-/**
- * Options tab localized strings (wp_options UI).
- *
- * @param string $lang UI language.
- * @return array<string,mixed>
- */
 /**
  * Push assign-group list into admin JS after the options payload is built.
  *

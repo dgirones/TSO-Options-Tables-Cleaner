@@ -9,23 +9,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Symbolic stored-option id for cron events paused via this UI.
- *
- * @return string
- */
-function tsootc_cron_paused_option_id() {
-	return TSOOTC_STORED_OPTION_CRON_PAUSED_EVENTS;
-}
-
-/**
- * @deprecated Use {@see tsootc_cron_paused_option_id()} with stored-option-by-id helpers.
- * @return string Symbolic id (not legacy wp_options name).
- */
-function tsootc_cron_paused_option_legacy_key() {
-	return tsootc_cron_paused_option_id();
-}
-
-/**
  * Hooks considered WordPress core maintenance (extra confirmation in UI).
  *
  * @return string[]
@@ -64,6 +47,16 @@ function tsootc_cron_get_core_hooks() {
  */
 function tsootc_cron_make_event_id( $hook, $timestamp, $args ) {
 	return md5( $hook . '|' . (int) $timestamp . '|' . wp_json_encode( $args ) );
+}
+
+/**
+ * Insert soft line-break opportunities after underscores in a cron hook name.
+ *
+ * @param string $hook Hook name.
+ * @return string Unescaped hook with U+200B after each underscore (escape with esc_html() before echo).
+ */
+function tsootc_cron_hook_soft_breaks( $hook ) {
+	return str_replace( '_', "_\u{200B}", (string) $hook );
 }
 
 /**
@@ -642,17 +635,6 @@ function tsootc_cron_guess_source_label_legacy( $hook ) {
 }
 
 /**
- * Guess plugin label from hook prefix (display only).
- *
- * @param string $hook Hook name.
- * @return string
- * @deprecated Use {@see tsootc_cron_detect_hook_source()} instead.
- */
-function tsootc_cron_guess_source_label( $hook ) {
-	return tsootc_cron_detect_hook_source( $hook );
-}
-
-/**
  * AJAX capability + nonce gate.
  *
  * @return bool
@@ -763,23 +745,6 @@ function tsootc_cron_find_event_row( $hook, $timestamp, array $args ) {
 	}
 
 	return null;
-}
-
-/**
- * Schedule slug from POST (prefer schedule helper over generic sanitize_key).
- *
- * @param string $key POST field name.
- * @return string
- * @deprecated Use {@see tsootc_cron_ajax_post_schedule()}.
- */
-function tsootc_cron_ajax_post_key( $key ) {
-	if ( 'schedule' === (string) $key ) {
-		return tsootc_cron_ajax_post_schedule( $key );
-	}
-	if ( ! isset( $_POST[ $key ] ) ) {
-		return '';
-	}
-	return sanitize_key( (string) wp_unslash( $_POST[ $key ] ) );
 }
 
 // phpcs:enable WordPress.Security.NonceVerification.Missing
@@ -1464,7 +1429,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	echo '<button type="submit" class="button tso-u-hidden" tabindex="-1" aria-hidden="true">' . esc_html( tsootc_ui_triple_text( $lang, 'Filtrar', 'Filtrar', 'Filter' ) ) . '</button>';
 	echo '</form>';
 
-	echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat" id="tso-cron-events-table" data-now="' . esc_attr( (string) $now ) . '"><thead><tr>';
+	echo '<div class="tso-table-scroll tso-stack-on-mobile"><table class="tso-tables-grid widefat" id="tso-cron-events-table" data-now="' . esc_attr( (string) $now ) . '"><thead><tr>';
 	echo '<th>' . esc_html( $lbl_hook ) . '</th>';
 	echo '<th>' . esc_html( $lbl_next ) . '</th>';
 	echo '<th>' . esc_html( $lbl_sched ) . '</th>';
@@ -1497,7 +1462,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 		echo ' data-recurring="' . ( ! empty( $ev['is_recurring'] ) ? '1' : '0' ) . '"';
 		echo ' data-overdue="' . ( ! empty( $ev['is_overdue'] ) ? '1' : '0' ) . '"';
 		echo ' data-callback="' . ( $has_cb ? '1' : '0' ) . '">';
-		echo '<td><code class="tso-cron-code">' . esc_html( $hook ) . '</code>';
+		echo '<td class="tso-cron-hook-td" data-label="' . esc_attr( $lbl_hook ) . '"><code class="tso-cron-code">' . esc_html( tsootc_cron_hook_soft_breaks( $hook ) ) . '</code>';
 		if ( $ev['is_core'] ) {
 			echo ' <span class="tso-badge tso-badge-core" title="' . esc_attr( $lbl_core ) . '">' . esc_html( $lbl_core ) . '</span>';
 		}
@@ -1505,7 +1470,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			echo ' <span class="tso-badge tso-cron-badge-orphan" title="' . esc_attr( $lbl_no_cb ) . '">' . esc_html( $lbl_orphan ) . '</span>';
 		}
 		echo '</td>';
-		echo '<td>';
+		echo '<td data-label="' . esc_attr( $lbl_next ) . '">';
 		if ( $ev['is_overdue'] ) {
 			echo '<span class="tso-badge tso-badge-auto">' . esc_html( $lbl_overdue ) . '</span> ';
 		}
@@ -1516,10 +1481,10 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			? esc_html( sprintf( tsootc_ui_triple_text( $lang, 'fa %s', 'hace %s', '%s ago' ), $diff ) )
 			: esc_html( sprintf( tsootc_ui_triple_text( $lang, 'd\'aquí %s', 'dentro de %s', 'in %s' ), $diff ) );
 		echo '</span></td>';
-		echo '<td>' . esc_html( $sched_lbl ) . '</td>';
-		echo '<td><code class="tso-cron-code-sm">' . esc_html( $args_show ) . '</code></td>';
-		echo '<td>' . ( $source ? esc_html( $source ) : '—' ) . '</td>';
-		echo '<td class="tso-tables-actions-td"><div class="tso-tables-actions-rowicons">';
+		echo '<td data-label="' . esc_attr( $lbl_sched ) . '">' . esc_html( $sched_lbl ) . '</td>';
+		echo '<td data-label="' . esc_attr( $lbl_args ) . '"><code class="tso-cron-code-sm">' . esc_html( $args_show ) . '</code></td>';
+		echo '<td data-label="' . esc_attr( $lbl_source ) . '">' . ( $source ? esc_html( $source ) : '—' ) . '</td>';
+		echo '<td class="tso-tables-actions-td" data-label="' . esc_attr( $lbl_actions ) . '"><div class="tso-tables-actions-rowicons">';
 		echo '<button type="button" class="button button-small tso-cron-run" title="' . esc_attr( $title_run ) . '" aria-label="' . esc_attr( $title_run ) . '">▶️</button>';
 		echo '<button type="button" class="button button-small tso-cron-postpone" title="' . esc_attr( $title_post ) . '" aria-label="' . esc_attr( $title_post ) . '">⏳</button>';
 		echo '<button type="button" class="button button-small tso-cron-pause" title="' . esc_attr( $title_pause ) . '" aria-label="' . esc_attr( $title_pause ) . '">⏸️</button>';
@@ -1534,7 +1499,7 @@ function tsootc_cron_render_admin_tab( $lang ) {
 	if ( ! empty( $paused ) ) {
 		echo '<div class="tso-section tso-cron-section-mt">';
 		echo '<h3>⏸️ ' . esc_html( tsootc_ui_triple_text( $lang, 'Esdeveniments pausats', 'Eventos pausados', 'Paused events' ) ) . '</h3>';
-		echo '<div class="tso-table-scroll"><table class="tso-tables-grid widefat"><thead><tr>';
+		echo '<div class="tso-table-scroll tso-stack-on-mobile"><table class="tso-tables-grid widefat"><thead><tr>';
 		echo '<th>' . esc_html( $lbl_hook ) . '</th>';
 		echo '<th>' . esc_html( $lbl_sched ) . '</th>';
 		echo '<th>' . esc_html( $lbl_args ) . '</th>';
@@ -1547,10 +1512,10 @@ function tsootc_cron_render_admin_tab( $lang ) {
 			$sched_key = ! empty( $row['schedule'] ) ? (string) $row['schedule'] : '';
 			$sched_lbl = tsootc_cron_schedule_label( $sched_key, isset( $row['interval'] ) ? (int) $row['interval'] : 0, $lang );
 			echo '<tr data-pause-id="' . esc_attr( $pid ) . '">';
-			echo '<td><code>' . esc_html( $hook ) . '</code></td>';
-			echo '<td>' . esc_html( $sched_lbl ) . '</td>';
-			echo '<td><code class="tso-cron-code-sm">' . esc_html( $args_json ) . '</code></td>';
-			echo '<td class="tso-tables-actions-td"><div class="tso-tables-actions-rowicons">';
+			echo '<td class="tso-cron-hook-td" data-label="' . esc_attr( $lbl_hook ) . '"><code class="tso-cron-code">' . esc_html( tsootc_cron_hook_soft_breaks( $hook ) ) . '</code></td>';
+			echo '<td data-label="' . esc_attr( $lbl_sched ) . '">' . esc_html( $sched_lbl ) . '</td>';
+			echo '<td data-label="' . esc_attr( $lbl_args ) . '"><code class="tso-cron-code-sm">' . esc_html( $args_json ) . '</code></td>';
+			echo '<td class="tso-tables-actions-td" data-label="' . esc_attr( $lbl_actions ) . '"><div class="tso-tables-actions-rowicons">';
 			$title_resume = tsootc_ui_triple_text( $lang, 'Restaurar al cron', 'Restaurar al cron', 'Restore to cron' );
 			$title_drop_p = tsootc_ui_triple_text( $lang, 'Eliminar registre de pausa', 'Eliminar registro de pausa', 'Delete pause record' );
 			echo '<button type="button" class="button button-small tso-cron-resume" title="' . esc_attr( $title_resume ) . '">▶️</button>';

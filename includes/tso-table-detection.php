@@ -1385,10 +1385,55 @@ function tsootc_table_detection_reconcile_prefix_map_row( array $detected, $tabl
 		}
 	}
 
+	// The mapped owner is not installed. Before treating the table as residue, ask the other detectors
+	// (code scan, schema, history): an installed plugin whose code references this table (for example a
+	// bundled library such as Action Scheduler) means the table is still in use.
+	$installed_owner = tsootc_table_detection_find_installed_owner_candidate( $table_without_prefix, $installed_plugins );
+	if ( is_array( $installed_owner ) ) {
+		$detected              = array_merge( $detected, $installed_owner );
+		$detected['installed'] = true;
+		return $detected;
+	}
+
 	$detected['active']    = false;
 	$detected['installed'] = false;
 
 	return $detected;
+}
+
+/**
+ * Best scored candidate that is an installed plugin (evidence from any detector except the prefix map).
+ *
+ * @param string $table_without_prefix Table without site prefix.
+ * @param array  $installed_plugins    Inventory.
+ * @return array|null Detection row or null when no installed plugin reaches the confidence threshold.
+ */
+function tsootc_table_detection_find_installed_owner_candidate( $table_without_prefix, array $installed_plugins = array() ) {
+	global $wpdb;
+
+	$threshold  = defined( 'TSOOTC_DETECTION_SCORE_THRESHOLD' ) ? (int) TSOOTC_DETECTION_SCORE_THRESHOLD : 35;
+	$candidates = tsootc_table_detection_collect_scored_candidates( $table_without_prefix, $wpdb->prefix . $table_without_prefix, $installed_plugins );
+	$candidates = tsootc_table_detection_merge_scored_candidates_by_owner( $candidates );
+	$best_row   = null;
+	$best_score = 0;
+
+	foreach ( $candidates as $candidate ) {
+		$row   = is_array( $candidate['row'] ?? null ) ? $candidate['row'] : array();
+		$file  = (string) ( $row['file'] ?? '' );
+		$score = (int) ( $candidate['score'] ?? 0 );
+		if ( '' === $file || false === strpos( $file, '/' ) || 'table_prefix_map' === (string) ( $row['source'] ?? '' ) ) {
+			continue;
+		}
+		if ( function_exists( 'tsootc_plugin_file_exists' ) && ! tsootc_plugin_file_exists( $file ) ) {
+			continue;
+		}
+		if ( $score >= $threshold && $score > $best_score ) {
+			$best_row   = $row;
+			$best_score = $score;
+		}
+	}
+
+	return $best_row;
 }
 
 /**
@@ -1408,8 +1453,17 @@ function tsootc_table_detection_row_needs_confirm_action( $detected, $score ) {
 		return false;
 	}
 
+	// Same rule as options: Confirm only when there is a real owner candidate.
 	if ( 'unconfirmed' === $source ) {
-		return true;
+		$hint = trim( (string) ( $detected['hint'] ?? '' ) );
+		return '' !== $hint
+			&& ( ! function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' )
+				|| ! tsootc_detection_is_reserved_unconfirmed_label( $hint ) );
+	}
+
+	if ( function_exists( 'tsootc_detection_has_confirmable_candidate' )
+		&& ! tsootc_detection_has_confirmable_candidate( $detected ) ) {
+		return false;
 	}
 
 	$score = (int) $score;

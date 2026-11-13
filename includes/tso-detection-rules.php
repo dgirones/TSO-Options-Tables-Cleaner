@@ -90,12 +90,6 @@ function tsootc_detection_get_branded_rules() {
 			'detail'   => 'Freemius SDK',
 		),
 		array(
-			'id'       => 'action_scheduler',
-			'callable' => 'tsootc_detect_action_scheduler_schema_option',
-			'evidence' => 'branded_rule',
-			'detail'   => 'Action Scheduler schema',
-		),
-		array(
 			'id'       => 'hosting_installer',
 			'callable' => 'tsootc_detect_hosting_installer_option',
 			'evidence' => 'branded_rule',

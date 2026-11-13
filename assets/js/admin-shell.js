@@ -111,6 +111,43 @@ function tsootcParseAjaxJson(text) {
     }
     window.tsootcPost = tsootcPost;
 
+    /**
+     * Shared search match for the options, tables and history filters (same rule as tsootc_search_matches() in PHP).
+     * Every word typed must be found in the text, in any order; hyphens, underscores, dots and spaces are
+     * interchangeable ("widget recent" finds widget_recent-posts). When several words are typed, a number is
+     * matched as a whole number ("wp 3" does not find "wp_30"); from 3 digits on it matches as a prefix.
+     * Words of 1-2 letters only match at the start of a word ("fs" finds fs_accounts, not "offset").
+     *
+     * @param {string} haystack Text to search in.
+     * @param {string} query    Text typed by the user.
+     * @return {boolean}
+     */
+    window.tsootcSearchMatch = function (haystack, query) {
+        var hay = String(haystack || '').toLowerCase();
+        var words = String(query || '').toLowerCase().split(/[\s\-_.,\/\\]+/).filter(Boolean);
+        var i;
+        var word;
+        var found;
+        if (!words.length) {
+            return true;
+        }
+        for (i = 0; i < words.length; i++) {
+            word = words[i];
+            if (words.length > 1 && /^[0-9]+$/.test(word)) {
+                found = new RegExp('(^|[^0-9a-z])' + word + (word.length >= 3 ? '' : '([^0-9]|$)')).test(hay);
+            } else if (word.length <= 2) {
+                // Very short words only match at the start of a word, so "fs" does not find "offset".
+                found = new RegExp('(^|[^0-9a-z])' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(hay);
+            } else {
+                found = hay.indexOf(word) !== -1;
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     window.tsootcFragTpl = function(tpl, vals) {
         if (!tpl) return '';
         var n = (vals && vals.n != null) ? vals.n : '';
@@ -119,7 +156,6 @@ function tsootcParseAjaxJson(text) {
 
     window.tsootcRunOptimize = function() {
         var oj = typeof tsootcOptimizeJs !== 'undefined' ? tsootcOptimizeJs : {};
-        if (!confirm(oj.confirm || '')) return;
         var btn = document.getElementById("tso-btn-optimize");
         if (btn) { btn.disabled = true; btn.textContent = oj.btnBusy || ''; }
         var resDiv = document.getElementById("tso-optimize-results");
@@ -175,7 +211,7 @@ function tsootcParseAjaxJson(text) {
             var hdr  = document.getElementById("tso-optimize-header");
             if (hdr) {
                 hdr.style.display = "flex";
-                hdr.textContent = (oj.headerSep || '') + rows.length + ' ' + (oj.tablesProcessed || '');
+                hdr.textContent = (oj.headerSep || '') + rows.length + ' ' + (rows.length === 1 ? (oj.tableProcessed || oj.tablesProcessed || '') : (oj.tablesProcessed || ''));
             }
             var cont = document.getElementById("tso-optimize-rows");
             if (!cont) return;
@@ -204,25 +240,7 @@ function tsootcParseAjaxJson(text) {
     var tsootcModalRawValue    = '';
     var tsootcModalIsTable     = false;
 
-    function tsootcFormatBrowserDateTime(ts) {
-        var n = parseInt(ts, 10);
-        if (!n) return '';
-        var d = new Date(n * 1000);
-        try {
-            return new Intl.DateTimeFormat(undefined, {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).format(d);
-        } catch (e) {
-            var pad = function(v) { return String(v).padStart(2, '0'); };
-            return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-        }
-    }
-
-    function tsootcRefreshAutoScheduleUi(nextTs, enabled) {
+    function tsootcRefreshAutoScheduleUi(nextTs, enabled, nextText) {
         var nextWrap = document.getElementById('tso-auto-next-wrap');
         var nextValue = document.getElementById('tso-auto-next-value');
         var offWrap = document.getElementById('tso-auto-off-wrap');
@@ -230,7 +248,7 @@ function tsootcParseAjaxJson(text) {
             if (nextTs) {
                 nextWrap.style.display = '';
                 nextWrap.setAttribute('data-ts', String(nextTs));
-                if (nextValue) nextValue.textContent = tsootcFormatBrowserDateTime(nextTs);
+                if (nextValue && nextText) nextValue.textContent = nextText;
             } else {
                 nextWrap.style.display = 'none';
                 nextWrap.setAttribute('data-ts', '0');
@@ -456,12 +474,7 @@ function tsootcParseAjaxJson(text) {
         if (cleanupFlash && cleanupFlash.textContent.trim() !== '') {
             cleanupFlash.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-        var lastWrap = document.getElementById('tso-auto-last-wrap');
-        var lastValue = document.getElementById('tso-auto-last-value');
-        if (lastWrap && lastValue) {
-            var lastTs = parseInt(lastWrap.getAttribute('data-ts') || '0', 10);
-            if (lastTs) lastValue.textContent = tsootcFormatBrowserDateTime(lastTs);
-        }
+        // Dates are rendered by PHP in the site timezone, same as the Status tab.
         var nextWrap = document.getElementById('tso-auto-next-wrap');
         var nextTs = nextWrap ? parseInt(nextWrap.getAttribute('data-ts') || '0', 10) : 0;
         var enabled = !!(document.getElementById('tso-auto-enabled') && document.getElementById('tso-auto-enabled').checked);
@@ -501,10 +514,10 @@ function tsootcParseAjaxJson(text) {
                         msg.textContent = '⚠️ ' + (res.data.msg || '');
                     } else {
                         msg.style.color = '#2e7d32';
-                        msg.textContent = '✅ ' + (nextTs ? (tsootcAutoCleanStrings.savedOk + tsootcFormatBrowserDateTime(nextTs)) : tsootcAutoCleanStrings.savedOff);
+                        msg.textContent = '✅ ' + (nextTs ? (tsootcAutoCleanStrings.savedOk + ((res.data && res.data.next) || '')) : tsootcAutoCleanStrings.savedOff);
                     }
                 }
-                tsootcRefreshAutoScheduleUi(nextTs, effectiveEnabled);
+                tsootcRefreshAutoScheduleUi(nextTs, effectiveEnabled, res.data && res.data.next);
                 tsootcScheduleCleanupCountPreview(tsootcCollectRetentionDaysPayload());
             } else {
                 var errMsg = (res && res.data && res.data.msg) ? res.data.msg : 'Error';
@@ -1675,6 +1688,10 @@ function tsootcParseAjaxJson(text) {
             try { localStorage.setItem('tsootc_ui_theme', preference); } catch (e) { /* ignore */ }
 
             var resolved = this.resolve(preference);
+            if (preference === 'auto') {
+                // Cache for the inline boot script so the next page load paints the right theme at once.
+                try { localStorage.setItem('tsootc_ui_theme_auto', JSON.stringify({ t: resolved, exp: Date.now() + 900000 })); } catch (e3) { /* ignore */ }
+            }
             var wrap = document.getElementById('tso-wrap');
             if (wrap) {
                 wrap.setAttribute('data-theme', resolved);

@@ -147,6 +147,14 @@ function tsootc_get_theme_boot_script() {
 		if (pref === 'day' || pref === 'night') {
 			return pref;
 		}
+		// Auto: reuse the sunrise/sunset result computed by admin-shell.js (cached briefly) so the
+		// first paint matches the final theme; fall back to a fixed 07-20h window only without cache.
+		try {
+			var c = JSON.parse(localStorage.getItem(KEY + '_auto') || 'null');
+			if (c && (c.t === 'day' || c.t === 'night') && c.exp > Date.now()) {
+				return c.t;
+			}
+		} catch (e0) { /* ignore */ }
 		var h = (new Date()).getHours();
 		return (h >= 7 && h < 20) ? 'day' : 'night';
 	}

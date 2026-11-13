@@ -1582,7 +1582,7 @@ function tsootc_do_clean( $action, $args = array() ) {
         case 'expired_transients':
             // Disk savings are recorded inside tsootc_delete_options_by_names() (timeout + value rows).
             $n = tsootc_purge_expired_transients();
-            return sprintf( tsootc_msg( '%d grups de transients expirats eliminats', '%d grupos de transients expirados eliminados', '%d expired transient groups removed' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d grup de transients expirat eliminat', '%d grups de transients expirats eliminats' ), array( '%d grupo de transients expirado eliminado', '%d grupos de transients expirados eliminados' ), array( '%d expired transient group removed', '%d expired transient groups removed' ) );
 
         case 'all_transients':
             $all_trans_bytes = (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -1596,7 +1596,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             tsootc_record_cleanup_disk_savings( $size_before, $all_trans_bytes );
             // UI counts value rows; DELETE also removes timeout rows — report groups when possible.
             $reported = $value_groups > 0 ? $value_groups : $n;
-            return sprintf( tsootc_msg( '%d transients eliminats', '%d transients eliminados', '%d transients deleted' ), $reported );
+            return tsootc_msg_count( (int) ( $reported ), array( '%d transient eliminat', '%d transients eliminats' ), array( '%d transient eliminado', '%d transients eliminados' ), array( '%d transient deleted', '%d transients deleted' ) );
 
         case 'revisions':
             $before = (int) tsootc_count( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision'" );
@@ -1613,7 +1613,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             $after = (int) tsootc_count( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision'" );
             $n     = max( 0, $before - $after );
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d revisions eliminades', '%d revisiones eliminadas', '%d revisions deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d revisió eliminada', '%d revisions eliminades' ), array( '%d revisión eliminada', '%d revisiones eliminadas' ), array( '%d revision deleted', '%d revisions deleted' ) );
 
         case 'revisions_older_than_days':
             $days   = tsootc_get_cleanup_age_days_for_action( 'revisions_older_than_days', $args );
@@ -1668,12 +1668,12 @@ function tsootc_do_clean( $action, $args = array() ) {
                 $n = max( $n, $before_auto - tsootc_count_posts_by_status( 'auto-draft' ) );
             }
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d esborranys automàtics eliminats', '%d borradores automáticos eliminados', '%d auto-drafts deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d esborrany automàtic eliminat', '%d esborranys automàtics eliminats' ), array( '%d borrador automático eliminado', '%d borradores automáticos eliminados' ), array( '%d auto-draft deleted', '%d auto-drafts deleted' ) );
 
         case 'trashed_posts':
             $n = tsootc_delete_posts_by_status( 'trash' );
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d entrades de la paperera eliminades', '%d entradas de la papelera eliminadas', '%d trashed posts deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d entrada de la paperera eliminada', '%d entrades de la paperera eliminades' ), array( '%d entrada de la papelera eliminada', '%d entradas de la papelera eliminadas' ), array( '%d trashed post deleted', '%d trashed posts deleted' ) );
 
         case 'trashed_posts_older_than_days':
             $days   = tsootc_get_cleanup_age_days_for_action( 'trashed_posts_older_than_days', $args );
@@ -1720,12 +1720,12 @@ function tsootc_do_clean( $action, $args = array() ) {
         case 'spam_comments':
             $n = tsootc_delete_comments_by_status( 'spam' );
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d comentaris spam eliminats', '%d comentarios spam eliminados', '%d spam comments deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d comentari spam eliminat', '%d comentaris spam eliminats' ), array( '%d comentario spam eliminado', '%d comentarios spam eliminados' ), array( '%d spam comment deleted', '%d spam comments deleted' ) );
 
         case 'trashed_comments':
             $n = tsootc_delete_comments_by_status( 'trash' );
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d comentaris de la paperera eliminats', '%d comentarios de la papelera eliminados', '%d trashed comments deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d comentari de la paperera eliminat', '%d comentaris de la paperera eliminats' ), array( '%d comentario de la papelera eliminado', '%d comentarios de la papelera eliminados' ), array( '%d trashed comment deleted', '%d trashed comments deleted' ) );
 
         case 'trashed_comments_older_than_days':
             $days   = tsootc_get_cleanup_age_days_for_action( 'trashed_comments_older_than_days', $args );
@@ -1759,22 +1759,22 @@ function tsootc_do_clean( $action, $args = array() ) {
         case 'orphan_postmeta':
             $n = $wpdb->query( "DELETE pm FROM {$wpdb->postmeta} pm LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE p.ID IS NULL AND pm.post_id > 0" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d metadades orfes de postmeta eliminades', '%d metadatos huérfanos de postmeta eliminados', '%d orphan postmeta rows deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d metadada òrfena de postmeta eliminada', '%d metadades òrfenes de postmeta eliminades' ), array( '%d metadato huérfano de postmeta eliminado', '%d metadatos huérfanos de postmeta eliminados' ), array( '%d orphan postmeta row deleted', '%d orphan postmeta rows deleted' ) );
 
         case 'orphan_commentmeta':
             $n = $wpdb->query( "DELETE cm FROM {$wpdb->commentmeta} cm LEFT JOIN {$wpdb->comments} c ON c.comment_ID = cm.comment_id WHERE c.comment_ID IS NULL AND cm.comment_id > 0" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d metadades orfes de commentmeta eliminades', '%d metadatos huérfanos de commentmeta eliminados', '%d orphan commentmeta rows deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d metadada òrfena de commentmeta eliminada', '%d metadades òrfenes de commentmeta eliminades' ), array( '%d metadato huérfano de commentmeta eliminado', '%d metadatos huérfanos de commentmeta eliminados' ), array( '%d orphan commentmeta row deleted', '%d orphan commentmeta rows deleted' ) );
 
         case 'orphan_usermeta':
             $n = $wpdb->query( "DELETE um FROM {$wpdb->usermeta} um LEFT JOIN {$wpdb->users} u ON u.ID = um.user_id WHERE u.ID IS NULL AND um.user_id > 0" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d metadades orfes d\'usermeta eliminades', '%d metadatos huérfanos de usermeta eliminados', '%d orphan usermeta rows deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d metadada òrfena d\'usermeta eliminada', '%d metadades òrfenes d\'usermeta eliminades' ), array( '%d metadato huérfano de usermeta eliminado', '%d metadatos huérfanos de usermeta eliminados' ), array( '%d orphan usermeta row deleted', '%d orphan usermeta rows deleted' ) );
 
         case 'orphan_termmeta':
             $n = $wpdb->query( "DELETE tm FROM {$wpdb->termmeta} tm LEFT JOIN {$wpdb->terms} t ON t.term_id = tm.term_id WHERE t.term_id IS NULL AND tm.term_id > 0" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared
             tsootc_record_cleanup_disk_savings( $size_before );
-            return sprintf( tsootc_msg( '%d metadades orfes de termmeta eliminades', '%d metadatos huérfanos de termmeta eliminados', '%d orphan termmeta rows deleted' ), $n );
+            return tsootc_msg_count( (int) ( $n ), array( '%d metadada òrfena de termmeta eliminada', '%d metadades òrfenes de termmeta eliminades' ), array( '%d metadato huérfano de termmeta eliminado', '%d metadatos huérfanos de termmeta eliminados' ), array( '%d orphan termmeta row deleted', '%d orphan termmeta rows deleted' ) );
 
         case 'optimize_fragmented_tables':
             $opt = tsootc_run_optimize_fragmented_tables();
@@ -1835,7 +1835,7 @@ function tsootc_do_clean( $action, $args = array() ) {
             $raw_names = tsootc_get_ajax_post_mapped_array( 'option_names', 'sanitize_text_field' );
             if ( ! empty( $raw_names ) ) {
                 $result = tsootc_delete_options_by_names( $raw_names );
-                return sprintf( tsootc_msg( '%d opcions eliminades', '%d opciones eliminadas', '%d options deleted' ), (int) $result['deleted'] );
+                return tsootc_msg_count( (int) ( (int) $result['deleted'] ), array( '%d opció eliminada', '%d opcions eliminades' ), array( '%d opción eliminada', '%d opciones eliminadas' ), array( '%d option deleted', '%d options deleted' ) );
             }
             return tsootc_msg( 'Error: cap opció seleccionada', 'Error: ninguna opción seleccionada', 'Error: no options selected' );
 
@@ -1990,7 +1990,7 @@ function tsootc_auto_clean_run() {
     if ( count( $key_map ) !== $before_count ) {
         tsootc_option_key_map_save( $key_map );
         $results[] = sprintf(
-            tsootc_msg( '%d entrades orfes eliminades del mapa d\'opcions', '%d entradas huérfanas eliminadas del mapa de opciones', '%d orphan entries removed from the option map' ),
+            tsootc_msg( '%d entrades òrfenes eliminades del mapa d\'opcions', '%d entradas huérfanas eliminadas del mapa de opciones', '%d orphan entries removed from the option map' ),
             $before_count - count( $key_map )
         );
     }
@@ -2012,7 +2012,7 @@ function tsootc_auto_clean_run() {
         tsootc_update_stored_option_by_id( TSOOTC_STORED_OPTION_TABLE_KEY_MAP, $table_map, false );
         tsootc_get_table_key_map( true );
         $results[] = sprintf(
-            tsootc_msg( '%d entrades orfes eliminades del mapa de taules', '%d entradas huérfanas eliminadas del mapa de tablas', '%d orphan entries removed from the table map' ),
+            tsootc_msg( '%d entrades òrfenes eliminades del mapa de taules', '%d entradas huérfanas eliminadas del mapa de tablas', '%d orphan entries removed from the table map' ),
             $bt - count( $table_map )
         );
     }
@@ -2152,18 +2152,34 @@ function tsootc_auto_clean_register_cron_schedules( $schedules ) {
         $schedules = array();
     }
 
+    /*
+     * Other plugins often call wp_get_schedules() while PHP files are still loading,
+     * before after_setup_theme. Translating here at that moment triggers the WP 6.7
+     * "_load_textdomain_just_in_time was called incorrectly" notice. The interval is
+     * what scheduling needs; the label is translated once init-time callers ask again.
+     */
+    $can_translate = did_action( 'after_setup_theme' );
+    $daily_label   = 'Once daily (TSO Options & Tables Cleaner)';
+    $weekly_label  = 'Once weekly (TSO Options & Tables Cleaner)';
+    $monthly_label = 'Once monthly (TSO Options & Tables Cleaner)';
+    if ( $can_translate ) {
+        $daily_label   = __( 'Once daily (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' );
+        $weekly_label  = __( 'Once weekly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' );
+        $monthly_label = __( 'Once monthly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' );
+    }
+
     $owned = array(
         'tsootc_auto_clean_daily'   => array(
             'interval' => (int) DAY_IN_SECONDS,
-            'display'  => __( 'Once daily (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
+            'display'  => $daily_label,
         ),
         'tsootc_auto_clean_weekly'  => array(
             'interval' => (int) WEEK_IN_SECONDS,
-            'display'  => __( 'Once weekly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
+            'display'  => $weekly_label,
         ),
         'tsootc_auto_clean_monthly' => array(
             'interval' => (int) ( 30 * DAY_IN_SECONDS ),
-            'display'  => __( 'Once monthly (TSO Options & Tables Cleaner)', 'tso-options-tables-cleaner' ),
+            'display'  => $monthly_label,
         ),
     );
 
@@ -2174,16 +2190,6 @@ function tsootc_auto_clean_register_cron_schedules( $schedules ) {
     return $schedules;
 }
 add_filter( 'cron_schedules', 'tsootc_auto_clean_register_cron_schedules' );
-
-/**
- * Back-compat alias — monthly schedule registration lived here historically.
- *
- * @param array<string,array{interval:int,display:string}> $schedules Existing schedules.
- * @return array<string,array{interval:int,display:string}>
- */
-function tsootc_auto_clean_add_monthly_schedule( $schedules ) {
-    return tsootc_auto_clean_register_cron_schedules( $schedules );
-}
 
 /**
  * Read the next scheduled auto-clean event object when available.
@@ -2208,24 +2214,6 @@ function tsootc_auto_clean_get_scheduled_event() {
         'schedule'  => '',
         'hook'      => 'tsootc_auto_clean_cron_hook',
         'args'      => array(),
-    );
-}
-
-/**
- * Whether a cron schedule slug is one of this plugin's auto-clean recurrences.
- *
- * @param string $schedule_slug Schedule key from a cron event.
- * @return bool
- */
-function tsootc_auto_clean_is_owned_schedule_slug( $schedule_slug ) {
-    return in_array(
-        (string) $schedule_slug,
-        array(
-            'tsootc_auto_clean_daily',
-            'tsootc_auto_clean_weekly',
-            'tsootc_auto_clean_monthly',
-        ),
-        true
     );
 }
 
@@ -2373,7 +2361,7 @@ function tsootc_ajax_save_auto_clean() {
     $next = wp_next_scheduled( 'tsootc_auto_clean_cron_hook' );
     wp_send_json_success( array(
         'msg'     => tsootc_msg( 'Desat.', 'Guardado.', 'Saved.' ),
-        'next'    => $next ? date_i18n( get_option( 'date_format' ) . ' H:i', $next ) : '',
+        'next'    => $next ? wp_date( get_option( 'date_format' ) . ' H:i', $next ) : '',
         'next_ts' => $next ? (int) $next : 0,
         'status'  => 'success',
         'enabled' => $enabled && ! empty( $actions ),

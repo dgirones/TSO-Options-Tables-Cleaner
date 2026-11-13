@@ -450,7 +450,44 @@ function tsootc_detection_render_row_badge_html( $source, $score, $lang = 'ca' )
 }
 
 /**
+ * Whether a detection row carries a plugin/theme candidate that Confirm can promote.
+ *
+ * Unconfirmed rows store the weak prior owner in `hint` (name is the reserved
+ * "Unconfirmed" label). Without a usable hint/name/file/folder, Confirm is a no-op.
+ *
+ * @param array|null $detected Detection row.
+ * @return bool
+ */
+function tsootc_detection_has_confirmable_candidate( $detected ) {
+	if ( empty( $detected ) || ! is_array( $detected ) ) {
+		return false;
+	}
+
+	$hint = trim( (string) ( $detected['hint'] ?? '' ) );
+	if ( '' !== $hint
+		&& ( ! function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' )
+			|| ! tsootc_detection_is_reserved_unconfirmed_label( $hint ) ) ) {
+		return true;
+	}
+
+	$name = trim( (string) ( $detected['name'] ?? '' ) );
+	if ( '' !== $name
+		&& ( ! function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' )
+			|| ! tsootc_detection_is_reserved_unconfirmed_label( $name ) ) ) {
+		return true;
+	}
+
+	$file   = trim( (string) ( $detected['file'] ?? '' ) );
+	$folder = trim( (string) ( $detected['folder'] ?? '' ) );
+
+	return '' !== $file || '' !== $folder;
+}
+
+/**
  * Whether a detection row should offer the Confirm action in the UI.
+ *
+ * Confirm means "promote this auto-suggested owner" — never show it when there
+ * is no plugin/theme candidate (e.g. bare "Unconfirmed" / Sense confirmar rows).
  *
  * @param array|null $detected  Detection row.
  * @param int        $score     Confidence score.
@@ -467,8 +504,16 @@ function tsootc_detection_row_needs_confirm_action( $detected, $score, $is_custo
 		return false;
 	}
 
+	// Unconfirmed bucket: only confirm when a weak prior owner was kept in `hint`.
 	if ( 'unconfirmed' === $source ) {
-		return true;
+		$hint = trim( (string) ( $detected['hint'] ?? '' ) );
+		return '' !== $hint
+			&& ( ! function_exists( 'tsootc_detection_is_reserved_unconfirmed_label' )
+				|| ! tsootc_detection_is_reserved_unconfirmed_label( $hint ) );
+	}
+
+	if ( ! tsootc_detection_has_confirmable_candidate( $detected ) ) {
+		return false;
 	}
 
 	$score = (int) $score;

@@ -153,7 +153,7 @@
         var visible = 0;
         Array.prototype.forEach.call(rows, function(row) {
             var hay = row.getAttribute("data-search") || "";
-            var show = !q || hay.indexOf(q) !== -1;
+            var show = !q || window.tsootcSearchMatch(hay, q);
             row.style.display = show ? "" : "none";
             if (!show) {
                 var chk = row.querySelector(".tso-table-chk");
@@ -457,5 +457,28 @@
                 alert((typeof tsootcCommonJs !== 'undefined' ? tsootcCommonJs.errorExportingSql : '') + msg);
             }
         });
+    });
+
+    // Deep table scan is a full page load that can take several seconds: show it is running and ignore repeated clicks.
+    document.addEventListener('click', function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest('.tso-deep-scan-btn') : null;
+        if (!btn) {
+            return;
+        }
+        if (btn.classList.contains('is-busy')) {
+            ev.preventDefault();
+            return;
+        }
+        btn.classList.add('is-busy');
+        btn.setAttribute('aria-busy', 'true');
+        var busyLabel = btn.getAttribute('data-busy-label');
+        if (busyLabel) {
+            btn.textContent = busyLabel;
+        }
+        var note = btn.parentNode ? btn.parentNode.querySelector('.tso-notice-text') : null;
+        var busyNote = btn.getAttribute('data-busy-note');
+        if (note && busyNote) {
+            note.textContent = busyNote;
+        }
     });
 })();
